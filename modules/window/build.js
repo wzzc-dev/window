@@ -18,21 +18,34 @@ function readModuleName() {
 
 const moduleName = readModuleName();
 const macosPackageName = `${moduleName}/macos`;
+const windowsPackageName = `${moduleName}/windows`;
 const examplesUtilPackageName = `${moduleName}/examples/util`;
 const macosFrameworkFlags =
   "-framework AppKit -framework Foundation -framework CoreGraphics -framework CoreVideo -framework ApplicationServices -lobjc";
+const windowsLibFlags =
+  "-luser32 -lgdi32 -lkernel32 -lole32 -loleaut32 -lshell32 -ldwmapi -limm32 -lshcore";
+const isWindows = process.platform === "win32";
+
+const linkConfigs = [
+  {
+    package: macosPackageName,
+    link_flags: macosFrameworkFlags,
+  },
+  {
+    package: examplesUtilPackageName,
+    link_flags: macosFrameworkFlags,
+  },
+];
+
+if (isWindows) {
+  linkConfigs.push({
+    package: windowsPackageName,
+    link_flags: windowsLibFlags,
+  });
+}
 
 console.log(
   JSON.stringify({
-    link_configs: [
-      {
-        package: macosPackageName,
-        link_flags: macosFrameworkFlags,
-      },
-      {
-        package: examplesUtilPackageName,
-        link_flags: macosFrameworkFlags,
-      },
-    ],
+    link_configs: linkConfigs,
   }),
 );
