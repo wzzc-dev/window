@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MoonBit window web</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        background: #101417;
+        color: #eef4f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+        padding: 28px;
+        background:
+          radial-gradient(circle at 20% 15%, rgba(80, 180, 160, 0.32), transparent 28rem),
+          radial-gradient(circle at 90% 10%, rgba(245, 180, 75, 0.22), transparent 24rem),
+          #101417;
+      }
+
+      main {
+        max-width: 960px;
+        display: grid;
+        gap: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 3.2rem);
+        letter-spacing: -0.05em;
+      }
+
+      p {
+        margin: 0;
+        color: #b8c5cc;
+      }
+
+      canvas {
+        width: min(100%, 640px);
+        height: auto;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 16px;
+        background: linear-gradient(135deg, #162026, #0f1316);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+        outline: none;
+      }
+
+      #status {
+        width: fit-content;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.11);
+        color: #dff8ef;
+      }
+
+      #log {
+        min-height: 9rem;
+        max-height: 18rem;
+        overflow: auto;
+        margin: 0;
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.32);
+        color: #d7f7df;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MoonBit window web</h1>
+      <p>
+        This page loads the wasm-gc example, creates a DOM canvas through the
+        Web backend, and mirrors MoonBit println output below.
+      </p>
+      <div id="status">Loading wasm...</div>
+      <pre id="log" aria-live="polite"></pre>
+    </main>
+
+    <script type="module">
+      import {
+        connectWindowWeb,
+        createWindowWebImports,
+      } from "../../web/runtime.js?window-web-dev=1";
+
+      const status = document.querySelector("#status");
+      const log = document.querySelector("#log");
+      const wasmUrl =
+        "../../_build/wasm-gc/debug/build/examples/window_web/window_web.wasm?window-web-dev=1";
+      let line = "";
+
+      const appendLog = message => {
+        log.textContent += `${message}\n`;
+        log.scrollTop = log.scrollHeight;
+      };
+
+      const printChar = value => {
+        const ch = String.fromCodePoint(Number(value));
+        if (ch === "\n") {
+          appendLog(line);
+          line = "";
+        } else {
+          line += ch;
+        }
+      };
+
+      async function instantiateWasm(url, imports) {
+        if (WebAssembly.instantiateStreaming) {
+          try {
+            return await WebAssembly.instantiateStreaming(fetch(url), imports);
+          } catch (error) {
+            console.warn("Falling back to ArrayBuffer wasm loading", error);
+          }
+        }
+        const response = await fetch(url);
+        const bytes = await response.arrayBuffer();
+        return WebAssembly.instantiate(bytes, imports);
+      }
+
+      try {
+        if (!WebAssembly.gc) {
+          appendLog("Note: WebAssembly.gc feature detection is not exposed by every browser.");
+        }
+
+        const windowWeb = createWindowWebImports();
+        const imports = {
+          window_web: windowWeb,
+          spectest: { print_char: printChar },
+        };
+        const { instance } = await instantiateWasm(wasmUrl, imports);
+        connectWindowWeb(instance, windowWeb);
+        instance.exports._start?.();
+        status.textContent = "Running";
+        appendLog("MoonBit wasm started. Try pointer, wheel, focus, resize, and key events.");
+      } catch (error) {
+        status.textContent = "Failed";
+        appendLog(error.stack || String(error));
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>

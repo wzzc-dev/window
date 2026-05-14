@@ -1,0 +1,11 @@
+import {
+  "Milky2018/window/core",
+  "Milky2018/window/dpi",
+}
+
+supported_targets = "wasm-gc"
+
+options(
+  link: { "wasm-gc": { "exports": [ "web_dispatch_event" ] } },
+  targets: { },
+)
