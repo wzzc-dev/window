@@ -10,8 +10,22 @@ The window backend currently targets **native macOS (AppKit)**.
 ## Platform Support
 
 - Supported: `native` target on macOS
-- Placeholder handle types: Windows, Wayland, Xlib, and Xcb
-- Not supported yet: Linux, Windows, and Web window backends
+- Preview: `native` target on Windows
+- Placeholder handle types: Wayland, Xlib, and Xcb
+- Not supported yet: Linux and Web window backends
+
+### Windows Preview
+
+```powershell
+cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+```
+
+```powershell
+where.exe cl
+moon build modules\window\examples\window_windows --target native
+```
+
+
 
 ## Install
 
