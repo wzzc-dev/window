@@ -16,6 +16,8 @@ The window backend currently targets **native macOS (AppKit)**.
 
 ### Windows Preview
 
+#### MSVC
+
 ```powershell
 cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
 ```
@@ -23,6 +25,12 @@ cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliar
 ```powershell
 where.exe cl
 moon build modules\window\examples\window_windows --target native
+```
+#### Mingw
+
+```powershell
+where.exe gcc
+moon build .\examples\window_windows\ --target native   
 ```
 
 
