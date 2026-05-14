@@ -5,16 +5,21 @@ This repository is a MoonBit workspace containing:
 - `modules/window`: the `Milky2018/window` library modeled after `winit`
 - `modules/windowing`: the backend-neutral `Milky2018/windowing` handle module
 
-The window backend currently targets **native macOS (AppKit)**.
+The window module provides native macOS and Windows backends, plus an
+experimental Web backend for `wasm-gc`.
 
 ## Platform Support
 
-- Supported: `native` target on macOS
-- Preview: `native` target on Windows
+- macOS: supported on the `native` target through AppKit (`Milky2018/window/macos`)
+- Windows: preview support on the `native` target through Win32 (`Milky2018/window/windows`)
+- Web: experimental browser support on the `wasm-gc` target (`Milky2018/window/web`)
 - Placeholder handle types: Wayland, Xlib, and Xcb
-- Not supported yet: Linux and Web window backends
+- Not supported yet: Linux and other Unix backends
 
-### Windows Preview
+### Windows Support (Preview)
+
+Use the `Milky2018/window/windows` package for Win32 windows and event loops.
+The Windows backend currently targets MoonBit `native` builds.
 
 #### MSVC
 
@@ -25,14 +30,58 @@ cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliar
 ```powershell
 where.exe cl
 moon build modules\window\examples\window_windows --target native
+moon run modules\window\examples\window_windows --target native
 ```
+
 #### Mingw
 
 ```powershell
 where.exe gcc
-moon build .\examples\window_windows\ --target native   
+moon build .\examples\window_windows\ --target native
+moon run .\examples\window_windows\ --target native
 ```
 
+### Web Support (Experimental)
+
+Use the `Milky2018/window/web` package for browser-hosted `wasm-gc` apps.
+The Web backend follows the winit Web model: a `Window` is backed by an
+`HTMLCanvasElement`, DOM events are mapped into `@core.WindowEvent`, and the
+event loop is driven by browser callbacks instead of blocking the current
+thread.
+
+Build the example:
+
+```bash
+moon build examples/window_web --target wasm-gc
+```
+
+Run the local browser example from the repository root:
+
+```bash
+node examples/window_web/serve.mjs
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8000/examples/window_web/index.html
+```
+
+The generated wasm is loaded from:
+
+```text
+_build/wasm-gc/debug/build/examples/window_web/window_web.wasm
+```
+
+Applications using the Web backend need the browser host glue from
+`web/runtime.js`. The example `index.html` shows the expected import object:
+
+- `window_web: createWindowWebImports()`
+- `spectest.print_char` for MoonBit `println`
+- `connectWindowWeb(instance, windowWeb)` before calling `_start()`
+
+The application package must export `web_dispatch_event`; see
+`examples/window_web/moon.pkg` for the `link.wasm-gc.exports` setting.
 
 
 ## Install
@@ -195,11 +244,39 @@ Import only the subpackages you need:
   `WindowAttributes`, keyboard/mouse/IME data types)
 - `@Milky2018/window/macos`: macOS runtime API (`EventLoop`, `ActiveEventLoop`,
   `Window`, `EventLoopProxy`, `ApplicationHandler`)
+- `@Milky2018/window/windows`: Windows runtime API (`EventLoop`,
+  `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`)
+- `@Milky2018/window/web`: browser `wasm-gc` runtime API (`EventLoop`,
+  `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
+  Web extension APIs for canvas binding and poll strategy selection
 - `@Milky2018/window/dpi`: logical/physical size and position types
 - `@Milky2018/windowing`: structured raw handles and provider traits
 
 `WindowEvent::into_winit_events()` is available when you want a
 `winit`-style compatibility projection.
+
+## Web Caveats
+
+- Web support currently targets browser environments with `wasm-gc`; Node or
+  headless environments without DOM APIs are not the supported runtime.
+- `run_app`/`try_run_app`/`spawn_app` register browser callbacks and return
+  instead of blocking the thread.
+- `ControlFlow::Poll` uses `requestAnimationFrame` by default. `Wait` responds
+  to DOM/proxy wakeups, and `WaitUntil` uses browser timers.
+- Native-only features such as taskbar integration, native decorations, window
+  levels, system menus, native drag-window, exclusive fullscreen, and precise
+  monitor information are intentionally unsupported or no-op on Web.
+- Raw window/display handles return stable placeholder values; use Web
+  extension APIs such as `Window::canvas_id()` for canvas identity.
+
+## Windows Caveats
+
+- Windows support is preview quality and targets desktop Win32 through the
+  MoonBit `native` backend.
+- Use a working C toolchain before building examples. MSVC users should run
+  `vcvarsall.bat`; Mingw users should ensure `gcc` is on `PATH`.
+- Some APIs that are meaningful on macOS or Web may be state-only, no-op, or
+  `NotSupported` on Windows while parity work continues.
 
 ## Rich Event Matching
 
@@ -231,6 +308,8 @@ From the repository root, run:
 
 ```bash
 moon run modules/window/examples/window --target native
+moon run modules/window/examples/window_windows --target native
+moon build modules/window/examples/window_web --target wasm-gc
 ```
 
 ## Validation
