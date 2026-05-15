@@ -12,9 +12,10 @@ experimental Web backend for `wasm-gc`.
 
 - macOS: supported on the `native` target through AppKit (`Milky2018/window/macos`)
 - Windows: preview support on the `native` target through Win32 (`Milky2018/window/windows`)
+- Linux: preview support on the `native` target through Wayland + xdg-shell (`Milky2018/window/linux`)
 - Web: experimental browser support on the `wasm-gc` target (`Milky2018/window/web`)
-- Placeholder handle types: Wayland, Xlib, and Xcb
-- Not supported yet: Linux and other Unix backends
+- Placeholder handle types: Xlib and Xcb
+- Not supported yet: X11 and other Unix backends
 
 ### Windows Support (Preview)
 
@@ -37,8 +38,8 @@ moon run modules\window\examples\window_windows --target native
 
 ```powershell
 where.exe gcc
-moon build .\examples\window_windows\ --target native
-moon run .\examples\window_windows\ --target native
+moon build modules\window\examples\window_windows --target native
+moon run modules\window\examples\window_windows --target native
 ```
 
 ### Web Support (Experimental)
@@ -52,19 +53,19 @@ thread.
 Build the example:
 
 ```bash
-moon build examples/window_web --target wasm-gc
+moon build modules/window/examples/window_web --target wasm-gc
 ```
 
 Run the local browser example from the repository root:
 
 ```bash
-node examples/window_web/serve.mjs
+node modules/window/examples/window_web/serve.mjs
 ```
 
 Then open:
 
 ```text
-http://127.0.0.1:8000/examples/window_web/index.html
+http://127.0.0.1:8000/modules/window/examples/window_web/index.html
 ```
 
 The generated wasm is loaded from:
@@ -74,14 +75,37 @@ _build/wasm-gc/debug/build/examples/window_web/window_web.wasm
 ```
 
 Applications using the Web backend need the browser host glue from
-`web/runtime.js`. The example `index.html` shows the expected import object:
+`modules/window/web/runtime.js`. The example `index.html` shows the expected import object:
 
 - `window_web: createWindowWebImports()`
 - `spectest.print_char` for MoonBit `println`
 - `connectWindowWeb(instance, windowWeb)` before calling `_start()`
 
 The application package must export `web_dispatch_event`; see
-`examples/window_web/moon.pkg` for the `link.wasm-gc.exports` setting.
+`modules/window/examples/window_web/moon.pkg` for the `link.wasm-gc.exports` setting.
+
+### Linux Support (Preview)
+
+Use the `Milky2018/window/linux` package for Wayland windows and event loops.
+The first Linux backend supports Wayland + `xdg-shell` only; X11 is not part of
+this backend.
+
+Install the native development dependencies on Linux:
+
+```bash
+sudo apt install libwayland-dev wayland-protocols wayland-scanner pkg-config
+```
+
+Build and run the example inside a Wayland session or Weston environment:
+
+```bash
+moon build modules/window/examples/window_linux --target native
+moon run modules/window/examples/window_linux --target native
+```
+
+The build script uses `pkg-config` to locate `wayland-client` and
+`wayland-scanner` to generate the `xdg-shell` client protocol files during the
+prebuild step.
 
 
 ## Install
@@ -246,6 +270,9 @@ Import only the subpackages you need:
   `Window`, `EventLoopProxy`, `ApplicationHandler`)
 - `@Milky2018/window/windows`: Windows runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`)
+- `@Milky2018/window/linux`: Linux Wayland runtime API (`EventLoop`,
+  `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
+  Wayland extension APIs exposing display/surface/xdg handles
 - `@Milky2018/window/web`: browser `wasm-gc` runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
   Web extension APIs for canvas binding and poll strategy selection
@@ -277,6 +304,18 @@ Import only the subpackages you need:
   `vcvarsall.bat`; Mingw users should ensure `gcc` is on `PATH`.
 - Some APIs that are meaningful on macOS or Web may be state-only, no-op, or
   `NotSupported` on Windows while parity work continues.
+
+## Linux Caveats
+
+- Linux support currently targets Wayland + `xdg-shell`; X11 is intentionally
+  left unsupported in this package.
+- The first backend attaches a small SHM placeholder buffer so windows map even
+  when the app has not provided a renderer yet.
+- Keyboard events currently expose native XKB key codes without text decoding;
+  text input and IME are future work.
+- Decorations, taskbar integration, system menus, native drag-window, exclusive
+  fullscreen, precise monitor metadata, custom cursors, and rich raw-handle
+  parity are currently unsupported, no-op, or placeholder behavior.
 
 ## Rich Event Matching
 
@@ -310,6 +349,7 @@ From the repository root, run:
 moon run modules/window/examples/window --target native
 moon run modules/window/examples/window_windows --target native
 moon build modules/window/examples/window_web --target wasm-gc
+moon run modules/window/examples/window_linux --target native
 ```
 
 ## Validation
