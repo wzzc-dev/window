@@ -1,0 +1,77 @@
+///|
+struct RecordingApp {
+  events : Array[@core.WindowEvent]
+  mut proxy_wake_count : Int
+}
+
+///|
+pub impl ApplicationHandler for RecordingApp with window_event(
+  self,
+  _event_loop,
+  _window_id,
+  event,
+) {
+  self.events.push(event)
+}
+
+///|
+pub impl ApplicationHandler for RecordingApp with proxy_wake_up(
+  self,
+  _event_loop,
+) {
+  self.proxy_wake_count = self.proxy_wake_count + 1
+}
+
+///|
+fn reset_test_state() -> Unit {
+  app_state_runtime.val = AppStateRuntime::new()
+  event_loop_global_created.val = false
+}
+
+///|
+fn test_active_loop() -> ActiveEventLoop {
+  { inner: { context: (0 : Int).to_uint64(), wake_fd: -1 } }
+}
+
+///|
+test "linux app state allocates window ids and stores control flow" {
+  reset_test_state()
+  assert_eq(app_state_next_window_id(), 1)
+  assert_eq(app_state_next_window_id(), 2)
+  app_state_set_control_flow(@core.ControlFlow::Poll)
+  assert_eq(app_state_control_flow(), @core.ControlFlow::Poll)
+  app_state_set_control_flow(@core.ControlFlow::WaitUntil(1234L))
+  assert_eq(app_state_control_flow(), @core.ControlFlow::WaitUntil(1234L))
+}
+
+///|
+test "linux dispatch maps resize pointer key and redraw" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  dispatch_native_window_event(linux_event_configure, raw_id, 320, 200, 0, 0.0)
+  dispatch_native_input_event(raw_id, linux_event_pointer_move, 12, 34, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 30L)
+  app_state_queue_redraw(raw_id)
+  app_state_queue_redraw(raw_id)
+  app_state_dispatch_redraws(app, active_loop)
+  assert_eq(app.events.length(), 4)
+  assert_true(app.events[0] is @core.WindowEvent::SurfaceResized(_))
+  assert_true(app.events[1] is @core.WindowEvent::PointerMoved(_, _, _, _))
+  assert_true(app.events[2] is @core.WindowEvent::KeyboardInput(_, _, false))
+  assert_true(app.events[3] is @core.WindowEvent::RedrawRequested)
+}
+
+///|
+test "linux dispatch maps proxy wake" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  dispatch_native_window_event(linux_event_proxy_wake, 0, 0, 0, 0, 0.0)
+  assert_eq(app.proxy_wake_count, 1)
+}

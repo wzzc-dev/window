@@ -1,0 +1,812 @@
+///|
+pub struct Window {
+  priv id : @core.WindowId
+  priv handle : UInt64
+  priv mut cursor_visible_state : Bool
+  priv mut cursor_hittest_state : Bool
+  priv mut transparent_state : Bool
+  priv mut blur_state : Bool
+  priv mut decorated_state : Bool
+  priv mut enabled_buttons_state : @core.WindowButtons
+  priv mut window_level_state : @core.WindowLevel
+  priv mut theme_state : @core.Theme?
+  priv mut ime_allowed_state : Bool
+  priv mut ime_hints_state : @core.ImeHint
+  priv mut ime_purpose_state : @core.ImePurpose
+  priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
+}
+
+///|
+pub impl Eq for Window with equal(self, other) {
+  self.id == other.id
+}
+
+///|
+pub type WindowAttributesLinuxAlias = WindowAttributesLinux
+
+///|
+fn default_app_id() -> String {
+  "Milky2018.window"
+}
+
+///|
+fn window_size_from_attributes(
+  attributes : @core.WindowAttributes,
+) -> @dpi.PhysicalSize {
+  match attributes.surface_size() {
+    Some(size) => size.to_physical(1.0)
+    None => linux_nonzero_size(800, 600)
+  }
+}
+
+///|
+pub fn Window::new(
+  event_loop : EventLoop,
+  attributes : @core.WindowAttributes,
+) -> Window raise @core.RequestError {
+  Window::new_with_linux_attributes(
+    event_loop,
+    attributes,
+    WindowAttributesLinux::default(),
+  )
+}
+
+///|
+pub fn Window::new_with_linux_attributes(
+  event_loop : EventLoop,
+  attributes : @core.WindowAttributes,
+  linux_attributes : WindowAttributesLinux,
+) -> Window raise @core.RequestError {
+  let raw_id = app_state_next_window_id()
+  let window_id = @core.WindowId::from_raw(raw_id)
+  let size = window_size_from_attributes(attributes)
+  let title = attributes.title()
+  let app_id = match linux_attributes.app_id() {
+    Some(id) => id
+    None => default_app_id()
+  }
+  let title_bytes = text_bytes(title)
+  let app_id_bytes = text_bytes(app_id)
+  let handle = native_window_create(
+    event_loop.context,
+    raw_id,
+    size.width,
+    size.height,
+    title_bytes,
+    title_bytes.length(),
+    app_id_bytes,
+    app_id_bytes.length(),
+    linux_attributes.use_shm_placeholder(),
+  )
+  if handle == (0 : Int).to_uint64() {
+    raise @core.RequestError::Os
+  }
+  native_window_set_visible(handle, attributes.visible())
+  app_state_register_window_entry({
+    raw_id,
+    handle,
+    title,
+    visible: attributes.visible(),
+    resizable: attributes.resizable(),
+    cursor: attributes.cursor(),
+    fullscreen: attributes.fullscreen(),
+    surface_size: size,
+    scale_factor: 1.0,
+  })
+  {
+    id: window_id,
+    handle,
+    cursor_visible_state: attributes.cursor_visible(),
+    cursor_hittest_state: attributes.cursor_hittest(),
+    transparent_state: attributes.transparent(),
+    blur_state: attributes.blur(),
+    decorated_state: attributes.decorations(),
+    enabled_buttons_state: attributes.enabled_buttons(),
+    window_level_state: attributes.window_level(),
+    theme_state: attributes.theme(),
+    ime_allowed_state: false,
+    ime_hints_state: attributes.ime_hints(),
+    ime_purpose_state: attributes.ime_purpose(),
+    ime_surrounding_text_state: None,
+  }
+}
+
+///|
+fn Window::raw_id(self : Window) -> Int {
+  self.id.into_raw()
+}
+
+///|
+pub fn Window::id(self : Window) -> @core.WindowId {
+  self.id
+}
+
+///|
+pub fn Window::drop(self : Window) -> Unit {
+  native_window_destroy(self.handle)
+  app_state_unregister_window(self.raw_id())
+}
+
+///|
+pub fn Window::set_title(self : Window, title : String) -> Unit {
+  let bytes = text_bytes(title)
+  native_window_set_title(self.handle, bytes, bytes.length())
+  app_state_set_window_title(self.raw_id(), title)
+}
+
+///|
+pub fn Window::title(self : Window) -> String {
+  app_state_window_title(self.raw_id())
+}
+
+///|
+pub fn Window::set_visible(self : Window, visible : Bool) -> Unit {
+  native_window_set_visible(self.handle, visible)
+  app_state_set_window_visible(self.raw_id(), visible)
+}
+
+///|
+pub fn Window::is_visible(self : Window) -> Bool? {
+  app_state_window_visible(self.raw_id())
+}
+
+///|
+pub fn Window::inner_size(self : Window) -> @dpi.PhysicalSize {
+  app_state_window_surface_size(self.raw_id())
+}
+
+///|
+pub fn Window::outer_size(self : Window) -> @dpi.PhysicalSize {
+  self.inner_size()
+}
+
+///|
+pub fn Window::surface_size(self : Window) -> @dpi.PhysicalSize {
+  self.inner_size()
+}
+
+///|
+pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
+  let _ = self
+  @dpi.PhysicalPosition::new(0, 0)
+}
+
+///|
+pub fn Window::surface_position(self : Window) -> @dpi.PhysicalPosition {
+  self.inner_position()
+}
+
+///|
+pub fn Window::outer_position(
+  self : Window,
+) -> @dpi.PhysicalPosition raise @core.RequestError {
+  self.inner_position()
+}
+
+///|
+pub fn Window::set_outer_position(
+  self : Window,
+  _position : @dpi.Position,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::request_inner_size(
+  self : Window,
+  size : @dpi.Size,
+) -> @dpi.PhysicalSize? {
+  let physical = size.to_physical(self.scale_factor())
+  native_window_request_surface_size(
+    self.handle,
+    physical.width,
+    physical.height,
+  )
+  app_state_set_window_surface_size(self.raw_id(), physical)
+  Some(physical)
+}
+
+///|
+pub fn Window::request_surface_size(
+  self : Window,
+  size : @dpi.Size,
+) -> @dpi.PhysicalSize? {
+  self.request_inner_size(size)
+}
+
+///|
+pub fn Window::request_redraw(self : Window) -> Unit {
+  app_state_queue_redraw(self.raw_id())
+}
+
+///|
+pub fn Window::pre_present_notify(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_resizable(self : Window, resizable : Bool) -> Unit {
+  app_state_set_window_resizable(self.raw_id(), resizable)
+}
+
+///|
+pub fn Window::is_resizable(self : Window) -> Bool {
+  app_state_window_resizable(self.raw_id())
+}
+
+///|
+pub fn Window::set_decorations(self : Window, decorations : Bool) -> Unit {
+  self.decorated_state = decorations
+}
+
+///|
+pub fn Window::is_decorated(self : Window) -> Bool {
+  self.decorated_state
+}
+
+///|
+pub fn Window::set_minimized(self : Window, _minimized : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_minimized(self : Window) -> Bool? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::set_maximized(self : Window, _maximized : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_maximized(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::scale_factor(self : Window) -> Double {
+  app_state_window_scale_factor(self.raw_id())
+}
+
+///|
+pub fn Window::set_cursor_icon(
+  self : Window,
+  cursor : @core.CursorIcon,
+) -> Unit {
+  app_state_set_window_cursor(self.raw_id(), @core.Cursor::Icon(cursor))
+}
+
+///|
+pub fn Window::set_cursor(self : Window, cursor : @core.Cursor) -> Unit {
+  app_state_set_window_cursor(self.raw_id(), cursor)
+}
+
+///|
+pub fn Window::cursor(self : Window) -> @core.Cursor {
+  app_state_window_cursor(self.raw_id())
+}
+
+///|
+pub fn Window::set_cursor_visible(self : Window, visible : Bool) -> Unit {
+  self.cursor_visible_state = visible
+}
+
+///|
+pub fn Window::is_cursor_visible(self : Window) -> Bool {
+  self.cursor_visible_state
+}
+
+///|
+pub fn Window::set_cursor_hittest(
+  self : Window,
+  hittest : Bool,
+) -> Unit raise @core.RequestError {
+  self.cursor_hittest_state = hittest
+}
+
+///|
+pub fn Window::is_cursor_hittest(self : Window) -> Bool {
+  self.cursor_hittest_state
+}
+
+///|
+pub fn Window::set_cursor_grab(
+  self : Window,
+  mode : @core.CursorGrabMode,
+) -> Unit raise @core.RequestError {
+  let _ = self
+  match mode {
+    @core.CursorGrabMode::None => ()
+    _ => raise @core.RequestError::NotSupported
+  }
+}
+
+///|
+pub fn Window::set_cursor_position(
+  self : Window,
+  _position : @dpi.Position,
+) -> Unit raise @core.RequestError {
+  let _ = self
+  raise @core.RequestError::NotSupported
+}
+
+///|
+pub fn Window::focus_window(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::has_focus(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_fullscreen(
+  self : Window,
+  fullscreen : @core.Fullscreen?,
+) -> Unit {
+  app_state_set_window_fullscreen(self.raw_id(), fullscreen)
+}
+
+///|
+pub fn Window::fullscreen(self : Window) -> @core.Fullscreen? {
+  app_state_window_fullscreen(self.raw_id())
+}
+
+///|
+pub fn Window::is_fullscreen(self : Window) -> Bool {
+  self.fullscreen() is Some(_)
+}
+
+///|
+pub fn Window::set_window_level(
+  self : Window,
+  level : @core.WindowLevel,
+) -> Unit {
+  self.window_level_state = level
+}
+
+///|
+pub fn Window::window_level(self : Window) -> @core.WindowLevel {
+  self.window_level_state
+}
+
+///|
+pub fn Window::set_enabled_buttons(
+  self : Window,
+  buttons : @core.WindowButtons,
+) -> Unit {
+  self.enabled_buttons_state = buttons
+}
+
+///|
+pub fn Window::enabled_buttons(self : Window) -> @core.WindowButtons {
+  self.enabled_buttons_state
+}
+
+///|
+pub fn Window::set_content_protected(self : Window, _protected : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_content_protected(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_skip_taskbar(self : Window, _skip : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
+  self.ime_allowed_state = allowed
+}
+
+///|
+pub fn Window::ime_allowed(self : Window) -> Bool {
+  self.ime_allowed_state
+}
+
+///|
+pub fn Window::set_ime_cursor_area(
+  self : Window,
+  _position : @dpi.Position,
+  _size : @dpi.Size,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
+  let _ = self
+  @dpi.PhysicalPosition::new(0, 0)
+}
+
+///|
+pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
+  let _ = self
+  @dpi.PhysicalSize::new(0, 0)
+}
+
+///|
+pub fn Window::set_ime_hints(self : Window, hints : @core.ImeHint) -> Unit {
+  self.ime_hints_state = hints
+}
+
+///|
+pub fn Window::ime_hints(self : Window) -> @core.ImeHint {
+  self.ime_hints_state
+}
+
+///|
+pub fn Window::set_ime_purpose(
+  self : Window,
+  purpose : @core.ImePurpose,
+) -> Unit {
+  self.ime_purpose_state = purpose
+}
+
+///|
+pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
+  self.ime_purpose_state
+}
+
+///|
+pub fn Window::request_ime_update(
+  self : Window,
+  _request : @core.ImeRequest,
+) -> Unit raise @core.ImeRequestError {
+  let _ = self
+  raise @core.ImeRequestError::NotSupported
+}
+
+///|
+pub fn Window::ime_capabilities(self : Window) -> @core.ImeCapabilities? {
+  let _ = self
+  Some(@core.ImeCapabilities::new(false, false, false))
+}
+
+///|
+pub fn Window::set_ime_surrounding_text(
+  self : Window,
+  text : @core.ImeSurroundingText?,
+) -> Unit {
+  self.ime_surrounding_text_state = text
+}
+
+///|
+pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
+  self.ime_surrounding_text_state
+}
+
+///|
+pub fn Window::set_has_shadow(self : Window, _shadow : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::has_shadow(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_blur(self : Window, blur : Bool) -> Unit {
+  self.blur_state = blur
+}
+
+///|
+pub fn Window::is_blurred(self : Window) -> Bool {
+  self.blur_state
+}
+
+///|
+pub fn Window::set_transparent(self : Window, transparent : Bool) -> Unit {
+  self.transparent_state = transparent
+}
+
+///|
+pub fn Window::is_transparent(self : Window) -> Bool {
+  self.transparent_state
+}
+
+///|
+pub fn Window::set_theme(self : Window, theme : @core.Theme?) -> Unit {
+  self.theme_state = theme
+}
+
+///|
+pub fn Window::theme(self : Window) -> @core.Theme? {
+  match self.theme_state {
+    Some(theme) => Some(theme)
+    None => theme_from_native(native_context_system_theme(app_state_context()))
+  }
+}
+
+///|
+pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
+  let _ = self
+  raise @core.RequestError::NotSupported
+}
+
+///|
+pub fn Window::drag_resize_window(
+  self : Window,
+  _direction : @core.ResizeDirection,
+) -> Unit raise @core.RequestError {
+  let _ = self
+  raise @core.RequestError::NotSupported
+}
+
+///|
+pub fn Window::request_user_attention(
+  self : Window,
+  _attention_type : @core.UserAttentionType?,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::reset_dead_keys(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::display_handle(self : Window) -> UInt64 {
+  self.rwh_06_display_handle()
+}
+
+///|
+pub fn Window::window_handle(self : Window) -> UInt64 {
+  self.rwh_06_window_handle()
+}
+
+///|
+pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
+  native_window_display_handle(self.handle)
+}
+
+///|
+pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
+  native_window_surface_handle(self.handle)
+}
+
+///|
+pub fn Window::is_occluded(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::is_borderless_game(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_borderless_game(self : Window, _borderless : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
+  let _ = self
+  @core.OptionAsAlt::None
+}
+
+///|
+pub fn Window::set_option_as_alt(
+  self : Window,
+  _option_as_alt : @core.OptionAsAlt,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::unified_titlebar(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_unified_titlebar(self : Window, _unified : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_simple_fullscreen(self : Window, _simple : Bool) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::simple_fullscreen(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::set_window_icon(self : Window, _icon : @core.Icon?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_min_inner_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_max_inner_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_min_surface_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_max_surface_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::min_inner_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::max_inner_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::min_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::max_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::resize_increments(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::set_resize_increments(
+  self : Window,
+  _increments : @dpi.Size?,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::surface_resize_increments(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
+  None
+}
+
+///|
+pub fn Window::set_surface_resize_increments(
+  self : Window,
+  _increments : @dpi.Size?,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
+  let _ = self
+  @dpi.PhysicalInsets::new(0, 0, 0, 0)
+}
+
+///|
+pub fn Window::set_tabbing_identifier(
+  self : Window,
+  _identifier : String,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::tabbing_identifier(self : Window) -> String {
+  let _ = self
+  ""
+}
+
+///|
+pub fn Window::select_next_tab(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::select_previous_tab(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::num_tabs(self : Window) -> Int {
+  let _ = self
+  0
+}
+
+///|
+pub fn Window::set_prefers_home_indicator_hidden(
+  self : Window,
+  _hidden : Bool,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_prefers_status_bar_hidden(
+  self : Window,
+  _hidden : Bool,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_preferred_screen_edges_deferring_system_gestures(
+  self : Window,
+  _edges : @core.ScreenEdge,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::show_window_menu(
+  self : Window,
+  _position : @dpi.Position,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_document_edited(self : Window, _edited : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_document_edited(self : Window) -> Bool {
+  let _ = self
+  false
+}
+
+///|
+pub fn Window::current_monitor(self : Window) -> @core.MonitorHandle? {
+  let _ = self
+  primary_monitor()
+}
+
+///|
+pub fn Window::available_monitors(self : Window) -> Array[@core.MonitorHandle] {
+  let _ = self
+  available_monitors()
+}
+
+///|
+pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
+  let _ = self
+  primary_monitor()
+}
