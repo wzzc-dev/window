@@ -1,0 +1,12 @@
+import {
+  "Milky2018/window/core",
+  "Milky2018/window/dpi",
+  "Milky2018/window/linux",
+}
+
+supported_targets = "native"
+
+options(
+  "is-main": true,
+  targets: { "main.mbt": [ "native" ] },
+)
