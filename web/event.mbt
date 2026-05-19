@@ -44,6 +44,15 @@ let web_event_key_up : Int = 41
 let web_event_ime_commit : Int = 42
 
 ///|
+let web_event_ime_start : Int = 43
+
+///|
+let web_event_ime_preedit : Int = 44
+
+///|
+let web_event_ime_delete_surrounding : Int = 45
+
+///|
 let web_event_theme : Int = 50
 
 ///|
@@ -182,6 +191,12 @@ fn web_key_event(code : String, key : String, pressed : Bool) -> @core.KeyEvent 
   let physical_key = @core.PhysicalKey::from_key_code(
     web_key_code_from_code(code),
   )
+  let text = match logical_key {
+    @core.Key::Character(text) => if text == "" { None } else { Some(text) }
+    @core.Key::Named(@core.NamedKey::Enter) => Some("\r")
+    @core.Key::Named(@core.NamedKey::Tab) => Some("\t")
+    _ => None
+  }
   @core.KeyEvent::new(
     physical_key,
     logical_key,
@@ -189,7 +204,7 @@ fn web_key_event(code : String, key : String, pressed : Bool) -> @core.KeyEvent 
     web_key_location(code),
     web_element_state(pressed),
     false,
-    logical_key.to_text(),
+    text,
     None,
   )
 }
@@ -321,6 +336,27 @@ fn dispatch_web_event(
       app_state_queue_window_event(
         raw_id,
         @core.WindowEvent::Ime(@core.Ime::Commit(text)),
+      )
+    k if k == web_event_ime_start =>
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::Ime(@core.Ime::Enabled),
+      )
+    k if k == web_event_ime_preedit => {
+      let cursor = if arg0 >= 0 && arg1 >= arg0 {
+        Some(@core.ImeCursorRange::new(arg0, arg1))
+      } else {
+        None
+      }
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::Ime(@core.Ime::Preedit(text, cursor)),
+      )
+    }
+    k if k == web_event_ime_delete_surrounding =>
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::Ime(@core.Ime::DeleteSurrounding(arg0, arg1)),
       )
     k if k == web_event_theme => {
       let theme = if arg0 == 1 { @core.Theme::Dark } else { @core.Theme::Light }

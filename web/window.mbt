@@ -11,6 +11,7 @@ pub struct Window {
   priv mut window_level_state : @core.WindowLevel
   priv mut theme_state : @core.Theme?
   priv mut ime_allowed_state : Bool
+  priv mut ime_capabilities_state : @core.ImeCapabilities?
   priv mut ime_hints_state : @core.ImeHint
   priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
@@ -102,6 +103,7 @@ pub fn Window::new_with_web_attributes(
     window_level_state: attributes.window_level(),
     theme_state: attributes.theme(),
     ime_allowed_state: false,
+    ime_capabilities_state: None,
     ime_hints_state: attributes.ime_hints(),
     ime_purpose_state: attributes.ime_purpose(),
     ime_surrounding_text_state: None,
@@ -434,6 +436,18 @@ pub fn Window::set_skip_taskbar(self : Window, _skip : Bool) -> Unit {
 ///|
 pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
   self.ime_allowed_state = allowed
+  if allowed {
+    self.ime_capabilities_state = Some(
+      @core.ImeCapabilities::default()
+      .with_hint_and_purpose()
+      .with_cursor_area()
+      .with_surrounding_text(),
+    )
+  } else {
+    self.ime_capabilities_state = None
+    self.ime_surrounding_text_state = None
+  }
+  web_set_ime_allowed(self.raw_id(), allowed)
 }
 
 ///|
@@ -444,10 +458,18 @@ pub fn Window::ime_allowed(self : Window) -> Bool {
 ///|
 pub fn Window::set_ime_cursor_area(
   self : Window,
-  _position : @dpi.Position,
-  _size : @dpi.Size,
+  position : @dpi.Position,
+  size : @dpi.Size,
 ) -> Unit {
-  let _ = self
+  let logical_position = position.to_logical(self.scale_factor())
+  let logical_size = size.to_logical(self.scale_factor())
+  web_set_ime_cursor_area(
+    self.raw_id(),
+    logical_position.x(),
+    logical_position.y(),
+    logical_size.width().max(1.0),
+    logical_size.height().max(1.0),
+  )
 }
 
 ///|
@@ -488,16 +510,31 @@ pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
 ///|
 pub fn Window::request_ime_update(
   self : Window,
-  _request : @core.ImeRequest,
+  request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
-  let _ = self
-  raise @core.ImeRequestError::NotSupported
+  match request {
+    @core.ImeRequest::Enable(enable_request) => {
+      if self.ime_allowed_state {
+        raise @core.ImeRequestError::AlreadyEnabled
+      }
+      self.ime_allowed_state = true
+      self.ime_capabilities_state = Some(enable_request.capabilities())
+      self.apply_ime_request_data(enable_request.request_data())
+      web_set_ime_allowed(self.raw_id(), true)
+    }
+    @core.ImeRequest::Update(request_data) => {
+      if !self.ime_allowed_state {
+        raise @core.ImeRequestError::NotEnabled
+      }
+      self.apply_ime_request_data(request_data)
+    }
+    @core.ImeRequest::Disable => self.set_ime_allowed(false)
+  }
 }
 
 ///|
 pub fn Window::ime_capabilities(self : Window) -> @core.ImeCapabilities? {
-  let _ = self
-  Some(@core.ImeCapabilities::new(true, false, true))
+  self.ime_capabilities_state
 }
 
 ///|
@@ -506,11 +543,49 @@ pub fn Window::set_ime_surrounding_text(
   text : @core.ImeSurroundingText?,
 ) -> Unit {
   self.ime_surrounding_text_state = text
+  match text {
+    Some(surrounding_text) =>
+      web_set_ime_surrounding_text(
+        self.raw_id(),
+        web_string_to_extern(surrounding_text.text()),
+        surrounding_text.cursor(),
+        surrounding_text.anchor(),
+      )
+    None =>
+      web_set_ime_surrounding_text(
+        self.raw_id(),
+        web_string_to_extern(""),
+        0,
+        0,
+      )
+  }
 }
 
 ///|
 pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
   self.ime_surrounding_text_state
+}
+
+///|
+fn Window::apply_ime_request_data(
+  self : Window,
+  request_data : @core.ImeRequestData,
+) -> Unit {
+  match request_data.hint_and_purpose() {
+    Some((hint, purpose)) => {
+      self.ime_hints_state = hint
+      self.ime_purpose_state = purpose
+    }
+    None => ()
+  }
+  match request_data.cursor_area() {
+    Some((position, size)) => self.set_ime_cursor_area(position, size)
+    None => ()
+  }
+  match request_data.surrounding_text() {
+    Some(text) => self.set_ime_surrounding_text(Some(text))
+    None => ()
+  }
 }
 
 ///|

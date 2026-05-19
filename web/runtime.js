@@ -12,6 +12,7 @@
 export function createWindowWebImports() {
   const canvases = new Map();
   const listeners = new Map();
+  const textInputs = new Map();
   const stringHandles = new Map();
   const eventTexts = new Map();
   let nextCanvasId = 1;
@@ -59,6 +60,53 @@ export function createWindowWebImports() {
       x: Math.round(event.clientX - rect.left),
       y: Math.round(event.clientY - rect.top),
     };
+  };
+
+  const createHiddenTextInput = canvas => {
+    const input = document.createElement("textarea");
+    input.setAttribute("aria-hidden", "true");
+    input.autocomplete = "off";
+    input.autocapitalize = "off";
+    input.spellcheck = false;
+    input.wrap = "off";
+    input.value = "";
+    input.style.position = "fixed";
+    input.style.left = "-10000px";
+    input.style.top = "0";
+    input.style.width = "1px";
+    input.style.height = "1px";
+    input.style.opacity = "0";
+    input.style.pointerEvents = "none";
+    input.style.zIndex = "-1";
+    (canvas.parentElement ?? document.body).appendChild(input);
+    return input;
+  };
+
+  const focusWithoutScroll = element => {
+    try {
+      element?.focus?.({ preventScroll: true });
+    } catch {
+      element?.focus?.();
+    }
+  };
+
+  const shouldForwardTextInputKey = event =>
+    event.key === "Enter" ||
+    event.key === "Tab" ||
+    event.key === "ArrowLeft" ||
+    event.key === "ArrowRight" ||
+    event.key === "ArrowUp" ||
+    event.key === "ArrowDown" ||
+    event.key === "Home" ||
+    event.key === "End" ||
+    event.key === "PageUp" ||
+    event.key === "PageDown" ||
+    event.key === "Escape";
+
+  const inputEventData = event => {
+    if (event.data) return event.data;
+    const value = event.target?.value ?? "";
+    return value;
   };
 
   return {
@@ -172,9 +220,42 @@ export function createWindowWebImports() {
     install_canvas_events(rawId, canvas) {
       if (!canvas) return;
       const handlers = [];
+      const textInput = createHiddenTextInput(canvas);
+      const textState = {
+        input: textInput,
+        canvas,
+        imeAllowed: false,
+        surroundingText: "",
+        surroundingCursor: 0,
+        surroundingAnchor: 0,
+      };
+      textInputs.set(rawId, textState);
+      let composing = false;
+      let compositionText = "";
+      let suppressNextInputText = "";
+      let suppressNextInputUntil = 0;
       const add = (target, type, handler, options) => {
         target.addEventListener(type, handler, options);
         handlers.push([target, type, handler, options]);
+      };
+      const hostHasFocus = () =>
+        document.activeElement === canvas || document.activeElement === textInput;
+      const blurTargetIsHost = event =>
+        event.relatedTarget === canvas || event.relatedTarget === textInput;
+      const emitBlurIfOutsideHost = event => {
+        if (blurTargetIsHost(event)) return;
+        queueMicrotask(() => {
+          if (!hostHasFocus()) {
+            emit(12, rawId);
+          }
+        });
+      };
+      const focusInputTarget = () => {
+        if (textState.imeAllowed) {
+          focusWithoutScroll(textInput);
+        } else {
+          focusWithoutScroll(canvas);
+        }
       };
       add(canvas, "pointerenter", event => {
         const p = pointerPosition(canvas, event);
@@ -189,7 +270,7 @@ export function createWindowWebImports() {
         emit(22, rawId, p.x, p.y);
       });
       add(canvas, "pointerdown", event => {
-        canvas.focus();
+        focusInputTarget();
         const p = pointerPosition(canvas, event);
         emit(23, rawId, p.x, p.y, event.button);
       });
@@ -202,10 +283,117 @@ export function createWindowWebImports() {
         emit(30, rawId, Math.round(event.deltaX), Math.round(event.deltaY));
       }, { passive: false });
       add(canvas, "focus", () => emit(11, rawId));
-      add(canvas, "blur", () => emit(12, rawId));
-      add(canvas, "keydown", event => emit(40, rawId, 0, 0, 0, event.code || event.key || ""));
-      add(canvas, "keyup", event => emit(41, rawId, 0, 0, 0, event.code || event.key || ""));
-      add(canvas, "input", event => emit(42, rawId, 0, 0, 0, event.data || ""));
+      add(canvas, "blur", emitBlurIfOutsideHost);
+      add(canvas, "keydown", event => {
+        if (textState.imeAllowed) {
+          if (event.isComposing || !shouldForwardTextInputKey(event)) {
+            return;
+          }
+          event.preventDefault();
+        }
+        emit(40, rawId, 0, 0, 0, event.key || event.code || "");
+      });
+      add(canvas, "keyup", event => {
+        if (
+          textState.imeAllowed &&
+          (event.isComposing || !shouldForwardTextInputKey(event))
+        ) {
+          return;
+        }
+        emit(41, rawId, 0, 0, 0, event.key || event.code || "");
+      });
+      add(textInput, "keydown", event => {
+        if (event.isComposing || !shouldForwardTextInputKey(event)) {
+          return;
+        }
+        event.preventDefault();
+        emit(40, rawId, 0, 0, 0, event.key || event.code || "");
+      });
+      add(textInput, "keyup", event => {
+        if (event.isComposing || !shouldForwardTextInputKey(event)) {
+          return;
+        }
+        emit(41, rawId, 0, 0, 0, event.key || event.code || "");
+      });
+      add(textInput, "focus", () => emit(11, rawId));
+      add(textInput, "blur", emitBlurIfOutsideHost);
+      add(textInput, "compositionstart", () => {
+        composing = true;
+        compositionText = "";
+        suppressNextInputText = "";
+        suppressNextInputUntil = 0;
+        emit(43, rawId);
+      });
+      add(textInput, "compositionupdate", event => {
+        const text = event.data || "";
+        compositionText = text;
+        emit(44, rawId, 0, text.length, 0, text);
+      });
+      add(textInput, "compositionend", event => {
+        composing = false;
+        const text = event.data || "";
+        compositionText = text;
+        suppressNextInputText = text;
+        suppressNextInputUntil = text ? Date.now() + 250 : 0;
+        emit(42, rawId, 0, 0, 0, text);
+        textInput.value = "";
+      });
+      add(textInput, "beforeinput", event => {
+        if (event.isComposing || composing) {
+          return;
+        }
+        if (event.inputType === "deleteContentBackward") {
+          event.preventDefault();
+          emit(45, rawId, 1, 0);
+        } else if (event.inputType === "deleteContentForward") {
+          event.preventDefault();
+          emit(45, rawId, 0, 1);
+        }
+      });
+      add(textInput, "input", event => {
+        const now = Date.now();
+        if (!composing && now > suppressNextInputUntil) {
+          compositionText = "";
+          suppressNextInputText = "";
+          suppressNextInputUntil = 0;
+        }
+        const data = inputEventData(event);
+        const inputType = event.inputType || "";
+        const composingInput =
+          event.isComposing ||
+          composing ||
+          inputType === "insertCompositionText" ||
+          inputType === "deleteCompositionText";
+        if (composingInput) {
+          return;
+        }
+        const suppressingCompositionInput =
+          inputType === "insertFromComposition" && suppressNextInputText;
+        const suppressingCompositionFragment =
+          compositionText &&
+          (composing || now <= suppressNextInputUntil) &&
+          (data === compositionText || compositionText.endsWith(data));
+        const suppressingDuplicateCommit =
+          suppressNextInputText &&
+          now <= suppressNextInputUntil &&
+          (data === suppressNextInputText || suppressNextInputText.endsWith(data));
+        if (
+          data &&
+          !suppressingCompositionInput &&
+          !suppressingCompositionFragment &&
+          !suppressingDuplicateCommit
+        ) {
+          emit(42, rawId, 0, 0, 0, data);
+        }
+        if (suppressingDuplicateCommit || now > suppressNextInputUntil) {
+          suppressNextInputText = "";
+          suppressNextInputUntil = 0;
+        }
+        if (!composing && now > suppressNextInputUntil) {
+          compositionText = "";
+        }
+        textInput.value = "";
+      });
       add(window, "resize", () => emit(10, rawId, canvas.width, canvas.height));
       const media = window.matchMedia?.("(prefers-color-scheme: dark)");
       if (media) {
@@ -219,6 +407,38 @@ export function createWindowWebImports() {
         target.removeEventListener(type, handler, options);
       }
       listeners.delete(rawId);
+      textInputs.get(rawId)?.input?.remove?.();
+      textInputs.delete(rawId);
+    },
+    set_ime_allowed(rawId, allowed) {
+      const state = textInputs.get(rawId);
+      if (!state) return;
+      state.imeAllowed = !!allowed;
+      if (state.imeAllowed) {
+        focusWithoutScroll(state.input);
+      } else {
+        state.input.value = "";
+        state.input.style.left = "-10000px";
+        state.input.style.top = "0";
+        if (document.activeElement === state.input) {
+          focusWithoutScroll(state.canvas);
+        }
+      }
+    },
+    set_ime_cursor_area(rawId, x, y, width, height) {
+      const state = textInputs.get(rawId);
+      if (!state) return;
+      state.input.style.left = `${Number.isFinite(x) ? x : 0}px`;
+      state.input.style.top = `${Number.isFinite(y) ? y : 0}px`;
+      state.input.style.width = `${Math.max(1, Math.round(width || 1))}px`;
+      state.input.style.height = `${Math.max(1, Math.round(height || 1))}px`;
+    },
+    set_ime_surrounding_text(rawId, text, cursor, anchor) {
+      const state = textInputs.get(rawId);
+      if (!state) return;
+      state.surroundingText = stringValue(text);
+      state.surroundingCursor = cursor | 0;
+      state.surroundingAnchor = anchor | 0;
     },
     system_theme() {
       return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? 1 : 0;
