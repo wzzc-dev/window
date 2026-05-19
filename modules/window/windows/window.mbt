@@ -333,7 +333,7 @@ pub fn Window::new(
     width, height, ex_style, style, x, y, parent_hwnd,
   )
   if hwnd == (0 : Int).to_uint64() {
-    raise @core.RequestError::Os
+    raise @core.RequestError::os("OS error")
   }
   native_set_window_raw_id(hwnd, raw_id)
   match attributes.title() {
@@ -354,8 +354,10 @@ pub fn Window::new(
     fullscreen_state: None,
     ime_capabilities_state: None,
     ime_surrounding_text_state: None,
-    ime_cursor_area_position_state: @dpi.PhysicalPosition::new(0, 0),
-    ime_cursor_area_size_state: @dpi.PhysicalSize::new(1, 1),
+    ime_cursor_area_position_state: @dpi.PhysicalPosition::PhysicalPosition(
+      0, 0,
+    ),
+    ime_cursor_area_size_state: @dpi.PhysicalSize::PhysicalSize(1, 1),
     is_decorated_state: attributes.decorations(),
     is_maximized_state: false,
     is_visible_state: attributes.visible(),
@@ -420,7 +422,7 @@ pub fn Window::inner_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_client_rect_top(self.hwnd)
   let right = native_get_client_rect_right(self.hwnd)
   let bottom = native_get_client_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::new(right - left, bottom - top)
+  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -429,7 +431,7 @@ pub fn Window::outer_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_window_rect_top(self.hwnd)
   let right = native_get_window_rect_right(self.hwnd)
   let bottom = native_get_window_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::new(right - left, bottom - top)
+  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -438,7 +440,7 @@ pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
   let top = native_get_client_rect_top(self.hwnd)
   let x = native_client_to_screen_x(self.hwnd, left, top)
   let y = native_client_to_screen_y(self.hwnd, left, top)
-  @dpi.PhysicalPosition::new(x, y)
+  @dpi.PhysicalPosition::PhysicalPosition(x, y)
 }
 
 ///|
@@ -447,7 +449,7 @@ pub fn Window::outer_position(
 ) -> @dpi.PhysicalPosition raise @core.RequestError {
   let left = native_get_window_rect_left(self.hwnd)
   let top = native_get_window_rect_top(self.hwnd)
-  @dpi.PhysicalPosition::new(left, top)
+  @dpi.PhysicalPosition::PhysicalPosition(left, top)
 }
 
 ///|
@@ -680,7 +682,8 @@ pub fn Window::set_cursor_grab(
       let bottom = native_get_client_rect_bottom(self.hwnd)
       ignore(native_clip_cursor(left, top, right, bottom))
     }
-    @core.CursorGrabMode::Confined => raise @core.RequestError::NotSupported
+    @core.CursorGrabMode::Confined =>
+      raise @core.RequestError::not_supported("Not supported")
   }
 }
 
@@ -855,8 +858,10 @@ pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
   } else {
     self.ime_capabilities_state = None
     self.ime_surrounding_text_state = None
-    self.ime_cursor_area_position_state = @dpi.PhysicalPosition::new(0, 0)
-    self.ime_cursor_area_size_state = @dpi.PhysicalSize::new(1, 1)
+    self.ime_cursor_area_position_state = @dpi.PhysicalPosition::PhysicalPosition(
+      0, 0,
+    )
+    self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(1, 1)
   }
 }
 
@@ -880,7 +885,9 @@ pub fn Window::set_ime_cursor_area(
     1
   }
   self.ime_cursor_area_position_state = physical_position
-  self.ime_cursor_area_size_state = @dpi.PhysicalSize::new(width, height)
+  self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(
+    width, height,
+  )
 }
 
 ///|
@@ -1195,7 +1202,7 @@ pub fn Window::set_surface_resize_increments(
 
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
-  @dpi.PhysicalInsets::new(0, 0, 0, 0)
+  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|

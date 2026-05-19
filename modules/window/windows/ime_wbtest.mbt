@@ -7,8 +7,10 @@ test "windows window ime request state supports enable update disable" {
     fullscreen_state: None,
     ime_capabilities_state: None,
     ime_surrounding_text_state: None,
-    ime_cursor_area_position_state: @dpi.PhysicalPosition::new(0, 0),
-    ime_cursor_area_size_state: @dpi.PhysicalSize::new(1, 1),
+    ime_cursor_area_position_state: @dpi.PhysicalPosition::PhysicalPosition(
+      0, 0,
+    ),
+    ime_cursor_area_size_state: @dpi.PhysicalSize::PhysicalSize(1, 1),
     is_decorated_state: true,
     is_maximized_state: false,
     is_visible_state: true,
@@ -25,15 +27,15 @@ test "windows window ime request state supports enable update disable" {
     saved_window_style: 0,
     saved_window_ex_style: 0,
   }
-  let surrounding = @core.ImeSurroundingText::new("你好", 6, 6) catch {
+  let surrounding = @core.ImeSurroundingText::ImeSurroundingText("你好", 6, 6) catch {
     _ => fail("expected surrounding text")
   }
-  let position = @dpi.LogicalPosition::new(12.0, 18.0).into_position()
-  let size = @dpi.LogicalSize::new(2.0, 20.0).into_size()
+  let position = @dpi.LogicalPosition::LogicalPosition(12.0, 18.0).into_position()
+  let size = @dpi.LogicalSize::LogicalSize(2.0, 20.0).into_size()
   let data = @core.ImeRequestData::default()
     .with_surrounding_text(surrounding)
     .with_cursor_area(position, size)
-  let enable = @core.ImeEnableRequest::new(
+  let enable = @core.ImeEnableRequest::from_capabilities(
     @core.ImeCapabilities::default().with_surrounding_text().with_cursor_area(),
     data,
   )
@@ -47,12 +49,17 @@ test "windows window ime request state supports enable update disable" {
     None => fail("expected surrounding text")
   }
   assert_true(
-    window.ime_cursor_area_position() == @dpi.PhysicalPosition::new(12, 18),
+    window.ime_cursor_area_position() ==
+    @dpi.PhysicalPosition::PhysicalPosition(12, 18),
   )
-  assert_true(window.ime_cursor_area_size() == @dpi.PhysicalSize::new(2, 20))
+  assert_true(
+    window.ime_cursor_area_size() == @dpi.PhysicalSize::PhysicalSize(2, 20),
+  )
   window.request_ime_update(@core.ImeRequest::Disable) catch {
     _ => fail("expected disable")
   }
   inspect(window.ime_allowed(), content="false")
-  assert_true(window.ime_cursor_area_size() == @dpi.PhysicalSize::new(1, 1))
+  assert_true(
+    window.ime_cursor_area_size() == @dpi.PhysicalSize::PhysicalSize(1, 1),
+  )
 }

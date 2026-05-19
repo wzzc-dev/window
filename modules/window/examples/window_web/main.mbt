@@ -10,7 +10,7 @@ pub impl @web.ApplicationHandler for App with can_create_surfaces(
 ) {
   let attributes = @core.WindowAttributes::default()
     .with_title("MoonBit window web")
-    .with_surface_size(@dpi.PhysicalSize::new(640, 360).into_size())
+    .with_surface_size(@dpi.PhysicalSize::PhysicalSize(640, 360).into_size())
   let window = event_loop.create_window(attributes)
   self.window = Some(window)
   window.request_redraw()

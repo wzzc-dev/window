@@ -20,7 +20,7 @@ fn dispatch_native_window_event(
           app_state_queue_window_event(
             raw_id,
             @core.WindowEvent::SurfaceResized(
-              @dpi.PhysicalSize::new(width, height),
+              @dpi.PhysicalSize::PhysicalSize(width, height),
             ),
           )
         }
@@ -30,7 +30,7 @@ fn dispatch_native_window_event(
       let y = arg1
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::Moved(@dpi.PhysicalPosition::new(x, y)),
+        @core.WindowEvent::Moved(@dpi.PhysicalPosition::PhysicalPosition(x, y)),
       )
     }
     5 => app_state_queue_redraw(raw_id)
@@ -44,7 +44,7 @@ fn dispatch_native_window_event(
       let _dpi_y = arg1
       let scale_factor = argd
       let window_id = @core.WindowId::from_raw(raw_id)
-      let new_size = @dpi.PhysicalSize::new(dpi_x * 8, dpi_x * 5)
+      let new_size = @dpi.PhysicalSize::PhysicalSize(dpi_x * 8, dpi_x * 5)
       app_state_queue_callback(
         DeferredCallback::ScaleFactorChanged(
           window_id,
@@ -109,7 +109,7 @@ fn decode_mouse_modifiers(wparam : UInt64) -> @core.Modifiers {
 fn decode_lparam_position(lparam : Int64) -> @dpi.PhysicalPositionF64 {
   let x = (lparam & 0xFFFF : Int64).to_int()
   let y = ((lparam >> 16) & 0xFFFF : Int64).to_int()
-  @dpi.PhysicalPositionF64::new(x.to_double(), y.to_double())
+  @dpi.PhysicalPositionF64::PhysicalPositionF64(x.to_double(), y.to_double())
 }
 
 ///|
@@ -118,7 +118,7 @@ fn decode_lparam_position_signed(lparam : Int64) -> @dpi.PhysicalPositionF64 {
   let y_raw = ((lparam >> 16) & 0xFFFF : Int64).to_int()
   let x = if x_raw > 32767 { x_raw - 65536 } else { x_raw }
   let y = if y_raw > 32767 { y_raw - 65536 } else { y_raw }
-  @dpi.PhysicalPositionF64::new(x.to_double(), y.to_double())
+  @dpi.PhysicalPositionF64::PhysicalPositionF64(x.to_double(), y.to_double())
 }
 
 ///|
@@ -355,7 +355,7 @@ fn dispatch_native_input_event(
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let repeat = ((lparam >> 30) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
-      let key_event = @core.KeyEvent::new(
+      let key_event = @core.KeyEvent::KeyEvent(
         physical_key,
         logical_key,
         logical_key,
@@ -382,7 +382,7 @@ fn dispatch_native_input_event(
       let scan_code = ((lparam >> 16) & 0xFF : Int64).to_int()
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
-      let key_event = @core.KeyEvent::new(
+      let key_event = @core.KeyEvent::KeyEvent(
         physical_key,
         logical_key,
         logical_key,
@@ -409,7 +409,7 @@ fn dispatch_native_input_event(
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
       let repeat = ((lparam >> 30) & 0x1 : Int64).to_int() != 0
-      let key_event = @core.KeyEvent::new(
+      let key_event = @core.KeyEvent::KeyEvent(
         physical_key,
         logical_key,
         logical_key,
@@ -430,7 +430,7 @@ fn dispatch_native_input_event(
       let logical_key = vk_to_logical_key(vk_code)
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
-      let key_event = @core.KeyEvent::new(
+      let key_event = @core.KeyEvent::KeyEvent(
         physical_key,
         logical_key,
         logical_key,

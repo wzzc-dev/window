@@ -48,7 +48,7 @@ fn canvas_for_attributes(
       )
   }
   if !web_canvas_is_valid(canvas) {
-    raise @core.RequestError::Os
+    raise @core.RequestError::os("OS error")
   }
   web_set_canvas_size(canvas, size.width, size.height)
   canvas
@@ -173,7 +173,7 @@ pub fn Window::surface_size(self : Window) -> @dpi.PhysicalSize {
 
 ///|
 pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
-  @dpi.PhysicalPosition::new(
+  @dpi.PhysicalPosition::PhysicalPosition(
     web_canvas_offset_left(self.canvas),
     web_canvas_offset_top(self.canvas),
   )
@@ -349,7 +349,7 @@ pub fn Window::set_cursor_grab(
   let _ = self
   match mode {
     @core.CursorGrabMode::None => ()
-    _ => raise @core.RequestError::NotSupported
+    _ => raise @core.RequestError::not_supported("Not supported")
   }
 }
 
@@ -359,7 +359,7 @@ pub fn Window::set_cursor_position(
   _position : @dpi.Position,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|
@@ -475,13 +475,13 @@ pub fn Window::set_ime_cursor_area(
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
   let _ = self
-  @dpi.PhysicalPosition::new(0, 0)
+  @dpi.PhysicalPosition::PhysicalPosition(0, 0)
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
   let _ = self
-  @dpi.PhysicalSize::new(0, 0)
+  @dpi.PhysicalSize::PhysicalSize(0, 0)
 }
 
 ///|
@@ -635,7 +635,7 @@ pub fn Window::theme(self : Window) -> @core.Theme? {
 ///|
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|
@@ -644,7 +644,7 @@ pub fn Window::drag_resize_window(
   _direction : @core.ResizeDirection,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|
@@ -816,7 +816,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::new(0, 0, 0, 0)
+  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|

@@ -10,7 +10,7 @@ fn web_scale_factor() -> Double {
 
 ///|
 fn web_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
-  @dpi.PhysicalSize::new(
+  @dpi.PhysicalSize::PhysicalSize(
     if width > 0 {
       width
     } else {

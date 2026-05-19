@@ -127,7 +127,7 @@ pub fn EventLoop::try_new_with_platform_attributes(
   }
   let context = native_context_new()
   if context == (0 : Int).to_uint64() {
-    raise @core.EventLoopError::Os
+    raise @core.EventLoopError::os("OS error")
   }
   let wake_fd = native_context_wake_fd(context)
   app_state_set_context(context)
@@ -272,7 +272,7 @@ pub fn EventLoop::create_custom_cursor(
   _source : @core.CustomCursorSource,
 ) -> @core.CustomCursor raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|

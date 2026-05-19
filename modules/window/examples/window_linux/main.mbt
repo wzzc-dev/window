@@ -10,7 +10,7 @@ pub impl @linux.ApplicationHandler for App with can_create_surfaces(
 ) {
   let attrs = @core.WindowAttributes::default()
     .with_title("MoonBit window linux")
-    .with_surface_size(@dpi.PhysicalSize::new(640, 360).into_size())
+    .with_surface_size(@dpi.PhysicalSize::PhysicalSize(640, 360).into_size())
   let linux_attrs = @linux.WindowAttributesLinux::default().with_app_id(
     "Milky2018.window.example",
   )

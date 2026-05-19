@@ -1,12 +1,12 @@
 ///|
 fn available_monitors() -> Array[@core.MonitorHandle] {
   let scale = web_scale_factor()
-  let size = @dpi.PhysicalSize::new(0, 0)
+  let size = @dpi.PhysicalSize::PhysicalSize(0, 0)
   [
-    @core.MonitorHandle::new(
+    @core.MonitorHandle::MonitorHandle(
       (0 : Int).to_uint64(),
       Some("browser viewport"),
-      @dpi.PhysicalPosition::new(0, 0),
+      @dpi.PhysicalPosition::PhysicalPosition(0, 0),
       size,
       scale,
       None,

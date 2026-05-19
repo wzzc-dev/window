@@ -37,9 +37,9 @@ fn available_monitors() -> Array[@core.MonitorHandle] {
     let width = native_monitor_rect_width_at(i)
     let height = native_monitor_rect_height_at(i)
     let scale = native_monitor_scale_factor_at(i)
-    let position = @dpi.PhysicalPosition::new(x, y)
-    let size = @dpi.PhysicalSize::new(width, height)
-    let handle = @core.MonitorHandle::new(
+    let position = @dpi.PhysicalPosition::PhysicalPosition(x, y)
+    let size = @dpi.PhysicalSize::PhysicalSize(width, height)
+    let handle = @core.MonitorHandle::MonitorHandle(
       native_id,
       Some(name),
       position,
@@ -70,11 +70,11 @@ fn primary_monitor() -> @core.MonitorHandle? {
       let height = native_monitor_rect_height_at(i)
       let scale = native_monitor_scale_factor_at(i)
       return Some(
-        @core.MonitorHandle::new(
+        @core.MonitorHandle::MonitorHandle(
           native_id,
           Some(name),
-          @dpi.PhysicalPosition::new(x, y),
-          @dpi.PhysicalSize::new(width, height),
+          @dpi.PhysicalPosition::PhysicalPosition(x, y),
+          @dpi.PhysicalSize::PhysicalSize(width, height),
           scale,
           None,
           [],

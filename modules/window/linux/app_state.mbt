@@ -162,7 +162,7 @@ fn app_state_set_window_surface_size(
 fn app_state_window_surface_size(raw_id : Int) -> @dpi.PhysicalSize {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.surface_size
-    None => @dpi.PhysicalSize::new(1, 1)
+    None => @dpi.PhysicalSize::PhysicalSize(1, 1)
   }
 }
 
