@@ -4,8 +4,10 @@ pub struct Window {
   priv hwnd : UInt64
   priv mut cursor_state : @core.Cursor
   priv mut fullscreen_state : @core.Fullscreen?
-  priv ime_capabilities_state : @core.ImeCapabilities?
+  priv mut ime_capabilities_state : @core.ImeCapabilities?
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
+  priv mut ime_cursor_area_position_state : @dpi.PhysicalPosition
+  priv mut ime_cursor_area_size_state : @dpi.PhysicalSize
   priv mut is_decorated_state : Bool
   priv mut is_maximized_state : Bool
   priv mut is_visible_state : Bool
@@ -352,6 +354,8 @@ pub fn Window::new(
     fullscreen_state: None,
     ime_capabilities_state: None,
     ime_surrounding_text_state: None,
+    ime_cursor_area_position_state: @dpi.PhysicalPosition::new(0, 0),
+    ime_cursor_area_size_state: @dpi.PhysicalSize::new(1, 1),
     is_decorated_state: attributes.decorations(),
     is_maximized_state: false,
     is_visible_state: attributes.visible(),
@@ -841,32 +845,52 @@ pub fn Window::set_skip_taskbar(self : Window, skip : Bool) -> Unit {
 
 ///|
 pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
-  let _ = self
-  let _ = allowed
+  if allowed {
+    self.ime_capabilities_state = Some(
+      @core.ImeCapabilities::default()
+      .with_hint_and_purpose()
+      .with_cursor_area()
+      .with_surrounding_text(),
+    )
+  } else {
+    self.ime_capabilities_state = None
+    self.ime_surrounding_text_state = None
+    self.ime_cursor_area_position_state = @dpi.PhysicalPosition::new(0, 0)
+    self.ime_cursor_area_size_state = @dpi.PhysicalSize::new(1, 1)
+  }
 }
 
 ///|
 pub fn Window::ime_allowed(self : Window) -> Bool {
-  false
+  self.ime_capabilities_state is Some(_)
 }
 
 ///|
 pub fn Window::set_ime_cursor_area(
   self : Window,
-  _position : @dpi.Position,
-  _size : @dpi.Size,
+  position : @dpi.Position,
+  size : @dpi.Size,
 ) -> Unit {
-  let _ = self
+  let physical_position = position.to_physical(self.scale_factor())
+  let physical_size = size.to_physical(self.scale_factor())
+  let width = if physical_size.width() > 0 { physical_size.width() } else { 1 }
+  let height = if physical_size.height() > 0 {
+    physical_size.height()
+  } else {
+    1
+  }
+  self.ime_cursor_area_position_state = physical_position
+  self.ime_cursor_area_size_state = @dpi.PhysicalSize::new(width, height)
 }
 
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
-  @dpi.PhysicalPosition::new(0, 0)
+  self.ime_cursor_area_position_state
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
-  @dpi.PhysicalSize::new(0, 0)
+  self.ime_cursor_area_size_state
 }
 
 ///|
@@ -897,10 +921,24 @@ pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
 ///|
 pub fn Window::request_ime_update(
   self : Window,
-  _request : @core.ImeRequest,
+  request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
-  let _ = self
-  raise @core.ImeRequestError::NotSupported
+  match request {
+    @core.ImeRequest::Enable(enable_request) =>
+      match self.ime_capabilities_state {
+        Some(_) => raise @core.ImeRequestError::AlreadyEnabled
+        None => {
+          self.ime_capabilities_state = Some(enable_request.capabilities())
+          self.apply_ime_request_data(enable_request.request_data())
+        }
+      }
+    @core.ImeRequest::Update(request_data) =>
+      match self.ime_capabilities_state {
+        Some(_) => self.apply_ime_request_data(request_data)
+        None => raise @core.ImeRequestError::NotEnabled
+      }
+    @core.ImeRequest::Disable => self.set_ime_allowed(false)
+  }
 }
 
 ///|
@@ -919,6 +957,21 @@ pub fn Window::set_ime_surrounding_text(
 ///|
 pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
   self.ime_surrounding_text_state
+}
+
+///|
+fn Window::apply_ime_request_data(
+  self : Window,
+  request_data : @core.ImeRequestData,
+) -> Unit {
+  match request_data.surrounding_text() {
+    Some(text) => self.ime_surrounding_text_state = Some(text)
+    None => ()
+  }
+  match request_data.cursor_area() {
+    Some((position, size)) => self.set_ime_cursor_area(position, size)
+    None => ()
+  }
 }
 
 ///|
