@@ -263,7 +263,7 @@ pub fn EventLoop::create_custom_cursor(
   _source : @core.CustomCursorSource,
 ) -> @core.CustomCursor raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|

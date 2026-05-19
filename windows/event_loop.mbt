@@ -125,7 +125,7 @@ pub fn EventLoop::try_new_with_platform_attributes(
   }
   ignore(native_enable_modern_dpi_awareness())
   if native_register_window_class() == 0 {
-    raise @core.EventLoopError::Os
+    raise @core.EventLoopError::os("OS error")
   }
   let msg_window = native_create_msg_window()
   let thread_id = native_get_current_thread_id()
@@ -253,7 +253,7 @@ pub fn EventLoop::create_custom_cursor(
   _source : @core.CustomCursorSource,
 ) -> @core.CustomCursor raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::NotSupported
+  raise @core.RequestError::not_supported("Not supported")
 }
 
 ///|

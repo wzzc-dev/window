@@ -197,7 +197,7 @@ fn web_key_event(code : String, key : String, pressed : Bool) -> @core.KeyEvent 
     @core.Key::Named(@core.NamedKey::Tab) => Some("\t")
     _ => None
   }
-  @core.KeyEvent::new(
+  @core.KeyEvent::KeyEvent(
     physical_key,
     logical_key,
     logical_key,
@@ -229,7 +229,7 @@ fn dispatch_web_event(
     }
     k if k == web_event_proxy_wake => app_state_queue_callback(ProxyWakeUp)
     k if k == web_event_resize => {
-      let size = @dpi.PhysicalSize::new(arg0, arg1)
+      let size = @dpi.PhysicalSize::PhysicalSize(arg0, arg1)
       let old_scale = app_state_window_scale_factor(raw_id)
       app_state_set_window_surface_size(raw_id, size)
       let new_scale = web_scale_factor()
@@ -238,7 +238,7 @@ fn dispatch_web_event(
           raw_id,
           @core.WindowEvent::ScaleFactorChanged(
             new_scale,
-            @core.SurfaceSizeWriter::new(size),
+            @core.SurfaceSizeWriter::SurfaceSizeWriter(size),
           ),
         )
       }
@@ -252,7 +252,7 @@ fn dispatch_web_event(
     k if k == web_event_blur =>
       app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(false))
     k if k == web_event_pointer_enter => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -267,7 +267,7 @@ fn dispatch_web_event(
       )
     }
     k if k == web_event_pointer_move => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -282,7 +282,7 @@ fn dispatch_web_event(
       )
     }
     k if k == web_event_pointer_leave => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -297,7 +297,7 @@ fn dispatch_web_event(
       )
     }
     k if k == web_event_pointer_down || k == web_event_pointer_up => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -318,7 +318,10 @@ fn dispatch_web_event(
         @core.WindowEvent::MouseWheel(
           None,
           @core.MouseScrollDelta::PixelDelta(
-            @dpi.PhysicalPositionF64::new(arg0.to_double(), arg1.to_double()),
+            @dpi.PhysicalPositionF64::PhysicalPositionF64(
+              arg0.to_double(),
+              arg1.to_double(),
+            ),
           ),
           @core.TouchPhase::Moved,
         ),
@@ -344,7 +347,7 @@ fn dispatch_web_event(
       )
     k if k == web_event_ime_preedit => {
       let cursor = if arg0 >= 0 && arg1 >= arg0 {
-        Some(@core.ImeCursorRange::new(arg0, arg1))
+        Some(@core.ImeCursorRange::ImeCursorRange(arg0, arg1))
       } else {
         None
       }

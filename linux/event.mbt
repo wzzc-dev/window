@@ -67,7 +67,7 @@ fn linux_key_event(key_code : Int, pressed : Bool) -> @core.KeyEvent {
   let native_key = @core.NativeKey::Xkb(key_code)
   let physical_key = @core.PhysicalKey::from_native_key_code(native_code)
   let logical_key = @core.Key::from_native(native_key)
-  @core.KeyEvent::new(
+  @core.KeyEvent::KeyEvent(
     physical_key,
     logical_key,
     logical_key,
@@ -134,7 +134,7 @@ fn dispatch_native_input_event(
 ) -> Unit {
   match kind {
     k if k == linux_event_pointer_enter => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -149,7 +149,7 @@ fn dispatch_native_input_event(
       )
     }
     k if k == linux_event_pointer_move => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -174,7 +174,7 @@ fn dispatch_native_input_event(
         ),
       )
     k if k == linux_event_pointer_down || k == linux_event_pointer_up => {
-      let position = @dpi.PhysicalPositionF64::new(
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
@@ -195,7 +195,10 @@ fn dispatch_native_input_event(
         @core.WindowEvent::MouseWheel(
           None,
           @core.MouseScrollDelta::PixelDelta(
-            @dpi.PhysicalPositionF64::new(arg0.to_double(), arg1.to_double()),
+            @dpi.PhysicalPositionF64::PhysicalPositionF64(
+              arg0.to_double(),
+              arg1.to_double(),
+            ),
           ),
           @core.TouchPhase::Moved,
         ),

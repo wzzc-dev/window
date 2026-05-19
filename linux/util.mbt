@@ -1,6 +1,6 @@
 ///|
 fn linux_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
-  @dpi.PhysicalSize::new(
+  @dpi.PhysicalSize::PhysicalSize(
     if width <= 0 {
       1
     } else {

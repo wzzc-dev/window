@@ -213,8 +213,8 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
     WindowEvent(window_id, event) =>
       app.window_event(active_loop, window_id, event)
     ScaleFactorChanged(window_id, scale_factor, dpi_x, dpi_y) => {
-      let size_writer = @core.SurfaceSizeWriter::new(
-        @dpi.PhysicalSize::new(
+      let size_writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(
+        @dpi.PhysicalSize::PhysicalSize(
           dpi_x *
           app_state_scale_factor_for_window(window_id.into_raw()).to_int(),
           dpi_y *
