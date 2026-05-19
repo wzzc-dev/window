@@ -123,4 +123,24 @@ extern "wasm" fn web_install_canvas_events(
 extern "wasm" fn web_remove_canvas_events(raw_id : Int) -> Unit = "window_web" "remove_canvas_events"
 
 ///|
+extern "wasm" fn web_set_ime_allowed(raw_id : Int, allowed : Bool) -> Unit = "window_web" "set_ime_allowed"
+
+///|
+extern "wasm" fn web_set_ime_cursor_area(
+  raw_id : Int,
+  x : Double,
+  y : Double,
+  width : Double,
+  height : Double,
+) -> Unit = "window_web" "set_ime_cursor_area"
+
+///|
+extern "wasm" fn web_set_ime_surrounding_text(
+  raw_id : Int,
+  text : WebString,
+  cursor : Int,
+  anchor : Int,
+) -> Unit = "window_web" "set_ime_surrounding_text"
+
+///|
 extern "wasm" fn web_system_theme() -> Int = "window_web" "system_theme"
