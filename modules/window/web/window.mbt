@@ -48,7 +48,7 @@ fn canvas_for_attributes(
       )
   }
   if !web_canvas_is_valid(canvas) {
-    raise @core.RequestError::os("OS error")
+    raise @core.RequestError::os("Failed to create or find browser canvas")
   }
   web_set_canvas_size(canvas, size.width, size.height)
   canvas
@@ -349,7 +349,10 @@ pub fn Window::set_cursor_grab(
   let _ = self
   match mode {
     @core.CursorGrabMode::None => ()
-    _ => raise @core.RequestError::not_supported("Not supported")
+    _ =>
+      raise @core.RequestError::not_supported(
+        "Browser cursor grab only supports CursorGrabMode::None",
+      )
   }
 }
 
@@ -359,7 +362,9 @@ pub fn Window::set_cursor_position(
   _position : @dpi.Position,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Browser cursor positioning is not supported",
+  )
 }
 
 ///|
@@ -635,7 +640,9 @@ pub fn Window::theme(self : Window) -> @core.Theme? {
 ///|
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Browser drag-window requests are not supported",
+  )
 }
 
 ///|
@@ -644,7 +651,9 @@ pub fn Window::drag_resize_window(
   _direction : @core.ResizeDirection,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Browser drag-resize requests are not supported",
+  )
 }
 
 ///|
