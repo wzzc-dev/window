@@ -272,7 +272,9 @@ pub fn EventLoop::create_custom_cursor(
   _source : @core.CustomCursorSource,
 ) -> @core.CustomCursor raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Linux custom cursors are not supported yet",
+  )
 }
 
 ///|

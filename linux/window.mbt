@@ -79,7 +79,7 @@ pub fn Window::new_with_linux_attributes(
     linux_attributes.use_shm_placeholder(),
   )
   if handle == (0 : Int).to_uint64() {
-    raise @core.RequestError::os("OS error")
+    raise @core.RequestError::os("Linux window creation returned a null handle")
   }
   native_window_set_visible(handle, attributes.visible())
   app_state_register_window_entry({
@@ -320,7 +320,10 @@ pub fn Window::set_cursor_grab(
   let _ = self
   match mode {
     @core.CursorGrabMode::None => ()
-    _ => raise @core.RequestError::not_supported("Not supported")
+    _ =>
+      raise @core.RequestError::not_supported(
+        "Linux cursor grab only supports CursorGrabMode::None",
+      )
   }
 }
 
@@ -330,7 +333,9 @@ pub fn Window::set_cursor_position(
   _position : @dpi.Position,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Linux cursor positioning is not supported yet",
+  )
 }
 
 ///|
@@ -533,7 +538,9 @@ pub fn Window::theme(self : Window) -> @core.Theme? {
 ///|
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Linux drag-window requests are not supported yet",
+  )
 }
 
 ///|
@@ -542,7 +549,9 @@ pub fn Window::drag_resize_window(
   _direction : @core.ResizeDirection,
 ) -> Unit raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Linux drag-resize requests are not supported yet",
+  )
 }
 
 ///|

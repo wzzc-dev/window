@@ -253,7 +253,9 @@ pub fn EventLoop::create_custom_cursor(
   _source : @core.CustomCursorSource,
 ) -> @core.CustomCursor raise @core.RequestError {
   let _ = self
-  raise @core.RequestError::not_supported("Not supported")
+  raise @core.RequestError::not_supported(
+    "Windows custom cursors are not supported yet",
+  )
 }
 
 ///|
@@ -424,12 +426,12 @@ fn[A : ApplicationHandler] EventLoop::run_message_loop(
           native_process_one_message((0 : Int).to_uint64(), 0, 0, pm_remove) !=
           0
         }
-      WaitUntil(ms) =>
+      WaitUntil(_) =>
         match timeout_ms {
           Some(t) if t <= 0 =>
             native_process_one_message((0 : Int).to_uint64(), 0, 0, pm_remove) !=
             0
-          Some(t) => native_wait_timeout_and_process(t.to_uint()) != 0
+          Some(t) => native_wait_timeout_and_process(t.reinterpret_as_uint()) != 0
           None =>
             native_wait_and_process_message((0 : Int).to_uint64(), 0, 0) > 0
         }

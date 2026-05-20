@@ -333,7 +333,7 @@ pub fn Window::new(
     width, height, ex_style, style, x, y, parent_hwnd,
   )
   if hwnd == (0 : Int).to_uint64() {
-    raise @core.RequestError::os("OS error")
+    raise @core.RequestError::os("CreateWindowExW returned a null HWND")
   }
   native_set_window_raw_id(hwnd, raw_id)
   match attributes.title() {
@@ -683,7 +683,9 @@ pub fn Window::set_cursor_grab(
       ignore(native_clip_cursor(left, top, right, bottom))
     }
     @core.CursorGrabMode::Confined =>
-      raise @core.RequestError::not_supported("Not supported")
+      raise @core.RequestError::not_supported(
+        "Windows confined cursor grab is not supported yet",
+      )
   }
 }
 
