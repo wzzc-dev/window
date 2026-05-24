@@ -146,6 +146,36 @@ test "disable_ime_clears_marked_text_query_state" {
 }
 
 ///|
+test "insert_text_commits_without_existing_marked_text" {
+  reset_view_state_for_test()
+
+  let raw_id = 37
+  app_state_set_running(true)
+  app_state_set_handler_in_use(true)
+  app_state_runtime.val.dispatch_callback = Some(fn(_callback) {  })
+  view_set_ime_state(raw_id, view_ime_state_ground)
+
+  native_callback_text_input_event(
+    raw_id,
+    24,
+    0,
+    objc_nsstring_from_string("你"),
+    0,
+    0,
+    (0 : Int).to_uint64(),
+  )
+
+  assert_eq(app_state_runtime.val.deferred_callbacks.length(), 2)
+  match app_state_runtime.val.deferred_callbacks[1] {
+    WindowEvent(window_id, Ime(Commit(text))) => {
+      assert_eq(window_id, @core.WindowId::from_raw(raw_id))
+      assert_eq(text, "你")
+    }
+    _ => fail("expected direct committed ime text")
+  }
+}
+
+///|
 test "pending_key_snapshot_forwards_pressed_keyboard_input" {
   reset_view_state_for_test()
 
