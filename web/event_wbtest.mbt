@@ -86,3 +86,47 @@ test "web dispatch maps ime composition lifecycle" {
     _ => fail("expected ime commit")
   }
 }
+
+///|
+test "web dispatch maps browser file drag drop lifecycle" {
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 9
+  web_dispatch_event(
+    web_event_drag_enter,
+    raw_id,
+    12,
+    24,
+    0.0,
+    "note.md\nimage.png",
+  )
+  web_dispatch_event(web_event_drag_move, raw_id, 16, 32, 0.0, "")
+  web_dispatch_event(web_event_drag_drop, raw_id, 20, 40, 0.0, "note.md")
+  web_dispatch_event(web_event_drag_leave, raw_id, 22, 44, 0.0, "")
+  assert_eq(app.events.length(), 4)
+  match app.events[0] {
+    @core.WindowEvent::DragEntered(paths, { x: 12.0, y: 24.0 }) => {
+      inspect(paths.length(), content="2")
+      inspect(paths[0], content="note.md")
+      inspect(paths[1], content="image.png")
+    }
+    _ => fail("expected drag enter")
+  }
+  match app.events[1] {
+    @core.WindowEvent::DragMoved({ x: 16.0, y: 32.0 }) => ()
+    _ => fail("expected drag move")
+  }
+  match app.events[2] {
+    @core.WindowEvent::DragDropped(paths, { x: 20.0, y: 40.0 }) => {
+      inspect(paths.length(), content="1")
+      inspect(paths[0], content="note.md")
+    }
+    _ => fail("expected drag drop")
+  }
+  match app.events[3] {
+    @core.WindowEvent::DragLeft(Some({ x: 22.0, y: 44.0 })) => ()
+    _ => fail("expected drag leave")
+  }
+}
