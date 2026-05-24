@@ -62,6 +62,12 @@ export function createWindowWebImports() {
     };
   };
 
+  const draggedFileNames = event =>
+    Array.from(event.dataTransfer?.files ?? [])
+      .map(file => file.webkitRelativePath || file.name)
+      .filter(Boolean)
+      .join("\n");
+
   const createHiddenTextInput = canvas => {
     const input = document.createElement("textarea");
     input.setAttribute("aria-hidden", "true");
@@ -238,6 +244,19 @@ export function createWindowWebImports() {
         target.addEventListener(type, handler, options);
         handlers.push([target, type, handler, options]);
       };
+      const acceptFileDrag = event => {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = "copy";
+        }
+      };
+      const emitFileDrag = (kind, event, includeFiles = false) => {
+        acceptFileDrag(event);
+        const p = pointerPosition(canvas, event);
+        emit(kind, rawId, p.x, p.y, 0, includeFiles ? draggedFileNames(event) : "");
+      };
       const hostHasFocus = () =>
         document.activeElement === canvas || document.activeElement === textInput;
       const blurTargetIsHost = event =>
@@ -282,6 +301,10 @@ export function createWindowWebImports() {
         event.preventDefault();
         emit(30, rawId, Math.round(event.deltaX), Math.round(event.deltaY));
       }, { passive: false });
+      add(canvas, "dragenter", event => emitFileDrag(60, event, true));
+      add(canvas, "dragover", event => emitFileDrag(61, event));
+      add(canvas, "drop", event => emitFileDrag(62, event, true));
+      add(canvas, "dragleave", event => emitFileDrag(63, event));
       add(canvas, "focus", () => emit(11, rawId));
       add(canvas, "blur", emitBlurIfOutsideHost);
       add(canvas, "keydown", event => {

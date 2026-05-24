@@ -56,6 +56,18 @@ let web_event_ime_delete_surrounding : Int = 45
 let web_event_theme : Int = 50
 
 ///|
+let web_event_drag_enter : Int = 60
+
+///|
+let web_event_drag_move : Int = 61
+
+///|
+let web_event_drag_drop : Int = 62
+
+///|
+let web_event_drag_leave : Int = 63
+
+///|
 fn web_mouse_button(button : Int) -> @core.MouseButton {
   match @core.MouseButton::try_from_u8(button) {
     Some(mouse) => mouse
@@ -210,6 +222,20 @@ fn web_key_event(code : String, key : String, pressed : Bool) -> @core.KeyEvent 
 }
 
 ///|
+fn web_drag_paths(text : String) -> Array[String] {
+  let paths : Array[String] = []
+  if text != "" {
+    for path_view in text.split("\n") {
+      let path = path_view.to_owned()
+      if path != "" {
+        paths.push(path)
+      }
+    }
+  }
+  paths
+}
+
+///|
 fn dispatch_web_event(
   kind : Int,
   raw_id : Int,
@@ -326,6 +352,46 @@ fn dispatch_web_event(
           @core.TouchPhase::Moved,
         ),
       )
+    k if k == web_event_drag_enter => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::DragEntered(web_drag_paths(text), position),
+      )
+    }
+    k if k == web_event_drag_move => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::DragMoved(position),
+      )
+    }
+    k if k == web_event_drag_drop => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::DragDropped(web_drag_paths(text), position),
+      )
+    }
+    k if k == web_event_drag_leave => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::DragLeft(Some(position)),
+      )
+    }
     k if k == web_event_key_down || k == web_event_key_up =>
       app_state_queue_window_event(
         raw_id,
