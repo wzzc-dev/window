@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/eventfd.h>
@@ -12,6 +13,7 @@
 #include <unistd.h>
 #include <moonbit.h>
 #include <wayland-client.h>
+#include "generated/xdg-decoration-client-protocol.h"
 #include "generated/xdg-shell-client-protocol.h"
 
 typedef void (*mbw_window_event_trampoline_t)(void *closure,
@@ -58,6 +60,7 @@ typedef struct mbw_wayland_context {
   struct wl_pointer *pointer;
   struct wl_keyboard *keyboard;
   struct xdg_wm_base *wm_base;
+  struct zxdg_decoration_manager_v1 *decoration_manager;
   int wake_fd;
   struct mbw_wayland_window *pointer_window;
   struct mbw_wayland_window *keyboard_window;
@@ -70,10 +73,12 @@ typedef struct mbw_wayland_window {
   int32_t height;
   int mapped;
   int configured;
+  int use_shm_placeholder;
   int pending_placeholder;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
   struct xdg_toplevel *xdg_toplevel;
+  struct zxdg_toplevel_decoration_v1 *decoration;
   struct wl_buffer *placeholder_buffer;
   void *placeholder_data;
   size_t placeholder_size;
@@ -203,11 +208,13 @@ static void xdg_surface_configure(void *data, struct xdg_surface *surface,
   xdg_surface_ack_configure(surface, serial);
   if (window) {
     window->configured = 1;
-    if (window->pending_placeholder) {
+    if (window->use_shm_placeholder && window->pending_placeholder) {
       window->pending_placeholder = 0;
       attach_placeholder_buffer(window);
     }
-    attach_placeholder_buffer(window);
+    if (window->use_shm_placeholder) {
+      attach_placeholder_buffer(window);
+    }
     emit_window(MBW_LINUX_EVENT_CONFIGURE, window->raw_id, window->width,
                 window->height, 0, 0.0);
   }
@@ -247,6 +254,18 @@ static void xdg_toplevel_close(void *data,
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .configure = xdg_toplevel_configure,
     .close = xdg_toplevel_close,
+};
+
+static void decoration_configure(
+    void *data, struct zxdg_toplevel_decoration_v1 *decoration,
+    uint32_t mode) {
+  (void)data;
+  (void)decoration;
+  (void)mode;
+}
+
+static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
+    .configure = decoration_configure,
 };
 
 static void pointer_enter(void *data, struct wl_pointer *pointer,
@@ -329,12 +348,44 @@ static void pointer_axis(void *data, struct wl_pointer *pointer,
   }
 }
 
+static void pointer_frame(void *data, struct wl_pointer *pointer) {
+  (void)data;
+  (void)pointer;
+}
+
+static void pointer_axis_source(void *data, struct wl_pointer *pointer,
+                                uint32_t axis_source) {
+  (void)data;
+  (void)pointer;
+  (void)axis_source;
+}
+
+static void pointer_axis_stop(void *data, struct wl_pointer *pointer,
+                              uint32_t time, uint32_t axis) {
+  (void)data;
+  (void)pointer;
+  (void)time;
+  (void)axis;
+}
+
+static void pointer_axis_discrete(void *data, struct wl_pointer *pointer,
+                                  uint32_t axis, int32_t discrete) {
+  (void)data;
+  (void)pointer;
+  (void)axis;
+  (void)discrete;
+}
+
 static const struct wl_pointer_listener pointer_listener = {
     .enter = pointer_enter,
     .leave = pointer_leave,
     .motion = pointer_motion,
     .button = pointer_button,
     .axis = pointer_axis,
+    .frame = pointer_frame,
+    .axis_source = pointer_axis_source,
+    .axis_stop = pointer_axis_stop,
+    .axis_discrete = pointer_axis_discrete,
 };
 
 static void keyboard_keymap(void *data, struct wl_keyboard *keyboard,
@@ -484,6 +535,10 @@ static void registry_global(void *data, struct wl_registry *registry,
     context->wm_base =
         wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
     xdg_wm_base_add_listener(context->wm_base, &wm_base_listener, context);
+  } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) ==
+             0) {
+    context->decoration_manager = wl_registry_bind(
+        registry, name, &zxdg_decoration_manager_v1_interface, 1);
   }
 }
 
@@ -538,6 +593,9 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   }
   if (context->seat) {
     wl_seat_destroy(context->seat);
+  }
+  if (context->decoration_manager) {
+    zxdg_decoration_manager_v1_destroy(context->decoration_manager);
   }
   if (context->wm_base) {
     xdg_wm_base_destroy(context->wm_base);
@@ -596,6 +654,10 @@ int32_t mbw_wayland_context_dispatch(uint64_t raw_context, int32_t timeout_ms) {
   }
   if (timeout_ms == 0) {
     int ret = wl_display_dispatch_pending(context->display);
+    if (ret < 0) {
+      fprintf(stderr, "Wayland dispatch pending failed: errno=%d error=%d\n",
+              errno, wl_display_get_error(context->display));
+    }
     wl_display_flush(context->display);
     return ret;
   }
@@ -619,9 +681,19 @@ int32_t mbw_wayland_context_dispatch(uint64_t raw_context, int32_t timeout_ms) {
     emit_window(MBW_LINUX_EVENT_PROXY_WAKE, 0, 0, 0, 0, 0.0);
   }
   if (fds[0].revents & POLLIN) {
-    return wl_display_dispatch(context->display);
+    int dispatch_ret = wl_display_dispatch(context->display);
+    if (dispatch_ret < 0) {
+      fprintf(stderr, "Wayland dispatch failed: errno=%d error=%d\n", errno,
+              wl_display_get_error(context->display));
+    }
+    return dispatch_ret;
   }
-  return wl_display_dispatch_pending(context->display);
+  int pending_ret = wl_display_dispatch_pending(context->display);
+  if (pending_ret < 0) {
+    fprintf(stderr, "Wayland dispatch pending failed: errno=%d error=%d\n",
+            errno, wl_display_get_error(context->display));
+  }
+  return pending_ret;
 }
 
 MOONBIT_FFI_EXPORT
@@ -641,6 +713,7 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
                                    int32_t width, int32_t height,
                                    const uint8_t *title, int32_t title_len,
                                    const uint8_t *app_id, int32_t app_id_len,
+                                   int decorations,
                                    int use_shm_placeholder) {
   mbw_wayland_context_t *context =
       (mbw_wayland_context_t *)(uintptr_t)raw_context;
@@ -656,6 +729,7 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   window->raw_id = raw_id;
   window->width = width > 0 ? width : 1;
   window->height = height > 0 ? height : 1;
+  window->use_shm_placeholder = use_shm_placeholder ? 1 : 0;
   window->surface = wl_compositor_create_surface(context->compositor);
   if (!window->surface) {
     free(window);
@@ -677,6 +751,18 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   if (app_id_c) {
     xdg_toplevel_set_app_id(window->xdg_toplevel, app_id_c);
     free(app_id_c);
+  }
+  if (context->decoration_manager && decorations) {
+    window->decoration =
+        zxdg_decoration_manager_v1_get_toplevel_decoration(
+            context->decoration_manager, window->xdg_toplevel);
+    if (window->decoration) {
+      zxdg_toplevel_decoration_v1_add_listener(window->decoration,
+                                               &decoration_listener, window);
+      zxdg_toplevel_decoration_v1_set_mode(
+          window->decoration,
+          ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    }
   }
   wl_surface_commit(window->surface);
   if (use_shm_placeholder) {
@@ -724,6 +810,9 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
   }
   if (window->placeholder_data && window->placeholder_size > 0) {
     munmap(window->placeholder_data, window->placeholder_size);
+  }
+  if (window->decoration) {
+    zxdg_toplevel_decoration_v1_destroy(window->decoration);
   }
   if (window->xdg_toplevel) {
     xdg_toplevel_destroy(window->xdg_toplevel);
@@ -785,6 +874,59 @@ void mbw_wayland_window_set_title(uint64_t raw_window, const uint8_t *title,
 }
 
 MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_decorations(uint64_t raw_window, int decorations) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->context || !window->xdg_toplevel) {
+    return;
+  }
+  if (!window->context->decoration_manager) {
+    return;
+  }
+  if (!window->decoration) {
+    window->decoration =
+        zxdg_decoration_manager_v1_get_toplevel_decoration(
+            window->context->decoration_manager, window->xdg_toplevel);
+    if (!window->decoration) {
+      return;
+    }
+    zxdg_toplevel_decoration_v1_add_listener(window->decoration,
+                                             &decoration_listener, window);
+  }
+  zxdg_toplevel_decoration_v1_set_mode(
+      window->decoration,
+      decorations ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
+                  : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+  wl_surface_commit(window->surface);
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_minimized(uint64_t raw_window, int minimized) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->xdg_toplevel || !minimized) {
+    return;
+  }
+  xdg_toplevel_set_minimized(window->xdg_toplevel);
+  wl_surface_commit(window->surface);
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_maximized(uint64_t raw_window, int maximized) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->xdg_toplevel) {
+    return;
+  }
+  if (maximized) {
+    xdg_toplevel_set_maximized(window->xdg_toplevel);
+  } else {
+    xdg_toplevel_unset_maximized(window->xdg_toplevel);
+  }
+  wl_surface_commit(window->surface);
+}
+
+MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_visible(uint64_t raw_window, int visible) {
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)(uintptr_t)raw_window;
@@ -811,8 +953,8 @@ MOONBIT_FFI_EXPORT
 void mbw_wayland_window_request_redraw(uint64_t raw_window) {
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)(uintptr_t)raw_window;
-  if (window) {
-    emit_window(MBW_LINUX_EVENT_REDRAW, window->raw_id, 0, 0, 0, 0.0);
+  if (window && window->context) {
+    mbw_wayland_context_wake((uint64_t)(uintptr_t)window->context);
   }
 }
 
@@ -880,6 +1022,7 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
                                    int32_t width, int32_t height,
                                    const uint8_t *title, int32_t title_len,
                                    const uint8_t *app_id, int32_t app_id_len,
+                                   int decorations,
                                    int use_shm_placeholder) {
   (void)raw_context;
   (void)raw_id;
@@ -889,6 +1032,7 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   (void)title_len;
   (void)app_id;
   (void)app_id_len;
+  (void)decorations;
   (void)use_shm_placeholder;
   return 0;
 }
@@ -927,6 +1071,21 @@ void mbw_wayland_window_set_title(uint64_t raw_window, const uint8_t *title,
   (void)raw_window;
   (void)title;
   (void)title_len;
+}
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_decorations(uint64_t raw_window, int decorations) {
+  (void)raw_window;
+  (void)decorations;
+}
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_minimized(uint64_t raw_window, int minimized) {
+  (void)raw_window;
+  (void)minimized;
+}
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_maximized(uint64_t raw_window, int maximized) {
+  (void)raw_window;
+  (void)maximized;
 }
 MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_visible(uint64_t raw_window, int visible) {

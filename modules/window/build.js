@@ -66,10 +66,10 @@ function runRequired(command, args, description) {
   }
 }
 
-function ensureXdgShellProtocol() {
+function ensureWaylandProtocol(name, xmlParts, headerName, sourceName) {
   const generatedDir = path.join(__dirname, "linux", "generated");
-  const header = path.join(generatedDir, "xdg-shell-client-protocol.h");
-  const source = path.join(generatedDir, "xdg-shell-protocol.c");
+  const header = path.join(generatedDir, headerName);
+  const source = path.join(generatedDir, sourceName);
   if (!isLinux) {
     return;
   }
@@ -79,30 +79,36 @@ function ensureXdgShellProtocol() {
       "--variable=pkgdatadir",
       "wayland-protocols",
     ]) || "/usr/share/wayland-protocols";
-  const xdgShellXml = path.join(
-    protocolPath,
-    "stable",
-    "xdg-shell",
-    "xdg-shell.xml",
-  );
-  if (!fs.existsSync(xdgShellXml)) {
+  const protocolXml = path.join(protocolPath, ...xmlParts);
+  if (!fs.existsSync(protocolXml)) {
     throw new Error(
-      `xdg-shell protocol XML not found at ${xdgShellXml}; install wayland-protocols`,
+      `${name} protocol XML not found at ${protocolXml}; install wayland-protocols`,
     );
   }
   runRequired(
     "wayland-scanner",
-    [ "client-header", xdgShellXml, header ],
-    "generate xdg-shell client header",
+    [ "client-header", protocolXml, header ],
+    `generate ${name} client header`,
   );
   runRequired(
     "wayland-scanner",
-    [ "private-code", xdgShellXml, source ],
-    "generate xdg-shell client source",
+    [ "private-code", protocolXml, source ],
+    `generate ${name} client source`,
   );
 }
 
-ensureXdgShellProtocol();
+ensureWaylandProtocol(
+  "xdg-shell",
+  [ "stable", "xdg-shell", "xdg-shell.xml" ],
+  "xdg-shell-client-protocol.h",
+  "xdg-shell-protocol.c",
+);
+ensureWaylandProtocol(
+  "xdg-decoration",
+  [ "unstable", "xdg-decoration", "xdg-decoration-unstable-v1.xml" ],
+  "xdg-decoration-client-protocol.h",
+  "xdg-decoration-protocol.c",
+);
 
 const linkConfigs = [
   {

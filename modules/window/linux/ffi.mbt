@@ -36,6 +36,7 @@ extern "C" fn native_window_create(
   title_len : Int,
   app_id : Bytes,
   app_id_len : Int,
+  decorations : Bool,
   use_shm_placeholder : Bool,
 ) -> UInt64 = "mbw_wayland_window_create"
 
@@ -67,6 +68,24 @@ extern "C" fn native_window_set_title(
   title : Bytes,
   title_len : Int,
 ) -> Unit = "mbw_wayland_window_set_title"
+
+///|
+extern "C" fn native_window_set_decorations(
+  window : UInt64,
+  decorations : Bool,
+) -> Unit = "mbw_wayland_window_set_decorations"
+
+///|
+extern "C" fn native_window_set_minimized(
+  window : UInt64,
+  minimized : Bool,
+) -> Unit = "mbw_wayland_window_set_minimized"
+
+///|
+extern "C" fn native_window_set_maximized(
+  window : UInt64,
+  maximized : Bool,
+) -> Unit = "mbw_wayland_window_set_maximized"
 
 ///|
 extern "C" fn native_window_set_visible(
