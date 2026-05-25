@@ -7,6 +7,10 @@ import {
 supported_targets = "native"
 
 options(
-  "native-stub": [ "native_wayland.c", "generated/xdg-shell-protocol.c" ],
+  "native-stub": [
+    "native_wayland.c",
+    "generated/xdg-shell-protocol.c",
+    "generated/xdg-decoration-protocol.c",
+  ],
   targets: { "ffi.mbt": [ "native" ] },
 )

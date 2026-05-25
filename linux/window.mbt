@@ -7,6 +7,8 @@ pub struct Window {
   priv mut transparent_state : Bool
   priv mut blur_state : Bool
   priv mut decorated_state : Bool
+  priv mut minimized_state : Bool
+  priv mut maximized_state : Bool
   priv mut enabled_buttons_state : @core.WindowButtons
   priv mut window_level_state : @core.WindowLevel
   priv mut theme_state : @core.Theme?
@@ -17,7 +19,7 @@ pub struct Window {
 }
 
 ///|
-pub impl Eq for Window with equal(self, other) {
+pub impl Eq for Window with fn equal(self, other) {
   self.id == other.id
 }
 
@@ -76,6 +78,7 @@ pub fn Window::new_with_linux_attributes(
     title_bytes.length(),
     app_id_bytes,
     app_id_bytes.length(),
+    attributes.decorations(),
     linux_attributes.use_shm_placeholder(),
   )
   if handle == (0 : Int).to_uint64() {
@@ -100,6 +103,9 @@ pub fn Window::new_with_linux_attributes(
     )
   }
   native_window_set_visible(handle, attributes.visible())
+  if attributes.maximized() {
+    native_window_set_maximized(handle, true)
+  }
   {
     id: window_id,
     handle,
@@ -108,6 +114,8 @@ pub fn Window::new_with_linux_attributes(
     transparent_state: attributes.transparent(),
     blur_state: attributes.blur(),
     decorated_state: attributes.decorations(),
+    minimized_state: false,
+    maximized_state: attributes.maximized(),
     enabled_buttons_state: attributes.enabled_buttons(),
     window_level_state: attributes.window_level(),
     theme_state: attributes.theme(),
@@ -244,6 +252,7 @@ pub fn Window::is_resizable(self : Window) -> Bool {
 ///|
 pub fn Window::set_decorations(self : Window, decorations : Bool) -> Unit {
   self.decorated_state = decorations
+  native_window_set_decorations(self.handle, decorations)
 }
 
 ///|
@@ -252,25 +261,25 @@ pub fn Window::is_decorated(self : Window) -> Bool {
 }
 
 ///|
-pub fn Window::set_minimized(self : Window, _minimized : Bool) -> Unit {
-  let _ = self
+pub fn Window::set_minimized(self : Window, minimized : Bool) -> Unit {
+  self.minimized_state = minimized
+  native_window_set_minimized(self.handle, minimized)
 }
 
 ///|
 pub fn Window::is_minimized(self : Window) -> Bool? {
-  let _ = self
-  None
+  Some(self.minimized_state)
 }
 
 ///|
-pub fn Window::set_maximized(self : Window, _maximized : Bool) -> Unit {
-  let _ = self
+pub fn Window::set_maximized(self : Window, maximized : Bool) -> Unit {
+  self.maximized_state = maximized
+  native_window_set_maximized(self.handle, maximized)
 }
 
 ///|
 pub fn Window::is_maximized(self : Window) -> Bool {
-  let _ = self
-  false
+  self.maximized_state
 }
 
 ///|
