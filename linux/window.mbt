@@ -81,7 +81,6 @@ pub fn Window::new_with_linux_attributes(
   if handle == (0 : Int).to_uint64() {
     raise @core.RequestError::os("Linux window creation returned a null handle")
   }
-  native_window_set_visible(handle, attributes.visible())
   app_state_register_window_entry({
     raw_id,
     handle,
@@ -93,6 +92,14 @@ pub fn Window::new_with_linux_attributes(
     surface_size: size,
     scale_factor: 1.0,
   })
+  if !native_window_wait_configured(handle, 2000) {
+    native_window_destroy(handle)
+    app_state_unregister_window(raw_id)
+    raise @core.RequestError::os(
+      "Linux window did not receive an initial Wayland configure event",
+    )
+  }
+  native_window_set_visible(handle, attributes.visible())
   {
     id: window_id,
     handle,

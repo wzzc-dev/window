@@ -69,6 +69,8 @@ typedef struct mbw_wayland_window {
   int32_t width;
   int32_t height;
   int mapped;
+  int configured;
+  int pending_placeholder;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
   struct xdg_toplevel *xdg_toplevel;
@@ -134,6 +136,10 @@ static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
       window->placeholder_buffer) {
     return;
   }
+  if (!window->configured) {
+    window->pending_placeholder = 1;
+    return;
+  }
   int width = window->width > 0 ? window->width : 1;
   int height = window->height > 0 ? window->height : 1;
   int stride = width * 4;
@@ -196,6 +202,11 @@ static void xdg_surface_configure(void *data, struct xdg_surface *surface,
   mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
   xdg_surface_ack_configure(surface, serial);
   if (window) {
+    window->configured = 1;
+    if (window->pending_placeholder) {
+      window->pending_placeholder = 0;
+      attach_placeholder_buffer(window);
+    }
     attach_placeholder_buffer(window);
     emit_window(MBW_LINUX_EVENT_CONFIGURE, window->raw_id, window->width,
                 window->height, 0, 0.0);
@@ -594,7 +605,8 @@ int32_t mbw_wayland_context_dispatch(uint64_t raw_context, int32_t timeout_ms) {
   }
   if (context->wake_fd >= 0 && (fds[1].revents & POLLIN)) {
     uint64_t value = 0;
-    read(context->wake_fd, &value, sizeof(value));
+    ssize_t bytes_read = read(context->wake_fd, &value, sizeof(value));
+    (void)bytes_read;
     emit_window(MBW_LINUX_EVENT_PROXY_WAKE, 0, 0, 0, 0, 0.0);
   }
   if (fds[0].revents & POLLIN) {
@@ -611,7 +623,8 @@ void mbw_wayland_context_wake(uint64_t raw_context) {
     return;
   }
   uint64_t value = 1;
-  write(context->wake_fd, &value, sizeof(value));
+  ssize_t bytes_written = write(context->wake_fd, &value, sizeof(value));
+  (void)bytes_written;
 }
 
 MOONBIT_FFI_EXPORT
@@ -662,6 +675,31 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   }
   wl_display_flush(context->display);
   return (uint64_t)(uintptr_t)window;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_wait_configured(uint64_t raw_window,
+                                           int32_t timeout_ms) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->context || !window->context->display) {
+    return 0;
+  }
+  if (window->configured) {
+    return 1;
+  }
+  int64_t start = mbw_wayland_now_ms();
+  while (!window->configured) {
+    if (timeout_ms >= 0 && mbw_wayland_now_ms() - start >= timeout_ms) {
+      return 0;
+    }
+    int ret = mbw_wayland_context_dispatch(
+        (uint64_t)(uintptr_t)window->context, 100);
+    if (ret < 0) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 MOONBIT_FFI_EXPORT
@@ -843,6 +881,13 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   (void)app_id;
   (void)app_id_len;
   (void)use_shm_placeholder;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_wait_configured(uint64_t raw_window,
+                                           int32_t timeout_ms) {
+  (void)raw_window;
+  (void)timeout_ms;
   return 0;
 }
 MOONBIT_FFI_EXPORT

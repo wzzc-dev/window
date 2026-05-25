@@ -43,6 +43,12 @@ extern "C" fn native_window_create(
 extern "C" fn native_window_destroy(window : UInt64) -> Unit = "mbw_wayland_window_destroy"
 
 ///|
+extern "C" fn native_window_wait_configured(
+  window : UInt64,
+  timeout_ms : Int,
+) -> Bool = "mbw_wayland_window_wait_configured"
+
+///|
 extern "C" fn native_window_surface_handle(window : UInt64) -> UInt64 = "mbw_wayland_window_surface_handle"
 
 ///|
