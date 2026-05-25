@@ -4,3 +4,4 @@ _build/
 .moonagent/
 winit-reference/
 .vscode
+linux/generated/

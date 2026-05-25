@@ -411,12 +411,21 @@ static void keyboard_modifiers(void *data, struct wl_keyboard *keyboard,
   (void)group;
 }
 
+static void keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
+                                 int32_t rate, int32_t delay) {
+  (void)data;
+  (void)keyboard;
+  (void)rate;
+  (void)delay;
+}
+
 static const struct wl_keyboard_listener keyboard_listener = {
     .keymap = keyboard_keymap,
     .enter = keyboard_enter,
     .leave = keyboard_leave,
     .key = keyboard_key,
     .modifiers = keyboard_modifiers,
+    .repeat_info = keyboard_repeat_info,
 };
 
 static void seat_capabilities(void *data, struct wl_seat *seat,
