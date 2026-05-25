@@ -49,6 +49,15 @@ enum {
   MBW_LINUX_INPUT_KEY_UP = 21,
 };
 
+enum {
+  MBW_WAYLAND_TITLEBAR_HEIGHT = 32,
+  MBW_WAYLAND_TITLEBAR_BUTTON_SIZE = 18,
+  MBW_WAYLAND_TITLEBAR_BUTTON_SLOT = 28,
+  MBW_WAYLAND_TITLEBAR_BUTTON_GAP = 8,
+  MBW_WAYLAND_TITLEBAR_BUTTON_TOP = 7,
+  MBW_WAYLAND_POINTER_LEFT_BUTTON = 0x110,
+};
+
 struct mbw_wayland_window;
 
 typedef struct mbw_wayland_context {
@@ -61,6 +70,10 @@ typedef struct mbw_wayland_context {
   struct wl_keyboard *keyboard;
   struct xdg_wm_base *wm_base;
   struct zxdg_decoration_manager_v1 *decoration_manager;
+  struct wl_surface *cursor_surface;
+  struct wl_buffer *cursor_buffer;
+  void *cursor_data;
+  size_t cursor_size;
   int wake_fd;
   struct mbw_wayland_window *pointer_window;
   struct mbw_wayland_window *keyboard_window;
@@ -75,6 +88,15 @@ typedef struct mbw_wayland_window {
   int configured;
   int use_shm_placeholder;
   int pending_placeholder;
+  int client_decorated;
+  int maximized;
+  int requested_maximized;
+  int pending_unmaximize;
+  int restore_width;
+  int restore_height;
+  int pointer_x;
+  int pointer_y;
+  int active_titlebar_button;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
   struct xdg_toplevel *xdg_toplevel;
@@ -82,6 +104,8 @@ typedef struct mbw_wayland_window {
   struct wl_buffer *placeholder_buffer;
   void *placeholder_data;
   size_t placeholder_size;
+  int placeholder_width;
+  int placeholder_height;
 } mbw_wayland_window_t;
 
 static void emit_window(int32_t kind, int32_t raw_id, int32_t arg0,
@@ -136,9 +160,101 @@ static const struct wl_buffer_listener placeholder_buffer_listener = {
     .release = placeholder_release,
 };
 
+static void destroy_placeholder_buffer(mbw_wayland_window_t *window) {
+  if (!window) {
+    return;
+  }
+  if (window->placeholder_buffer) {
+    wl_buffer_destroy(window->placeholder_buffer);
+    window->placeholder_buffer = NULL;
+  }
+  if (window->placeholder_data && window->placeholder_size > 0) {
+    munmap(window->placeholder_data, window->placeholder_size);
+    window->placeholder_data = NULL;
+    window->placeholder_size = 0;
+  }
+  window->placeholder_width = 0;
+  window->placeholder_height = 0;
+}
+
+static void put_pixel(uint32_t *pixels, int width, int x, int y,
+                      uint32_t color) {
+  pixels[(size_t)y * (size_t)width + (size_t)x] = color;
+}
+
+static void fill_rect(uint32_t *pixels, int width, int height, int x, int y,
+                      int rect_width, int rect_height, uint32_t color) {
+  int x0 = x < 0 ? 0 : x;
+  int y0 = y < 0 ? 0 : y;
+  int x1 = x + rect_width > width ? width : x + rect_width;
+  int y1 = y + rect_height > height ? height : y + rect_height;
+  for (int row = y0; row < y1; ++row) {
+    for (int col = x0; col < x1; ++col) {
+      put_pixel(pixels, width, col, row, color);
+    }
+  }
+}
+
+static int titlebar_button_left(int width, int index_from_right) {
+  return width - MBW_WAYLAND_TITLEBAR_BUTTON_GAP -
+         (index_from_right + 1) * MBW_WAYLAND_TITLEBAR_BUTTON_SLOT -
+         index_from_right * MBW_WAYLAND_TITLEBAR_BUTTON_GAP;
+}
+
+static int titlebar_hit_button(mbw_wayland_window_t *window, int x, int y) {
+  if (!window || !window->client_decorated ||
+      y < 0 || y >= MBW_WAYLAND_TITLEBAR_HEIGHT) {
+    return 0;
+  }
+  for (int index = 0; index < 3; ++index) {
+    int left = titlebar_button_left(window->width, index);
+    if (x >= left && x < left + MBW_WAYLAND_TITLEBAR_BUTTON_SLOT) {
+      return index + 1;
+    }
+  }
+  return 0;
+}
+
+static int titlebar_hit_drag(mbw_wayland_window_t *window, int x, int y) {
+  return window && window->client_decorated && y >= 0 &&
+         y < MBW_WAYLAND_TITLEBAR_HEIGHT &&
+         titlebar_hit_button(window, x, y) == 0;
+}
+
+static void draw_client_titlebar(mbw_wayland_window_t *window,
+                                 uint32_t *pixels) {
+  if (!window || !window->client_decorated || !pixels) {
+    return;
+  }
+  int width = window->width > 0 ? window->width : 1;
+  int height = window->height > 0 ? window->height : 1;
+  int titlebar_height = height < MBW_WAYLAND_TITLEBAR_HEIGHT
+                            ? height
+                            : MBW_WAYLAND_TITLEBAR_HEIGHT;
+  fill_rect(pixels, width, height, 0, 0, width, titlebar_height, 0xFF2A2D34u);
+  fill_rect(pixels, width, height, 0, titlebar_height - 1, width, 1,
+            0xFF555A64u);
+  int inset = (MBW_WAYLAND_TITLEBAR_BUTTON_SLOT -
+               MBW_WAYLAND_TITLEBAR_BUTTON_SIZE) /
+              2;
+  int close_left = titlebar_button_left(width, 0) + inset;
+  int max_left = titlebar_button_left(width, 1) + inset;
+  int min_left = titlebar_button_left(width, 2) + inset;
+  fill_rect(pixels, width, height, min_left, MBW_WAYLAND_TITLEBAR_BUTTON_TOP,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE, 0xFFE5B84Cu);
+  fill_rect(pixels, width, height, max_left, MBW_WAYLAND_TITLEBAR_BUTTON_TOP,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE, 0xFF4FB86Au);
+  fill_rect(pixels, width, height, close_left, MBW_WAYLAND_TITLEBAR_BUTTON_TOP,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE,
+            MBW_WAYLAND_TITLEBAR_BUTTON_SIZE, 0xFFE05A5Au);
+  fill_rect(pixels, width, height, 12, 12, width > 150 ? width - 150 : 24, 2,
+            0xFFB8C0CCu);
+}
+
 static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
-  if (!window || !window->context || !window->context->shm ||
-      window->placeholder_buffer) {
+  if (!window || !window->context || !window->context->shm) {
     return;
   }
   if (!window->configured) {
@@ -147,6 +263,12 @@ static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
   }
   int width = window->width > 0 ? window->width : 1;
   int height = window->height > 0 ? window->height : 1;
+  if (window->placeholder_buffer) {
+    if (window->placeholder_width == width && window->placeholder_height == height) {
+      return;
+    }
+    destroy_placeholder_buffer(window);
+  }
   int stride = width * 4;
   size_t size = (size_t)stride * (size_t)height;
   int fd = create_tmpfile(size);
@@ -167,6 +289,7 @@ static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
           (uint32_t)(shade + 48);
     }
   }
+  draw_client_titlebar(window, pixels);
   struct wl_shm_pool *pool =
       wl_shm_create_pool(window->context->shm, fd, (int32_t)size);
   if (!pool) {
@@ -187,9 +310,95 @@ static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
                          &placeholder_buffer_listener, window);
   window->placeholder_data = data;
   window->placeholder_size = size;
+  window->placeholder_width = width;
+  window->placeholder_height = height;
   wl_surface_attach(window->surface, window->placeholder_buffer, 0, 0);
   wl_surface_damage_buffer(window->surface, 0, 0, width, height);
   wl_surface_commit(window->surface);
+}
+
+static void cursor_release(void *data, struct wl_buffer *buffer) {
+  (void)data;
+  (void)buffer;
+}
+
+static const struct wl_buffer_listener cursor_buffer_listener = {
+    .release = cursor_release,
+};
+
+static int ensure_default_cursor(mbw_wayland_context_t *context) {
+  if (!context || !context->compositor || !context->shm) {
+    return 0;
+  }
+  if (context->cursor_surface && context->cursor_buffer) {
+    return 1;
+  }
+  int width = 24;
+  int height = 24;
+  int stride = width * 4;
+  size_t size = (size_t)stride * (size_t)height;
+  int fd = create_tmpfile(size);
+  if (fd < 0) {
+    return 0;
+  }
+  void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (data == MAP_FAILED) {
+    close(fd);
+    return 0;
+  }
+  uint32_t *pixels = (uint32_t *)data;
+  memset(pixels, 0, size);
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x <= y / 2 && x < 12; ++x) {
+      pixels[(size_t)y * (size_t)width + (size_t)x] = 0xFF101010u;
+    }
+  }
+  for (int y = 2; y < 18; ++y) {
+    for (int x = 2; x <= y / 2 && x < 9; ++x) {
+      pixels[(size_t)y * (size_t)width + (size_t)x] = 0xFFFFFFFFu;
+    }
+  }
+  fill_rect(pixels, width, height, 8, 14, 3, 8, 0xFF101010u);
+  fill_rect(pixels, width, height, 9, 15, 1, 6, 0xFFFFFFFFu);
+  struct wl_shm_pool *pool = wl_shm_create_pool(context->shm, fd, (int32_t)size);
+  if (!pool) {
+    munmap(data, size);
+    close(fd);
+    return 0;
+  }
+  struct wl_buffer *buffer =
+      wl_shm_pool_create_buffer(pool, 0, width, height, stride,
+                                WL_SHM_FORMAT_ARGB8888);
+  wl_shm_pool_destroy(pool);
+  close(fd);
+  if (!buffer) {
+    munmap(data, size);
+    return 0;
+  }
+  struct wl_surface *surface = wl_compositor_create_surface(context->compositor);
+  if (!surface) {
+    wl_buffer_destroy(buffer);
+    munmap(data, size);
+    return 0;
+  }
+  wl_buffer_add_listener(buffer, &cursor_buffer_listener, context);
+  wl_surface_attach(surface, buffer, 0, 0);
+  wl_surface_damage_buffer(surface, 0, 0, width, height);
+  wl_surface_commit(surface);
+  context->cursor_surface = surface;
+  context->cursor_buffer = buffer;
+  context->cursor_data = data;
+  context->cursor_size = size;
+  return 1;
+}
+
+static void set_default_cursor(mbw_wayland_context_t *context,
+                               struct wl_pointer *pointer, uint32_t serial) {
+  if (!context || !pointer || !ensure_default_cursor(context)) {
+    return;
+  }
+  wl_pointer_set_cursor(pointer, serial, context->cursor_surface, 1, 1);
+  wl_surface_commit(context->cursor_surface);
 }
 
 static void xdg_wm_base_ping(void *data, struct xdg_wm_base *wm_base,
@@ -229,16 +438,61 @@ static void xdg_toplevel_configure(void *data,
                                    int32_t width, int32_t height,
                                    struct wl_array *states) {
   (void)xdg_toplevel;
-  (void)states;
   mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
   if (!window) {
     return;
   }
+  int was_maximized = window->maximized || window->requested_maximized ||
+                      window->pending_unmaximize;
+  window->maximized = 0;
+  if (states) {
+    uint32_t *state;
+    wl_array_for_each(state, states) {
+      if (*state == XDG_TOPLEVEL_STATE_MAXIMIZED) {
+        window->maximized = 1;
+      }
+    }
+  }
+  window->requested_maximized = window->maximized;
+  window->pending_unmaximize = 0;
   if (width > 0) {
     window->width = width;
+  } else if (was_maximized && !window->maximized && window->restore_width > 0) {
+    window->width = window->restore_width;
   }
   if (height > 0) {
     window->height = height;
+  } else if (was_maximized && !window->maximized && window->restore_height > 0) {
+    window->height = window->restore_height;
+  }
+}
+
+static void save_restore_size(mbw_wayland_window_t *window) {
+  if (!window || window->maximized || window->requested_maximized) {
+    return;
+  }
+  if (window->width > 0) {
+    window->restore_width = window->width;
+  }
+  if (window->height > 0) {
+    window->restore_height = window->height;
+  }
+}
+
+static void request_maximized(mbw_wayland_window_t *window, int maximized) {
+  if (!window || !window->xdg_toplevel) {
+    return;
+  }
+  if (maximized) {
+    save_restore_size(window);
+    xdg_toplevel_set_maximized(window->xdg_toplevel);
+    window->requested_maximized = 1;
+    window->maximized = 1;
+  } else {
+    xdg_toplevel_unset_maximized(window->xdg_toplevel);
+    window->requested_maximized = 0;
+    window->pending_unmaximize = 1;
+    window->maximized = 0;
   }
 }
 
@@ -259,9 +513,18 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 static void decoration_configure(
     void *data, struct zxdg_toplevel_decoration_v1 *decoration,
     uint32_t mode) {
-  (void)data;
   (void)decoration;
-  (void)mode;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window) {
+    int was_client_decorated = window->client_decorated;
+    window->client_decorated =
+        mode == ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE ? 1 : 0;
+    if (was_client_decorated != window->client_decorated &&
+        window->use_shm_placeholder) {
+      destroy_placeholder_buffer(window);
+      attach_placeholder_buffer(window);
+    }
+  }
 }
 
 static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
@@ -271,8 +534,6 @@ static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
 static void pointer_enter(void *data, struct wl_pointer *pointer,
                           uint32_t serial, struct wl_surface *surface,
                           wl_fixed_t sx, wl_fixed_t sy) {
-  (void)pointer;
-  (void)serial;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
   if (!context) {
     return;
@@ -280,7 +541,10 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)wl_surface_get_user_data(surface);
   context->pointer_window = window;
+  set_default_cursor(context, pointer, serial);
   if (window) {
+    window->pointer_x = wl_fixed_to_int(sx);
+    window->pointer_y = wl_fixed_to_int(sy);
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_ENTER,
                wl_fixed_to_int(sx), wl_fixed_to_int(sy), 0, 0);
   }
@@ -291,6 +555,9 @@ static void pointer_leave(void *data, struct wl_pointer *pointer,
   (void)pointer;
   (void)serial;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context) {
+    return;
+  }
   mbw_wayland_window_t *window =
       surface ? (mbw_wayland_window_t *)wl_surface_get_user_data(surface)
               : context->pointer_window;
@@ -309,6 +576,8 @@ static void pointer_motion(void *data, struct wl_pointer *pointer,
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
   mbw_wayland_window_t *window = context ? context->pointer_window : NULL;
   if (window) {
+    window->pointer_x = wl_fixed_to_int(sx);
+    window->pointer_y = wl_fixed_to_int(sy);
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE, wl_fixed_to_int(sx),
                wl_fixed_to_int(sy), 0, 0);
   }
@@ -318,11 +587,45 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
                            uint32_t serial, uint32_t time, uint32_t button,
                            uint32_t state) {
   (void)pointer;
-  (void)serial;
   (void)time;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
   mbw_wayland_window_t *window = context ? context->pointer_window : NULL;
   if (window) {
+    if (button == MBW_WAYLAND_POINTER_LEFT_BUTTON) {
+      if (state != WL_POINTER_BUTTON_STATE_PRESSED) {
+        if (window->active_titlebar_button != 0) {
+          window->active_titlebar_button = 0;
+          return;
+        }
+      } else {
+        window->active_titlebar_button =
+            titlebar_hit_button(window, window->pointer_x, window->pointer_y);
+      }
+      int titlebar_button = window->active_titlebar_button;
+      if (titlebar_button == 1) {
+        emit_window(MBW_LINUX_EVENT_CLOSE, window->raw_id, 0, 0, 0, 0.0);
+        return;
+      } else if (titlebar_button == 2 && window->xdg_toplevel) {
+        request_maximized(window, !(window->requested_maximized || window->maximized));
+        wl_surface_commit(window->surface);
+        if (context && context->display) {
+          wl_display_flush(context->display);
+        }
+        return;
+      } else if (titlebar_button == 3 && window->xdg_toplevel) {
+        xdg_toplevel_set_minimized(window->xdg_toplevel);
+        wl_surface_commit(window->surface);
+        if (context && context->display) {
+          wl_display_flush(context->display);
+        }
+        return;
+      } else if (titlebar_hit_drag(window, window->pointer_x,
+                                   window->pointer_y) &&
+                 window->xdg_toplevel && context && context->seat) {
+        xdg_toplevel_move(window->xdg_toplevel, context->seat, serial);
+        return;
+      }
+    }
     emit_input(window->raw_id,
                state == WL_POINTER_BUTTON_STATE_PRESSED
                    ? MBW_LINUX_INPUT_POINTER_DOWN
@@ -591,6 +894,15 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   if (context->pointer) {
     wl_pointer_destroy(context->pointer);
   }
+  if (context->cursor_buffer) {
+    wl_buffer_destroy(context->cursor_buffer);
+  }
+  if (context->cursor_data && context->cursor_size > 0) {
+    munmap(context->cursor_data, context->cursor_size);
+  }
+  if (context->cursor_surface) {
+    wl_surface_destroy(context->cursor_surface);
+  }
   if (context->seat) {
     wl_seat_destroy(context->seat);
   }
@@ -729,7 +1041,12 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   window->raw_id = raw_id;
   window->width = width > 0 ? width : 1;
   window->height = height > 0 ? height : 1;
+  window->restore_width = window->width;
+  window->restore_height = window->height;
   window->use_shm_placeholder = use_shm_placeholder ? 1 : 0;
+  window->client_decorated =
+      decorations && !context->decoration_manager && use_shm_placeholder ? 1
+                                                                         : 0;
   window->surface = wl_compositor_create_surface(context->compositor);
   if (!window->surface) {
     free(window);
@@ -805,12 +1122,7 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
     return;
   }
   emit_window(MBW_LINUX_EVENT_DESTROYED, window->raw_id, 0, 0, 0, 0.0);
-  if (window->placeholder_buffer) {
-    wl_buffer_destroy(window->placeholder_buffer);
-  }
-  if (window->placeholder_data && window->placeholder_size > 0) {
-    munmap(window->placeholder_data, window->placeholder_size);
-  }
+  destroy_placeholder_buffer(window);
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
   }
@@ -919,9 +1231,9 @@ void mbw_wayland_window_set_maximized(uint64_t raw_window, int maximized) {
     return;
   }
   if (maximized) {
-    xdg_toplevel_set_maximized(window->xdg_toplevel);
+    request_maximized(window, 1);
   } else {
-    xdg_toplevel_unset_maximized(window->xdg_toplevel);
+    request_maximized(window, 0);
   }
   wl_surface_commit(window->surface);
 }
