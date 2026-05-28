@@ -66,6 +66,20 @@ function runRequired(command, args, description) {
   }
 }
 
+function fileIsAtLeastAsNewAs(file, dependency) {
+  if (!fs.existsSync(file)) {
+    return false;
+  }
+  return fs.statSync(file).mtimeMs >= fs.statSync(dependency).mtimeMs;
+}
+
+function ensureGeneratedFile(command, args, output, dependency, description) {
+  if (fileIsAtLeastAsNewAs(output, dependency)) {
+    return;
+  }
+  runRequired(command, args, description);
+}
+
 function ensureWaylandProtocol(name, xmlParts, headerName, sourceName) {
   const generatedDir = path.join(__dirname, "linux", "generated");
   const header = path.join(generatedDir, headerName);
@@ -85,14 +99,18 @@ function ensureWaylandProtocol(name, xmlParts, headerName, sourceName) {
       `${name} protocol XML not found at ${protocolXml}; install wayland-protocols`,
     );
   }
-  runRequired(
+  ensureGeneratedFile(
     "wayland-scanner",
     [ "client-header", protocolXml, header ],
+    header,
+    protocolXml,
     `generate ${name} client header`,
   );
-  runRequired(
+  ensureGeneratedFile(
     "wayland-scanner",
     [ "private-code", protocolXml, source ],
+    source,
+    protocolXml,
     `generate ${name} client source`,
   );
 }
