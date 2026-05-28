@@ -1,20 +1,19 @@
-# Milky2018/window
+# wzzc-dev/window
 
-`Milky2018/window` is a MoonBit windowing library modeled after `winit`.
-It currently provides native macOS and Windows backends, plus an experimental
-Web backend for `wasm-gc`.
+`wzzc-dev/window` is the wzzc-dev fork of `moonbit-community/window`, a MoonBit windowing library modeled after `winit`.
+This fork tracks upstream window 0.5.1 and adds the MoUI-oriented Web, Windows, and Linux packages needed before those targets are available upstream.
 
 ## Platform Support
 
-- macOS: supported on the `native` target through AppKit (`Milky2018/window/macos`)
-- Windows: preview support on the `native` target through Win32 (`Milky2018/window/windows`)
-- Linux: preview support on the `native` target through Wayland + xdg-shell (`Milky2018/window/linux`)
-- Web: experimental browser support on the `wasm-gc` target (`Milky2018/window/web`)
+- macOS: supported on the `native` target through AppKit (`wzzc-dev/window/macos`)
+- Windows: preview support on the `native` target through Win32 (`wzzc-dev/window/windows`)
+- Linux: preview support on the `native` target through Wayland + xdg-shell (`wzzc-dev/window/linux`)
+- Web: experimental browser support on the `wasm-gc` target (`wzzc-dev/window/web`)
 - Not supported yet: X11 and other Unix backends
 
 ### Windows Support (Preview)
 
-Use the `Milky2018/window/windows` package for Win32 windows and event loops.
+Use the `wzzc-dev/window/windows` package for Win32 windows and event loops.
 The Windows backend currently targets MoonBit `native` builds.
 
 #### MSVC
@@ -39,7 +38,7 @@ moon run .\examples\window_windows\ --target native
 
 ### Web Support (Experimental)
 
-Use the `Milky2018/window/web` package for browser-hosted `wasm-gc` apps.
+Use the `wzzc-dev/window/web` package for browser-hosted `wasm-gc` apps.
 The Web backend follows the winit Web model: a `Window` is backed by an
 `HTMLCanvasElement`, DOM events are mapped into `@core.WindowEvent`, and the
 event loop is driven by browser callbacks instead of blocking the current
@@ -81,7 +80,7 @@ The application package must export `web_dispatch_event`; see
 
 ### Linux Support (Preview)
 
-Use the `Milky2018/window/linux` package for Wayland windows and event loops.
+Use the `wzzc-dev/window/linux` package for Wayland windows and event loops.
 The first Linux backend supports Wayland + `xdg-shell` only; X11 is not part of
 this backend.
 
@@ -106,14 +105,14 @@ prebuild step.
 ## Install
 
 ```bash
-moon add Milky2018/window
+moon add wzzc-dev/window
 ```
 
 You do **not** need to manually add AppKit/CoreGraphics link flags in your app;
 the subpackages provide native link configuration.
 
 Import the subpackages you need directly. This module does **not** expose a
-root `@Milky2018/window` package.
+root `@wzzc-dev/window` package.
 
 ## Quick Start
 
@@ -121,8 +120,8 @@ Use explicit subpackage imports in your package's `moon.pkg`:
 
 ```moonbit
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/macos",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/macos",
 }
 
 supported_targets = "native"
@@ -229,19 +228,19 @@ layer using the content-view handle. Keep the layer synchronized with:
 
 Import only the subpackages you need:
 
-- `@Milky2018/window/core`: core event/types (`WindowEvent`, `ControlFlow`,
+- `@wzzc-dev/window/core`: core event/types (`WindowEvent`, `ControlFlow`,
   `WindowAttributes`, keyboard/mouse/IME data types)
-- `@Milky2018/window/macos`: macOS runtime API (`EventLoop`, `ActiveEventLoop`,
+- `@wzzc-dev/window/macos`: macOS runtime API (`EventLoop`, `ActiveEventLoop`,
   `Window`, `EventLoopProxy`, `ApplicationHandler`)
-- `@Milky2018/window/windows`: Windows runtime API (`EventLoop`,
+- `@wzzc-dev/window/windows`: Windows runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`)
-- `@Milky2018/window/linux`: Linux Wayland runtime API (`EventLoop`,
+- `@wzzc-dev/window/linux`: Linux Wayland runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
   Wayland extension APIs exposing display/surface/xdg handles
-- `@Milky2018/window/web`: browser `wasm-gc` runtime API (`EventLoop`,
+- `@wzzc-dev/window/web`: browser `wasm-gc` runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
   Web extension APIs for canvas binding and poll strategy selection
-- `@Milky2018/window/dpi`: logical/physical size and position types
+- `@wzzc-dev/window/dpi`: logical/physical size and position types
 
 `WindowEvent::into_winit_events()` is available when you want a
 `winit`-style compatibility projection.

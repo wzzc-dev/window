@@ -1,8 +1,8 @@
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/dpi",
-  "Milky2018/window/examples/util",
-  "Milky2018/window/macos",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
+  "wzzc-dev/window/examples/util",
+  "wzzc-dev/window/macos",
   "moonbitlang/core/encoding/utf8",
 }
 

@@ -1,6 +1,6 @@
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/windows",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/windows",
 }
 
 supported_targets = "native"

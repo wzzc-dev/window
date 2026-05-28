@@ -1,11 +1,11 @@
 {
-  "name": "Milky2018/window",
+  "name": "wzzc-dev/window",
   "version": "0.5.1",
   "preferred-target": "native",
   "readme": "README.mbt.md",
-  "repository": "https://github.com/moonbit-community/window.git",
+  "repository": "https://github.com/wzzc-dev/window.git",
   "license": "Apache-2.0",
   "keywords": ["windowing", "winit", "macos", "appkit", "gui"],
-  "description": "A MoonBit port of winit with a native macOS event loop and windowing backend.",
+  "description": "The wzzc-dev fork of moonbit-community/window, adding MoUI-oriented Web, Windows, and Linux support while tracking upstream window 0.5.1.",
   "--moonbit-unstable-prebuild": "build.js"
 }

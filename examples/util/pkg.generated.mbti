@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/window/examples/util"
+package "wzzc-dev/window/examples/util"
 
 import {
-  "Milky2018/window/macos",
+  "wzzc-dev/window/macos",
 }
 
 // Values
