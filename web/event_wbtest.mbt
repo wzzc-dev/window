@@ -95,12 +95,7 @@ test "web dispatch maps browser file drag drop lifecycle" {
   app_state_set_dispatch_handler(app, active_loop)
   let raw_id = 9
   web_dispatch_event(
-    web_event_drag_enter,
-    raw_id,
-    12,
-    24,
-    0.0,
-    "note.md\nimage.png",
+    web_event_drag_enter, raw_id, 12, 24, 0.0, "note.md\nimage.png",
   )
   web_dispatch_event(web_event_drag_move, raw_id, 16, 32, 0.0, "")
   web_dispatch_event(web_event_drag_drop, raw_id, 20, 40, 0.0, "note.md")

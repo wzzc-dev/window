@@ -19,7 +19,7 @@ pub struct Window {
 }
 
 ///|
-pub impl Eq for Window with fn equal(self, other) {
+pub impl Eq for Window with equal(self, other) {
   self.id == other.id
 }
 
