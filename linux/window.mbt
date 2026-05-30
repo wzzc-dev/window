@@ -240,6 +240,24 @@ pub fn Window::pre_present_notify(self : Window) -> Unit {
 }
 
 ///|
+pub fn Window::present_rgba_pixels(
+  self : Window,
+  width : Int,
+  height : Int,
+  row_bytes : Int,
+  pixels : Bytes,
+) -> Int {
+  native_window_present_rgba_pixels(
+    self.handle,
+    width,
+    height,
+    row_bytes,
+    pixels,
+    pixels.length(),
+  )
+}
+
+///|
 pub fn Window::set_resizable(self : Window, resizable : Bool) -> Unit {
   app_state_set_window_resizable(self.raw_id(), resizable)
 }

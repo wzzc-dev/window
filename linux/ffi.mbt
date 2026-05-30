@@ -107,6 +107,17 @@ extern "C" fn native_window_request_surface_size(
 extern "C" fn native_window_request_redraw(window : UInt64) -> Unit = "mbw_wayland_window_request_redraw"
 
 ///|
+#borrow(pixels)
+extern "C" fn native_window_present_rgba_pixels(
+  window : UInt64,
+  width : Int,
+  height : Int,
+  row_bytes : Int,
+  pixels : Bytes,
+  pixels_len : Int,
+) -> Int = "mbw_wayland_window_present_rgba_pixels"
+
+///|
 #borrow(call_closure)
 #owned(callback)
 extern "C" fn native_install_window_event_callback(

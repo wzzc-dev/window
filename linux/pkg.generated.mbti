@@ -155,6 +155,7 @@ pub fn Window::option_as_alt(Self) -> @core.OptionAsAlt
 pub fn Window::outer_position(Self) -> @dpi.PhysicalPosition raise @core.RequestError
 pub fn Window::outer_size(Self) -> @dpi.PhysicalSize
 pub fn Window::pre_present_notify(Self) -> Unit
+pub fn Window::present_rgba_pixels(Self, Int, Int, Int, Bytes) -> Int
 pub fn Window::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn Window::request_ime_update(Self, @core.ImeRequest) -> Unit raise @core.ImeRequestError
 pub fn Window::request_inner_size(Self, @dpi.Size) -> @dpi.PhysicalSize?
