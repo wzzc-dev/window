@@ -60,6 +60,14 @@ enum {
 
 struct mbw_wayland_window;
 
+typedef struct mbw_wayland_present_buffer {
+  struct mbw_wayland_window *window;
+  struct wl_buffer *buffer;
+  void *data;
+  size_t size;
+  struct mbw_wayland_present_buffer *next;
+} mbw_wayland_present_buffer_t;
+
 typedef struct mbw_wayland_context {
   struct wl_display *display;
   struct wl_registry *registry;
@@ -106,7 +114,16 @@ typedef struct mbw_wayland_window {
   size_t placeholder_size;
   int placeholder_width;
   int placeholder_height;
+  mbw_wayland_present_buffer_t *present_buffers;
 } mbw_wayland_window_t;
+
+enum {
+  MBW_WAYLAND_PRESENT_OK = 0,
+  MBW_WAYLAND_PRESENT_BAD_WINDOW = 1,
+  MBW_WAYLAND_PRESENT_BAD_DIMENSIONS = 2,
+  MBW_WAYLAND_PRESENT_BAD_PIXELS = 3,
+  MBW_WAYLAND_PRESENT_ALLOC_FAILED = 4,
+};
 
 static void emit_window(int32_t kind, int32_t raw_id, int32_t arg0,
                         int32_t arg1, int32_t arg2, double argd) {
@@ -159,6 +176,65 @@ static void placeholder_release(void *data, struct wl_buffer *buffer) {
 static const struct wl_buffer_listener placeholder_buffer_listener = {
     .release = placeholder_release,
 };
+
+static void unlink_present_buffer(mbw_wayland_present_buffer_t *frame) {
+  if (!frame || !frame->window) {
+    return;
+  }
+  mbw_wayland_present_buffer_t **cursor = &frame->window->present_buffers;
+  while (*cursor) {
+    if (*cursor == frame) {
+      *cursor = frame->next;
+      break;
+    }
+    cursor = &(*cursor)->next;
+  }
+  frame->window = NULL;
+  frame->next = NULL;
+}
+
+static void destroy_present_buffer(mbw_wayland_present_buffer_t *frame) {
+  if (!frame) {
+    return;
+  }
+  if (frame->buffer) {
+    wl_buffer_destroy(frame->buffer);
+    frame->buffer = NULL;
+  }
+  if (frame->data && frame->size > 0) {
+    munmap(frame->data, frame->size);
+    frame->data = NULL;
+    frame->size = 0;
+  }
+  free(frame);
+}
+
+static void present_buffer_release(void *data, struct wl_buffer *buffer) {
+  (void)buffer;
+  mbw_wayland_present_buffer_t *frame =
+      (mbw_wayland_present_buffer_t *)data;
+  unlink_present_buffer(frame);
+  destroy_present_buffer(frame);
+}
+
+static const struct wl_buffer_listener present_buffer_listener = {
+    .release = present_buffer_release,
+};
+
+static void destroy_present_buffers(mbw_wayland_window_t *window) {
+  if (!window) {
+    return;
+  }
+  mbw_wayland_present_buffer_t *frame = window->present_buffers;
+  window->present_buffers = NULL;
+  while (frame) {
+    mbw_wayland_present_buffer_t *next = frame->next;
+    frame->window = NULL;
+    frame->next = NULL;
+    destroy_present_buffer(frame);
+    frame = next;
+  }
+}
 
 static void destroy_placeholder_buffer(mbw_wayland_window_t *window) {
   if (!window) {
@@ -1126,6 +1202,7 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
     return;
   }
   emit_window(MBW_LINUX_EVENT_DESTROYED, window->raw_id, 0, 0, 0, 0.0);
+  destroy_present_buffers(window);
   destroy_placeholder_buffer(window);
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
@@ -1282,6 +1359,93 @@ void mbw_wayland_window_request_redraw(uint64_t raw_window) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
+                                               int32_t width,
+                                               int32_t height,
+                                               int32_t row_bytes,
+                                               const uint8_t *pixels,
+                                               int32_t pixels_len) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->context || !window->context->shm ||
+      !window->surface) {
+    return MBW_WAYLAND_PRESENT_BAD_WINDOW;
+  }
+  if (width <= 0 || height <= 0 || width > INT32_MAX / 4) {
+    return MBW_WAYLAND_PRESENT_BAD_DIMENSIONS;
+  }
+  int32_t packed_row_bytes = width * 4;
+  if (row_bytes < packed_row_bytes || height > INT32_MAX / packed_row_bytes) {
+    return MBW_WAYLAND_PRESENT_BAD_DIMENSIONS;
+  }
+  int64_t required_len = (int64_t)row_bytes * (int64_t)height;
+  if (!pixels || required_len <= 0 || required_len > INT32_MAX ||
+      pixels_len < required_len) {
+    return MBW_WAYLAND_PRESENT_BAD_PIXELS;
+  }
+  size_t size = (size_t)packed_row_bytes * (size_t)height;
+  mbw_wayland_present_buffer_t *frame =
+      (mbw_wayland_present_buffer_t *)calloc(1, sizeof(*frame));
+  if (!frame) {
+    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  }
+  int fd = create_tmpfile(size);
+  if (fd < 0) {
+    free(frame);
+    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  }
+  void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (data == MAP_FAILED) {
+    close(fd);
+    free(frame);
+    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  }
+  uint8_t *dst_base = (uint8_t *)data;
+  for (int32_t y = 0; y < height; ++y) {
+    const uint8_t *src = pixels + (size_t)y * (size_t)row_bytes;
+    uint8_t *dst = dst_base + (size_t)y * (size_t)packed_row_bytes;
+    for (int32_t x = 0; x < width; ++x) {
+      size_t offset = (size_t)x * 4;
+      dst[offset] = src[offset + 2];
+      dst[offset + 1] = src[offset + 1];
+      dst[offset + 2] = src[offset];
+      dst[offset + 3] = src[offset + 3];
+    }
+  }
+  struct wl_shm_pool *pool =
+      wl_shm_create_pool(window->context->shm, fd, (int32_t)size);
+  if (!pool) {
+    munmap(data, size);
+    close(fd);
+    free(frame);
+    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  }
+  frame->buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
+                                            packed_row_bytes,
+                                            WL_SHM_FORMAT_ARGB8888);
+  wl_shm_pool_destroy(pool);
+  close(fd);
+  if (!frame->buffer) {
+    munmap(data, size);
+    free(frame);
+    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  }
+  frame->window = window;
+  frame->data = data;
+  frame->size = size;
+  frame->next = window->present_buffers;
+  window->present_buffers = frame;
+  wl_buffer_add_listener(frame->buffer, &present_buffer_listener, frame);
+  wl_surface_attach(window->surface, frame->buffer, 0, 0);
+  wl_surface_damage_buffer(window->surface, 0, 0, width, height);
+  wl_surface_commit(window->surface);
+  if (window->context->display) {
+    wl_display_flush(window->context->display);
+  }
+  return MBW_WAYLAND_PRESENT_OK;
+}
+
+MOONBIT_FFI_EXPORT
 void mbw_wayland_install_window_event_callback(
     mbw_window_event_trampoline_t trampoline,
     void *closure) {
@@ -1430,6 +1594,21 @@ void mbw_wayland_window_request_surface_size(uint64_t raw_window, int32_t width,
 MOONBIT_FFI_EXPORT
 void mbw_wayland_window_request_redraw(uint64_t raw_window) {
   (void)raw_window;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
+                                               int32_t width,
+                                               int32_t height,
+                                               int32_t row_bytes,
+                                               const uint8_t *pixels,
+                                               int32_t pixels_len) {
+  (void)raw_window;
+  (void)width;
+  (void)height;
+  (void)row_bytes;
+  (void)pixels;
+  (void)pixels_len;
+  return 1;
 }
 MOONBIT_FFI_EXPORT
 void mbw_wayland_install_window_event_callback(

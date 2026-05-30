@@ -311,6 +311,8 @@ Import only the subpackages you need:
   left unsupported in this package.
 - The first backend attaches a small SHM placeholder buffer so windows map even
   when the app has not provided a renderer yet.
+- `Window::present_rgba_pixels(...)` presents renderer-owned RGBA pixel frames
+  through Wayland `wl_shm` for CPU raster renderers such as MoUI Skia.
 - Keyboard events currently expose native XKB key codes without text decoding;
   text input and IME are future work.
 - Decorations, taskbar integration, system menus, native drag-window, exclusive
