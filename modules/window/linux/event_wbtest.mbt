@@ -34,6 +34,28 @@ fn test_active_loop() -> ActiveEventLoop {
 }
 
 ///|
+fn assert_keyboard_character_text(
+  event : @core.WindowEvent,
+  expected_key : String,
+  expected_text : String?,
+) -> Unit raise {
+  match event {
+    @core.WindowEvent::KeyboardInput(_, key_event, false) => {
+      match key_event.logical_key() {
+        @core.Key::Character(key) => inspect(key, content=expected_key)
+        _ => fail("expected character logical key")
+      }
+      match (key_event.text(), expected_text) {
+        (Some(actual), Some(expected)) => inspect(actual, content=expected)
+        (None, None) => ()
+        _ => fail("unexpected key text")
+      }
+    }
+    _ => fail("expected keyboard input")
+  }
+}
+
+///|
 test "linux app state allocates window ids and stores control flow" {
   reset_test_state()
   assert_eq(app_state_next_window_id(), 1)
@@ -77,8 +99,50 @@ test "linux dispatch maps resize pointer key and redraw" {
     }
     _ => fail("expected pointer button with native coordinates")
   }
-  assert_true(app.events[3] is @core.WindowEvent::KeyboardInput(_, _, false))
+  assert_keyboard_character_text(app.events[3], "a", Some("a"))
   assert_true(app.events[4] is @core.WindowEvent::RedrawRequested)
+}
+
+///|
+test "linux key dispatch includes basic text and shift state" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 42L)
+  dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 30L)
+  assert_eq(app.events.length(), 3)
+  match app.events[0] {
+    @core.WindowEvent::ModifiersChanged(modifiers) => {
+      assert_true(modifiers.shift_key())
+      assert_false(modifiers.control_key())
+    }
+    _ => fail("expected shift modifiers changed")
+  }
+  assert_keyboard_character_text(app.events[2], "A", Some("A"))
+}
+
+///|
+test "linux control shortcuts do not emit insertable text" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 29L)
+  dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 46L)
+  assert_eq(app.events.length(), 3)
+  match app.events[0] {
+    @core.WindowEvent::ModifiersChanged(modifiers) => {
+      assert_true(modifiers.control_key())
+      assert_false(modifiers.shift_key())
+    }
+    _ => fail("expected control modifiers changed")
+  }
+  assert_keyboard_character_text(app.events[2], "c", None)
 }
 
 ///|

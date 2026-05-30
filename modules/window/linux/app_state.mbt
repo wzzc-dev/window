@@ -28,6 +28,8 @@ priv struct AppStateRuntime {
   mut exit_code : Int
   mut event_handler_in_use : Bool
   mut control_flow : @core.ControlFlow
+  mut modifiers : @core.ModifiersState
+  mut pressed_modifiers : @core.ModifiersKeys
   mut pending_redraw_window_ids : Array[Int]
   mut window_entries : Array[WindowEntry]
   mut deferred_callbacks : Array[DeferredCallback]
@@ -44,6 +46,8 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     exit_code: 0,
     event_handler_in_use: false,
     control_flow: @core.ControlFlow::Wait,
+    modifiers: @core.ModifiersState::none(),
+    pressed_modifiers: @core.ModifiersKeys::none(),
     pending_redraw_window_ids: [],
     window_entries: [],
     deferred_callbacks: [],
@@ -300,6 +304,48 @@ fn app_state_set_control_flow(control_flow : @core.ControlFlow) -> Unit {
 ///|
 fn app_state_control_flow() -> @core.ControlFlow {
   app_state_runtime.val.control_flow
+}
+
+///|
+fn app_state_modifiers() -> @core.Modifiers {
+  @core.Modifiers::from_state(
+    app_state_runtime.val.modifiers,
+    app_state_runtime.val.pressed_modifiers,
+  )
+}
+
+///|
+fn app_state_update_key_modifier(
+  key_code : Int,
+  pressed : Bool,
+) -> @core.Modifiers? {
+  let before = app_state_modifiers()
+  let mut state = app_state_runtime.val.modifiers
+  let mut pressed_modifiers = app_state_runtime.val.pressed_modifiers
+  match linux_modifier_for_key_code(key_code) {
+    Some((modifier_state, modifier_key)) => {
+      if pressed {
+        state = state.union(modifier_state)
+        pressed_modifiers = pressed_modifiers.union(modifier_key)
+      } else {
+        pressed_modifiers = pressed_modifiers.without(modifier_key)
+        if !linux_modifier_family_still_pressed(
+            pressed_modifiers, modifier_state,
+          ) {
+          state = linux_modifiers_without(state, modifier_state)
+        }
+      }
+      app_state_runtime.val.modifiers = state
+      app_state_runtime.val.pressed_modifiers = pressed_modifiers
+      let next = app_state_modifiers()
+      if next == before {
+        None
+      } else {
+        Some(next)
+      }
+    }
+    None => None
+  }
 }
 
 ///|
