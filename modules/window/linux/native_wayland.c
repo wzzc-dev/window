@@ -524,6 +524,10 @@ static void decoration_configure(
       destroy_placeholder_buffer(window);
       attach_placeholder_buffer(window);
     }
+    if (was_client_decorated != window->client_decorated) {
+      emit_window(MBW_LINUX_EVENT_CONFIGURE, window->raw_id, window->width,
+                  window->height, 0, 0.0);
+    }
   }
 }
 
@@ -1169,6 +1173,13 @@ uint64_t mbw_wayland_window_display_handle(uint64_t raw_window) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_client_decorated(uint64_t raw_window) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  return window ? window->client_decorated : 0;
+}
+
+MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_title(uint64_t raw_window, const uint8_t *title,
                                   int32_t title_len) {
   mbw_wayland_window_t *window =
@@ -1374,6 +1385,11 @@ uint64_t mbw_wayland_window_xdg_toplevel_handle(uint64_t raw_window) {
 }
 MOONBIT_FFI_EXPORT
 uint64_t mbw_wayland_window_display_handle(uint64_t raw_window) {
+  (void)raw_window;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_client_decorated(uint64_t raw_window) {
   (void)raw_window;
   return 0;
 }

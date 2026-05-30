@@ -261,6 +261,11 @@ pub fn Window::is_decorated(self : Window) -> Bool {
 }
 
 ///|
+pub fn Window::uses_client_decorations(self : Window) -> Bool {
+  native_window_client_decorated(self.handle)
+}
+
+///|
 pub fn Window::set_minimized(self : Window, minimized : Bool) -> Unit {
   self.minimized_state = minimized
   native_window_set_minimized(self.handle, minimized)

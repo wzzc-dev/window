@@ -62,6 +62,9 @@ extern "C" fn native_window_xdg_toplevel_handle(window : UInt64) -> UInt64 = "mb
 extern "C" fn native_window_display_handle(window : UInt64) -> UInt64 = "mbw_wayland_window_display_handle"
 
 ///|
+extern "C" fn native_window_client_decorated(window : UInt64) -> Bool = "mbw_wayland_window_client_decorated"
+
+///|
 #borrow(title)
 extern "C" fn native_window_set_title(
   window : UInt64,
