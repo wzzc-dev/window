@@ -54,15 +54,31 @@ test "linux dispatch maps resize pointer key and redraw" {
   let raw_id = 42
   dispatch_native_window_event(linux_event_configure, raw_id, 320, 200, 0, 0.0)
   dispatch_native_input_event(raw_id, linux_event_pointer_move, 12, 34, 0, 0L)
+  dispatch_native_input_event(
+    raw_id, linux_event_pointer_down, 12, 34, 0x110, 0L,
+  )
   dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 30L)
   app_state_queue_redraw(raw_id)
   app_state_queue_redraw(raw_id)
   app_state_dispatch_redraws(app, active_loop)
-  assert_eq(app.events.length(), 4)
+  assert_eq(app.events.length(), 5)
   assert_true(app.events[0] is @core.WindowEvent::SurfaceResized(_))
   assert_true(app.events[1] is @core.WindowEvent::PointerMoved(_, _, _, _))
-  assert_true(app.events[2] is @core.WindowEvent::KeyboardInput(_, _, false))
-  assert_true(app.events[3] is @core.WindowEvent::RedrawRequested)
+  match app.events[2] {
+    @core.WindowEvent::PointerButton(
+      _,
+      @core.ElementState::Pressed,
+      position,
+      true,
+      @core.ButtonSource::Mouse(@core.MouseButton::Left)
+    ) => {
+      assert_eq(position.x(), 12.0)
+      assert_eq(position.y(), 34.0)
+    }
+    _ => fail("expected pointer button with native coordinates")
+  }
+  assert_true(app.events[3] is @core.WindowEvent::KeyboardInput(_, _, false))
+  assert_true(app.events[4] is @core.WindowEvent::RedrawRequested)
 }
 
 ///|
