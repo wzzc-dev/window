@@ -222,6 +222,7 @@ pub fn Window::tabbing_identifier(Self) -> String
 pub fn Window::theme(Self) -> @core.Theme?
 pub fn Window::title(Self) -> String
 pub fn Window::unified_titlebar(Self) -> Bool
+pub fn Window::uses_client_decorations(Self) -> Bool
 pub fn Window::window_handle(Self) -> UInt64
 pub fn Window::window_level(Self) -> @core.WindowLevel
 pub fn Window::wl_display(Self) -> UInt64
@@ -274,5 +275,6 @@ pub(open) trait WindowExtLinux {
   wl_surface(Self) -> UInt64
   xdg_surface(Self) -> UInt64
   xdg_toplevel(Self) -> UInt64
+  uses_client_decorations(Self) -> Bool
 }
 

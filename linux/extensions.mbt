@@ -57,6 +57,7 @@ pub(open) trait WindowExtLinux {
   wl_surface(Self) -> UInt64
   xdg_surface(Self) -> UInt64
   xdg_toplevel(Self) -> UInt64
+  uses_client_decorations(Self) -> Bool
 }
 
 ///|
@@ -131,4 +132,9 @@ pub impl WindowExtLinux for Window with xdg_surface(self) {
 ///|
 pub impl WindowExtLinux for Window with xdg_toplevel(self) {
   self.xdg_toplevel()
+}
+
+///|
+pub impl WindowExtLinux for Window with fn uses_client_decorations(self) {
+  self.uses_client_decorations()
 }
