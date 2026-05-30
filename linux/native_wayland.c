@@ -710,7 +710,7 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
                state == WL_POINTER_BUTTON_STATE_PRESSED
                    ? MBW_LINUX_INPUT_POINTER_DOWN
                    : MBW_LINUX_INPUT_POINTER_UP,
-               0, 0, (int32_t)button, 0);
+               window->pointer_x, window->pointer_y, (int32_t)button, 0);
   }
 }
 
