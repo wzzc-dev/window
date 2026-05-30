@@ -4,7 +4,7 @@ struct App {
 }
 
 ///|
-pub impl @windows.ApplicationHandler for App with can_create_surfaces(
+pub impl @windows.ApplicationHandler for App with fn can_create_surfaces(
   self,
   event_loop,
 ) {
@@ -24,7 +24,7 @@ pub impl @windows.ApplicationHandler for App with can_create_surfaces(
 }
 
 ///|
-pub impl @windows.ApplicationHandler for App with window_event(
+pub impl @windows.ApplicationHandler for App with fn window_event(
   self,
   event_loop,
   _window_id,

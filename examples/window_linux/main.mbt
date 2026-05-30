@@ -4,7 +4,7 @@ struct App {
 }
 
 ///|
-pub impl @linux.ApplicationHandler for App with can_create_surfaces(
+pub impl @linux.ApplicationHandler for App with fn can_create_surfaces(
   self,
   event_loop,
 ) {
@@ -22,7 +22,7 @@ pub impl @linux.ApplicationHandler for App with can_create_surfaces(
 }
 
 ///|
-pub impl @linux.ApplicationHandler for App with window_event(
+pub impl @linux.ApplicationHandler for App with fn window_event(
   self,
   event_loop,
   _window_id,

@@ -251,7 +251,7 @@ type NativeWindow
 type NotificationObserver
 
 ///|
-impl Debug for NotificationObserver with to_repr(_self) {
+impl Debug for NotificationObserver with fn to_repr(_self) {
   Repr::opaque_("NotificationObserver", Repr::literal("<appkit>"))
 }
 
@@ -259,7 +259,7 @@ impl Debug for NotificationObserver with to_repr(_self) {
 type MainRunLoopObserver
 
 ///|
-impl Debug for MainRunLoopObserver with to_repr(_self) {
+impl Debug for MainRunLoopObserver with fn to_repr(_self) {
   Repr::opaque_("MainRunLoopObserver", Repr::literal("<appkit>"))
 }
 
@@ -273,19 +273,19 @@ priv type NativeCfObject
 priv type NativeObjcObject
 
 ///|
-impl Eq for NativeDisplayMode with equal(self, other) {
+impl Eq for NativeDisplayMode with fn equal(self, other) {
   native_monitor_display_mode_identity(self) ==
   native_monitor_display_mode_identity(other)
 }
 
 ///|
-impl Eq for NativeDisplayMode with not_equal(self, other) {
+impl Eq for NativeDisplayMode with fn not_equal(self, other) {
   native_monitor_display_mode_identity(self) !=
   native_monitor_display_mode_identity(other)
 }
 
 ///|
-impl Debug for NativeDisplayMode with to_repr(self) {
+impl Debug for NativeDisplayMode with fn to_repr(self) {
   Repr::opaque_(
     "NativeDisplayMode",
     Repr::literal("0x" + native_monitor_display_mode_identity(self).to_string()),
@@ -293,17 +293,17 @@ impl Debug for NativeDisplayMode with to_repr(self) {
 }
 
 ///|
-impl Eq for NativeWindow with equal(self, other) {
+impl Eq for NativeWindow with fn equal(self, other) {
   appkit_window_identity(self) == appkit_window_identity(other)
 }
 
 ///|
-impl Eq for NativeWindow with not_equal(self, other) {
+impl Eq for NativeWindow with fn not_equal(self, other) {
   appkit_window_identity(self) != appkit_window_identity(other)
 }
 
 ///|
-impl Debug for NativeWindow with to_repr(self) {
+impl Debug for NativeWindow with fn to_repr(self) {
   Repr::opaque_(
     "NativeWindow",
     Repr::literal("0x" + appkit_window_identity(self).to_string()),

@@ -224,7 +224,7 @@ fn window_set_cursor_hittest(
 }
 
 ///|
-pub impl @core.WindowCursorHittest for Window with set_cursor_hittest(
+pub impl @core.WindowCursorHittest for Window with fn set_cursor_hittest(
   self,
   hittest,
 ) {
