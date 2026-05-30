@@ -151,6 +151,9 @@ extern "C" fn native_client_to_screen_y(hwnd : UInt64, x : Int, y : Int) -> Int 
 extern "C" fn native_get_key_state(vk : Int) -> Int = "mbw_get_key_state"
 
 ///|
+extern "C" fn native_consume_utf8_text(ptr : UInt64, len : Int) -> Bytes = "mbw_consume_utf8_text"
+
+///|
 extern "C" fn native_set_window_long_ptr(
   hwnd : UInt64,
   index : Int,

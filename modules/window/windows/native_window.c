@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <imm.h>
 
 #ifndef WM_DPICHANGED
 #define WM_DPICHANGED 0x02E0
@@ -65,9 +66,113 @@ static BOOL g_class_registered = FALSE;
 
 #define MBW_WM_PROXY_WAKEUP (WM_USER + 0x100)
 
+typedef HIMC(WINAPI *mbw_imm_get_context_t)(HWND);
+typedef BOOL(WINAPI *mbw_imm_release_context_t)(HWND, HIMC);
+typedef LONG(WINAPI *mbw_imm_get_composition_string_t)(HIMC, DWORD, LPVOID, DWORD);
+
+static HMODULE g_imm32 = NULL;
+static mbw_imm_get_context_t g_imm_get_context = NULL;
+static mbw_imm_release_context_t g_imm_release_context = NULL;
+static mbw_imm_get_composition_string_t g_imm_get_composition_string = NULL;
+
 typedef struct {
   int32_t raw_id;
 } MBWWindowState;
+
+static int32_t mbw_load_imm32(void) {
+  if (g_imm32 && g_imm_get_context && g_imm_release_context &&
+      g_imm_get_composition_string) {
+    return 1;
+  }
+  g_imm32 = LoadLibraryW(L"imm32.dll");
+  if (!g_imm32) {
+    return 0;
+  }
+  g_imm_get_context =
+      (mbw_imm_get_context_t)GetProcAddress(g_imm32, "ImmGetContext");
+  g_imm_release_context =
+      (mbw_imm_release_context_t)GetProcAddress(g_imm32, "ImmReleaseContext");
+  g_imm_get_composition_string =
+      (mbw_imm_get_composition_string_t)GetProcAddress(
+          g_imm32, "ImmGetCompositionStringW");
+  return g_imm_get_context && g_imm_release_context &&
+         g_imm_get_composition_string;
+}
+
+static char *mbw_wide_to_utf8_alloc(const wchar_t *wide, int32_t wide_len,
+                                    int32_t *out_len) {
+  *out_len = 0;
+  if (!wide || wide_len <= 0) {
+    return NULL;
+  }
+  int32_t len =
+      WideCharToMultiByte(CP_UTF8, 0, wide, wide_len, NULL, 0, NULL, NULL);
+  if (len <= 0) {
+    return NULL;
+  }
+  char *utf8 = (char *)malloc((size_t)len);
+  if (!utf8) {
+    return NULL;
+  }
+  int32_t written =
+      WideCharToMultiByte(CP_UTF8, 0, wide, wide_len, utf8, len, NULL, NULL);
+  if (written <= 0) {
+    free(utf8);
+    return NULL;
+  }
+  *out_len = written;
+  return utf8;
+}
+
+static char *mbw_copy_ime_string_utf8(HWND hwnd, DWORD kind, int32_t *out_len) {
+  *out_len = 0;
+  if (!mbw_load_imm32()) {
+    return NULL;
+  }
+  HIMC himc = g_imm_get_context(hwnd);
+  if (!himc) {
+    return NULL;
+  }
+  LONG byte_len = g_imm_get_composition_string(himc, kind, NULL, 0);
+  if (byte_len <= 0) {
+    g_imm_release_context(hwnd, himc);
+    return NULL;
+  }
+  wchar_t *wide = (wchar_t *)malloc((size_t)byte_len + sizeof(wchar_t));
+  if (!wide) {
+    g_imm_release_context(hwnd, himc);
+    return NULL;
+  }
+  LONG copied =
+      g_imm_get_composition_string(himc, kind, wide, (DWORD)byte_len);
+  g_imm_release_context(hwnd, himc);
+  if (copied <= 0) {
+    free(wide);
+    return NULL;
+  }
+  int32_t wide_len = (int32_t)(copied / (LONG)sizeof(wchar_t));
+  wide[wide_len] = 0;
+  char *utf8 = mbw_wide_to_utf8_alloc(wide, wide_len, out_len);
+  free(wide);
+  return utf8;
+}
+
+static void mbw_queue_ime_text(HWND hwnd, MBWWindowState *state, int32_t kind,
+                               DWORD composition_kind) {
+  if (!g_input_event_trampoline || !g_input_event_closure) {
+    return;
+  }
+  int32_t text_len = 0;
+  char *text = mbw_copy_ime_string_utf8(hwnd, composition_kind, &text_len);
+  if (!text || text_len <= 0) {
+    if (text) {
+      free(text);
+    }
+    return;
+  }
+  g_input_event_trampoline(g_input_event_closure, state->raw_id, kind,
+                           (uint64_t)(uintptr_t)text, (int64_t)text_len);
+}
 
 static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
                                      LPARAM lparam) {
@@ -299,6 +404,22 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
                                wparam, lparam);
       return 0;
 
+    case WM_IME_STARTCOMPOSITION:
+      g_input_event_trampoline(g_input_event_closure, state->raw_id, 35, 0, 0);
+      return 0;
+
+    case WM_IME_COMPOSITION:
+      if ((lparam & GCS_RESULTSTR) != 0) {
+        mbw_queue_ime_text(hwnd, state, 37, GCS_RESULTSTR);
+      } else if ((lparam & GCS_COMPSTR) != 0) {
+        mbw_queue_ime_text(hwnd, state, 36, GCS_COMPSTR);
+      }
+      return 0;
+
+    case WM_IME_ENDCOMPOSITION:
+      g_input_event_trampoline(g_input_event_closure, state->raw_id, 36, 0, 0);
+      return 0;
+
     case WM_CHAR:
       g_input_event_trampoline(g_input_event_closure, state->raw_id, 34,
                                wparam, lparam);
@@ -450,6 +571,18 @@ int32_t mbw_post_thread_message(uint32_t thread_id, uint32_t msg,
 MOONBIT_FFI_EXPORT
 void mbw_post_quit_message(int32_t exit_code) {
   PostQuitMessage(exit_code);
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_consume_utf8_text(uint64_t ptr, int32_t len) {
+  if (ptr == 0 || len <= 0) {
+    return moonbit_make_bytes(0, 0);
+  }
+  char *text = (char *)(uintptr_t)ptr;
+  moonbit_bytes_t bytes = moonbit_make_bytes(len, 0);
+  memcpy(bytes, text, (size_t)len);
+  free(text);
+  return bytes;
 }
 
 MOONBIT_FFI_EXPORT

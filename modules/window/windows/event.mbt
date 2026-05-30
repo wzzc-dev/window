@@ -122,6 +122,11 @@ fn decode_lparam_position_signed(lparam : Int64) -> @dpi.PhysicalPositionF64 {
 }
 
 ///|
+fn text_from_native_utf8_ptr(ptr : UInt64, len : Int) -> String {
+  @utf8.decode_lossy(native_consume_utf8_text(ptr, len)[:], ignore_bom=false)
+}
+
+///|
 let window_mouse_tracking : Ref[Array[Int]] = Ref::new([])
 
 ///|
@@ -447,9 +452,37 @@ fn dispatch_native_input_event(
     }
     34 => {
       let char_code = wparam.to_int()
-      if char_code > 0 {
+      if char_code >= 0x20 && char_code != 0x7F {
         let ch = Char::from_int(char_code)
         let text = ch.to_string()
+        app_state_queue_window_event(
+          raw_id,
+          @core.WindowEvent::Ime(@core.Ime::Commit(text)),
+        )
+      }
+    }
+    35 =>
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::Ime(@core.Ime::Enabled),
+      )
+    36 => {
+      let text = text_from_native_utf8_ptr(wparam, lparam.to_int())
+      if wparam == 0 && lparam == 0 {
+        app_state_queue_window_event(
+          raw_id,
+          @core.WindowEvent::Ime(@core.Ime::Disabled),
+        )
+      } else {
+        app_state_queue_window_event(
+          raw_id,
+          @core.WindowEvent::Ime(@core.Ime::Preedit(text, None)),
+        )
+      }
+    }
+    37 => {
+      let text = text_from_native_utf8_ptr(wparam, lparam.to_int())
+      if text != "" {
         app_state_queue_window_event(
           raw_id,
           @core.WindowEvent::Ime(@core.Ime::Commit(text)),
