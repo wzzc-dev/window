@@ -192,6 +192,7 @@ pub fn Window::surface_position(self : Window) -> @dpi.PhysicalPosition {
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::outer_position(
   self : Window,
 ) -> @dpi.PhysicalPosition raise @core.RequestError {
@@ -339,6 +340,7 @@ pub fn Window::is_cursor_visible(self : Window) -> Bool {
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::set_cursor_hittest(
   self : Window,
   hittest : Bool,

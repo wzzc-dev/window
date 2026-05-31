@@ -70,42 +70,6 @@ fn dispatch_native_window_event(
 }
 
 ///|
-let mk_lbutton : UInt64 = 0x0001
-
-///|
-let mk_rbutton : UInt64 = 0x0002
-
-///|
-let mk_shift : UInt64 = 0x0004
-
-///|
-let mk_control : UInt64 = 0x0008
-
-///|
-let mk_mbutton : UInt64 = 0x0010
-
-///|
-let mk_xbutton1 : UInt64 = 0x0020
-
-///|
-let mk_xbutton2 : UInt64 = 0x0040
-
-///|
-fn decode_mouse_modifiers(wparam : UInt64) -> @core.Modifiers {
-  let mut state = @core.ModifiersState::none()
-  let mut keys = @core.ModifiersKeys::none()
-  if (wparam & mk_shift) != (0 : Int).to_uint64() {
-    state = state.union(@core.ModifiersState::shift())
-    keys = keys.union(@core.ModifiersKeys::lshift())
-  }
-  if (wparam & mk_control) != (0 : Int).to_uint64() {
-    state = state.union(@core.ModifiersState::control())
-    keys = keys.union(@core.ModifiersKeys::lcontrol())
-  }
-  @core.Modifiers::from_state(state, keys)
-}
-
-///|
 fn decode_lparam_position(lparam : Int64) -> @dpi.PhysicalPositionF64 {
   let x = (lparam & 0xFFFF : Int64).to_int()
   let y = ((lparam >> 16) & 0xFFFF : Int64).to_int()
@@ -127,7 +91,7 @@ fn text_from_native_utf8_ptr(ptr : UInt64, len : Int) -> String {
 }
 
 ///|
-let window_mouse_tracking : Ref[Array[Int]] = Ref::new([])
+let window_mouse_tracking : Ref[Array[Int]] = Ref([])
 
 ///|
 fn is_mouse_tracking(raw_id : Int) -> Bool {
@@ -164,7 +128,6 @@ fn dispatch_native_input_event(
   match kind {
     10 => {
       let position = decode_lparam_position(lparam)
-      let modifiers = decode_mouse_modifiers(wparam)
       if is_mouse_tracking(raw_id) == false {
         set_mouse_tracking(raw_id, true)
         ignore(
@@ -329,7 +292,6 @@ fn dispatch_native_input_event(
       let delta = ((wparam >> 16) & 0xFFFF : UInt64).to_int()
       let signed_delta = if delta > 32767 { delta - 65536 } else { delta }
       let lines = signed_delta.to_double() / wheel_delta.to_double()
-      let position = decode_lparam_position_signed(lparam)
       app_state_queue_window_event(
         raw_id,
         @core.WindowEvent::MouseWheel(
@@ -356,7 +318,6 @@ fn dispatch_native_input_event(
       let vk_code = wparam.to_int()
       let physical_key = vk_to_physical_key(vk_code, lparam)
       let logical_key = vk_to_logical_key(vk_code)
-      let scan_code = ((lparam >> 16) & 0xFF : Int64).to_int()
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let repeat = ((lparam >> 30) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
@@ -384,7 +345,6 @@ fn dispatch_native_input_event(
       let vk_code = wparam.to_int()
       let physical_key = vk_to_physical_key(vk_code, lparam)
       let logical_key = vk_to_logical_key(vk_code)
-      let scan_code = ((lparam >> 16) & 0xFF : Int64).to_int()
       let is_extended = ((lparam >> 24) & 0x1 : Int64).to_int() != 0
       let location = vk_to_key_location(vk_code, is_extended)
       let key_event = @core.KeyEvent::KeyEvent(
@@ -453,7 +413,7 @@ fn dispatch_native_input_event(
     34 => {
       let char_code = wparam.to_int()
       if char_code >= 0x20 && char_code != 0x7F {
-        let ch = Char::from_int(char_code)
+        let ch = char_code.unsafe_to_char()
         let text = ch.to_string()
         app_state_queue_window_event(
           raw_id,
@@ -654,9 +614,9 @@ fn vk_to_logical_key(vk_code : Int) -> @core.Key {
     0x5D => @core.Key::Named(@core.NamedKey::ContextMenu)
     _ =>
       if vk_code >= 0x41 && vk_code <= 0x5A {
-        @core.Key::Character(Char::from_int(vk_code + 32).to_string())
+        @core.Key::Character((vk_code + 32).unsafe_to_char().to_string())
       } else if vk_code >= 0x30 && vk_code <= 0x39 {
-        @core.Key::Character(Char::from_int(vk_code).to_string())
+        @core.Key::Character(vk_code.unsafe_to_char().to_string())
       } else if vk_code >= 0x70 && vk_code <= 0x87 {
         let f_num = vk_code - 0x70 + 1
         match f_num {
