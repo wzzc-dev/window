@@ -4531,7 +4531,7 @@ pub fn Window::available_monitors(self : Window) -> Array[@core.MonitorHandle] {
 ///|
 pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
   let _ = self
-  Some(primary_monitor())
+  primary_monitor()
 }
 
 ///|

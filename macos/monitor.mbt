@@ -389,12 +389,9 @@ fn monitor_from_native_id(monitor_id : UInt64) -> @core.MonitorHandle? {
 }
 
 ///|
-fn primary_monitor() -> @core.MonitorHandle {
+fn primary_monitor() -> @core.MonitorHandle? {
   let display_id = cg_main_display_id()
-  match monitor_from_display_id(display_id) {
-    Some(monitor) => monitor
-    None => abort("primary monitor unavailable")
-  }
+  monitor_from_display_id(display_id)
 }
 
 ///|
@@ -418,7 +415,10 @@ fn available_monitors() -> Array[@core.MonitorHandle] {
     index = index + 1
   }
   if monitors.is_empty() {
-    [primary_monitor()]
+    match primary_monitor() {
+      Some(monitor) => [monitor]
+      None => []
+    }
   } else {
     monitors
   }

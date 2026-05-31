@@ -1,6 +1,6 @@
 ///|
 fn primary_monitor_for_test() -> @core.MonitorHandle? {
-  monitor_from_native_id(cg_main_display_id())
+  primary_monitor()
 }
 
 ///|
@@ -10,8 +10,6 @@ test "uuid_stable" {
 
   let handle_a = monitor_from_native_id(primary_id)
   let handle_b = monitor_from_native_id(primary_id)
-  assert_true(handle_a is Some(_))
-  assert_true(handle_b is Some(_))
   match handle_a {
     Some(handle_a) =>
       match handle_b {
@@ -26,8 +24,6 @@ test "uuid_stable" {
 
   let handle_c = primary_monitor_for_test()
   let handle_d = primary_monitor_for_test()
-  assert_true(handle_c is Some(_))
-  assert_true(handle_d is Some(_))
   match handle_c {
     Some(handle_c) =>
       match handle_d {
@@ -48,8 +44,6 @@ test "monitorhandle_from_zero" {
 
   let handle0 = monitor_from_native_id((0 : Int).to_uint64())
   let handle1 = monitor_from_native_id(primary_id)
-  assert_true(handle0 is Some(_))
-  assert_true(handle1 is Some(_))
   match handle0 {
     Some(handle0) =>
       match handle1 {
@@ -76,9 +70,17 @@ test "invalid_monitor_handle" {
 ///|
 test "primary_monitor_has_ns_screen_handle" {
   let monitor = primary_monitor_for_test()
-  assert_true(monitor is Some(_))
   match monitor {
     Some(monitor) => assert_true(monitor_ns_screen(monitor) is Some(_))
     None => ()
+  }
+}
+
+///|
+test "available_monitors_allows_empty_headless_result" {
+  let monitors = available_monitors()
+  match primary_monitor_for_test() {
+    Some(primary) => assert_true(monitors.any(monitor => monitor == primary))
+    None => assert_true(monitors.is_empty())
   }
 }
