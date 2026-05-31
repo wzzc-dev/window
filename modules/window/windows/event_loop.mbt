@@ -129,8 +129,6 @@ pub fn EventLoop::try_new_with_platform_attributes(
   }
   let msg_window = native_create_msg_window()
   let thread_id = native_get_current_thread_id()
-  app_state_set_msg_window(msg_window)
-  app_state_set_thread_id(thread_id)
   app_state_install_native_callbacks()
   event_loop_global_created.val = true
   { msg_window, thread_id }
@@ -265,11 +263,13 @@ pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
 
 ///|
 pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
+  let _ = self
   (0 : Int).to_uint64()
 }
 
 ///|
 pub fn EventLoop::rwh_06_handle(self : EventLoop) -> UInt64 {
+  let _ = self
   (0 : Int).to_uint64()
 }
 
@@ -399,18 +399,15 @@ pub fn ActiveEventLoop::display_handle(self : ActiveEventLoop) -> UInt64 {
 }
 
 ///|
-fn[A : ApplicationHandler] EventLoop::dispatch_events(
-  self : EventLoop,
-  app : A,
-) -> Unit {
-  app_state_dispatch_redraws(app, self.as_active())
-  app_state_dispatch_deferred_callbacks(app, self.as_active())
+fn EventLoop::dispatch_events(self : EventLoop) -> Unit {
+  let _ = self
+  app_state_dispatch_redraws()
+  app_state_dispatch_deferred_callbacks()
 }
 
 ///|
-fn[A : ApplicationHandler] EventLoop::run_message_loop(
+fn EventLoop::run_message_loop(
   self : EventLoop,
-  app : A,
   blocking : Bool,
   timeout_ms : Int?,
 ) -> Unit {
@@ -437,9 +434,9 @@ fn[A : ApplicationHandler] EventLoop::run_message_loop(
             native_wait_and_process_message((0 : Int).to_uint64(), 0, 0) > 0
         }
     }
-    self.dispatch_events(app)
+    self.dispatch_events()
     app_state_queue_callback(AboutToWait)
-    app_state_dispatch_deferred_callbacks(app, self.as_active())
+    app_state_dispatch_deferred_callbacks()
     if app_state_exit_requested() {
       continue_loop = false
     }
@@ -473,7 +470,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, self.as_active())
   app_state_dispatch_init_events(app, self.as_active())
-  self.run_message_loop(app, true, None)
+  self.run_message_loop(true, None)
   app_state_internal_exit()
   app_state_clear_dispatch_handler()
 }
@@ -498,7 +495,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
   app_state_clear_exit()
   app_state_set_dispatch_handler(app, self.as_active())
   app_state_dispatch_init_events(app, self.as_active())
-  self.run_message_loop(app, true, None)
+  self.run_message_loop(true, None)
   app_state_internal_exit()
   app_state_clear_dispatch_handler()
 }
@@ -525,7 +522,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   } else {
     app_state_set_dispatch_handler(app, self.as_active())
   }
-  self.run_message_loop(app, false, timeout_ms)
+  self.run_message_loop(false, timeout_ms)
   app_state_clear_dispatch_handler()
   if app_state_exit_requested() {
     @core.PumpStatus::Exit(app_state_exit_code())

@@ -22,7 +22,8 @@ pub impl Show for EventLoopProxy with output(self, logger) {
 }
 
 ///|
-pub impl Show for EventLoopBuilder with output(self, logger) {
+pub impl Show for EventLoopBuilder with fn output(self, logger) {
+  let _ = self
   logger.write_string("EventLoopBuilder()")
 }
 

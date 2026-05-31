@@ -29,37 +29,13 @@ pub struct Window {
 pub type WindowAttributesWindows = @core.PlatformWindowAttributes
 
 ///|
-let gwlp_wndproc : Int = -4
-
-///|
-let gwlp_hinstance : Int = -6
-
-///|
-let gwlp_userdata : Int = -21
-
-///|
-let gwl_style : Int = -16
-
-///|
-let gwl_exstyle : Int = -20
-
-///|
 let ws_overlapped : UInt64 = 0x00000000
 
 ///|
 let ws_popup : UInt64 = 0x80000000
 
 ///|
-let ws_child : UInt64 = 0x40000000
-
-///|
-let ws_minimize : UInt64 = 0x20000000
-
-///|
 let ws_visible : UInt64 = 0x10000000
-
-///|
-let ws_disabled : UInt64 = 0x08000000
 
 ///|
 let ws_clipsiblings : UInt64 = 0x04000000
@@ -68,22 +44,7 @@ let ws_clipsiblings : UInt64 = 0x04000000
 let ws_clipchildren : UInt64 = 0x02000000
 
 ///|
-let ws_maximize : UInt64 = 0x01000000
-
-///|
 let ws_caption : UInt64 = 0x00C00000
-
-///|
-let ws_border : UInt64 = 0x00800000
-
-///|
-let ws_dlgframe : UInt64 = 0x00400000
-
-///|
-let ws_vscroll : UInt64 = 0x00200000
-
-///|
-let ws_hscroll : UInt64 = 0x00100000
 
 ///|
 let ws_sysmenu : UInt64 = 0x00080000
@@ -115,31 +76,13 @@ let ws_ex_toolwindow : UInt64 = 0x00000080
 let ws_ex_appwindow : UInt64 = 0x00040000
 
 ///|
-let ws_ex_noredirectionbitmap : UInt64 = 0x00200000
-
-///|
-let ws_ex_transparent : UInt64 = 0x00000020
-
-///|
 let sw_hide : Int = 0
 
 ///|
 let sw_shownormal : Int = 1
 
 ///|
-let sw_showminimized : Int = 2
-
-///|
-let sw_showmaximized : Int = 3
-
-///|
 let sw_maximize : Int = 3
-
-///|
-let sw_shownoactivate : Int = 4
-
-///|
-let sw_show : Int = 5
 
 ///|
 let sw_minimize : Int = 6
@@ -178,12 +121,6 @@ let hwnd_notopmost : UInt64 = (-2L).reinterpret_as_uint64()
 let size_minimized : Int = 1
 
 ///|
-let size_maximized : Int = 2
-
-///|
-let size_restored : Int = 0
-
-///|
 let cw_usedefault : Int = -2147483648
 
 ///|
@@ -193,79 +130,7 @@ let pm_remove : UInt = 1
 let tme_leave : UInt = 0x00000002
 
 ///|
-let tme_hover : UInt = 0x00000001
-
-///|
-let tme_cancel : UInt = 0x80000000
-
-///|
-let wm_ncpaint : UInt = 0x0085
-
-///|
-let wm_mousemove : UInt = 0x0200
-
-///|
-let wm_lbuttondown : UInt = 0x0201
-
-///|
-let wm_lbuttonup : UInt = 0x0202
-
-///|
-let wm_rbuttondown : UInt = 0x0204
-
-///|
-let wm_rbuttonup : UInt = 0x0205
-
-///|
-let wm_mbuttondown : UInt = 0x0207
-
-///|
-let wm_mbuttonup : UInt = 0x0208
-
-///|
-let wm_xbuttondown : UInt = 0x020B
-
-///|
-let wm_xbuttonup : UInt = 0x020C
-
-///|
-let wm_mousewheel : UInt = 0x020A
-
-///|
-let wm_mousehwheel : UInt = 0x020E
-
-///|
-let wm_keydown : UInt = 0x0100
-
-///|
-let wm_keyup : UInt = 0x0101
-
-///|
-let wm_char : UInt = 0x0102
-
-///|
-let wm_syskeydown : UInt = 0x0104
-
-///|
-let wm_syskeyup : UInt = 0x0105
-
-///|
-let htclient : Int = 1
-
-///|
 let htcaption : Int = 2
-
-///|
-let httop : Int = 12
-
-///|
-let vk_shift : UInt = 0x10
-
-///|
-let vk_control : UInt = 0x11
-
-///|
-let vk_menu : UInt = 0x12
 
 ///|
 let wheel_delta : Int = 120
@@ -306,6 +171,7 @@ pub fn Window::new(
   event_loop : EventLoop,
   attributes : @core.WindowAttributes,
 ) -> Window raise @core.RequestError {
+  let _ = event_loop
   let raw_id = app_state_next_window_id()
   let window_id = @core.WindowId::from_raw(raw_id)
   let style = compute_window_style(attributes)
@@ -398,6 +264,7 @@ pub fn Window::set_title(self : Window, title : String) -> Unit {
 
 ///|
 pub fn Window::title(self : Window) -> String {
+  let _ = self
   "window"
 }
 
@@ -444,6 +311,7 @@ pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::outer_position(
   self : Window,
 ) -> @dpi.PhysicalPosition raise @core.RequestError {
@@ -656,6 +524,7 @@ pub fn Window::is_cursor_visible(self : Window) -> Bool {
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::set_cursor_hittest(
   self : Window,
   hittest : Bool,
@@ -690,6 +559,7 @@ pub fn Window::set_cursor_grab(
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::set_cursor_position(
   self : Window,
   position : @dpi.Position,
@@ -817,17 +687,22 @@ pub fn Window::set_enabled_buttons(
 
 ///|
 pub fn Window::enabled_buttons(self : Window) -> @core.WindowButtons {
+  let _ = self
   @core.WindowButtons::all()
 }
 
 ///|
-pub fn Window::set_content_protected(self : Window, protected : Bool) -> Unit {
+pub fn Window::set_content_protected(
+  self : Window,
+  is_protected : Bool,
+) -> Unit {
   let _ = self
-  let _ = protected
+  let _ = is_protected
 }
 
 ///|
 pub fn Window::is_content_protected(self : Window) -> Bool {
+  let _ = self
   false
 }
 
@@ -910,6 +785,7 @@ pub fn Window::set_ime_hints(self : Window, hints : @core.ImeHint) -> Unit {
 
 ///|
 pub fn Window::ime_hints(self : Window) -> @core.ImeHint {
+  let _ = self
   @core.ImeHint::none()
 }
 
@@ -924,6 +800,7 @@ pub fn Window::set_ime_purpose(
 
 ///|
 pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
+  let _ = self
   @core.ImePurpose::Normal
 }
 
@@ -991,6 +868,7 @@ pub fn Window::set_has_shadow(self : Window, shadow : Bool) -> Unit {
 
 ///|
 pub fn Window::has_shadow(self : Window) -> Bool {
+  let _ = self
   true
 }
 
@@ -1022,16 +900,19 @@ pub fn Window::set_theme(self : Window, theme : @core.Theme?) -> Unit {
 
 ///|
 pub fn Window::theme(self : Window) -> @core.Theme? {
+  let _ = self
   theme_from_native(native_system_theme())
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
   native_release_capture()
   ignore(native_send_message(self.hwnd, 0x00A1, htcaption.to_uint64(), 0))
 }
 
 ///|
+#warnings("-unused_error_type")
 pub fn Window::drag_resize_window(
   self : Window,
   direction : @core.ResizeDirection,
@@ -1065,6 +946,7 @@ pub fn Window::reset_dead_keys(self : Window) -> Unit {
 
 ///|
 pub fn Window::display_handle(self : Window) -> UInt64 {
+  let _ = self
   (0 : Int).to_uint64()
 }
 
@@ -1075,6 +957,7 @@ pub fn Window::window_handle(self : Window) -> UInt64 {
 
 ///|
 pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
+  let _ = self
   (0 : Int).to_uint64()
 }
 
@@ -1085,21 +968,25 @@ pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
 
 ///|
 pub fn Window::is_occluded(self : Window) -> Bool {
+  let _ = self
   false
 }
 
 ///|
 pub fn Window::is_borderless_game(self : Window) -> Bool {
+  let _ = self
   false
 }
 
 ///|
 pub fn Window::set_borderless_game(self : Window, borderless : Bool) -> Unit {
+  let _ = self
   let _ = borderless
 }
 
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
+  let _ = self
   @core.OptionAsAlt::None
 }
 
@@ -1108,26 +995,31 @@ pub fn Window::set_option_as_alt(
   self : Window,
   option_as_alt : @core.OptionAsAlt,
 ) -> Unit {
+  let _ = self
   let _ = option_as_alt
 }
 
 ///|
 pub fn Window::unified_titlebar(self : Window) -> Bool {
+  let _ = self
   false
 }
 
 ///|
 pub fn Window::set_unified_titlebar(self : Window, unified : Bool) -> Unit {
+  let _ = self
   let _ = unified
 }
 
 ///|
 pub fn Window::set_simple_fullscreen(self : Window, _simple : Bool) -> Bool {
+  let _ = self
   false
 }
 
 ///|
 pub fn Window::simple_fullscreen(self : Window) -> Bool {
+  let _ = self
   false
 }
 
@@ -1158,26 +1050,31 @@ pub fn Window::set_max_surface_size(self : Window, _size : @dpi.Size?) -> Unit {
 
 ///|
 pub fn Window::min_inner_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
 ///|
 pub fn Window::max_inner_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
 ///|
 pub fn Window::min_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
 ///|
 pub fn Window::max_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
 ///|
 pub fn Window::resize_increments(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
@@ -1191,6 +1088,7 @@ pub fn Window::set_resize_increments(
 
 ///|
 pub fn Window::surface_resize_increments(self : Window) -> @dpi.PhysicalSize? {
+  let _ = self
   None
 }
 
@@ -1204,6 +1102,7 @@ pub fn Window::set_surface_resize_increments(
 
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
+  let _ = self
   @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
 }
 
@@ -1217,6 +1116,7 @@ pub fn Window::set_tabbing_identifier(
 
 ///|
 pub fn Window::tabbing_identifier(self : Window) -> String {
+  let _ = self
   ""
 }
 
@@ -1237,6 +1137,7 @@ pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
 
 ///|
 pub fn Window::num_tabs(self : Window) -> Int {
+  let _ = self
   0
 }
 
@@ -1280,6 +1181,7 @@ pub fn Window::set_document_edited(self : Window, edited : Bool) -> Unit {
 
 ///|
 pub fn Window::is_document_edited(self : Window) -> Bool {
+  let _ = self
   false
 }
 
