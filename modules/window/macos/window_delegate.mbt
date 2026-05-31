@@ -1369,7 +1369,7 @@ pub fn Window::available_monitors(self : Window) -> Array[@core.MonitorHandle] {
 pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
   self.maybe_wait_on_main(fn(window) {
     let _ = window
-    Some(primary_monitor())
+    primary_monitor()
   })
 }
 

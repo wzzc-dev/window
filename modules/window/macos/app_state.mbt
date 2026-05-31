@@ -598,6 +598,9 @@ fn native_callback_sync_query(raw_id : Int, kind : Int, _arg0 : UInt64) -> Int {
 
 ///|
 fn app_state_on_before_waiting() -> Unit {
+  if app_state_is_launched() == false {
+    app_state_queue_did_finish_launching_notification()
+  }
   if app_state_handler_ready() == false {
     return ()
   }

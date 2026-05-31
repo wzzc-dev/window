@@ -366,6 +366,27 @@ test "did_finish_launching_and_dispatch_runs_init_before_stop_on_launch" {
 }
 
 ///|
+test "before_waiting_queues_launch_when_appkit_notification_is_missing" {
+  reset_app_state_runtime_for_test()
+  launch_init_callback_order_for_test.val = []
+  launch_init_stop_flag_seen_for_test.val = []
+  app_state_set_dispatch_handler(
+    LaunchInitCallbacksApp::{  },
+    active_event_loop_for_test(),
+  )
+
+  app_state_on_before_waiting()
+
+  assert_true(app_state_is_launched())
+  assert_true(app_state_is_running())
+  assert_true(
+    launch_init_callback_order_for_test.val ==
+    ["new_events", "can_create_surfaces"],
+  )
+  app_state_clear_dispatch_handler()
+}
+
+///|
 test "reentrant_redraw_requested_is_dropped" {
   reset_app_state_runtime_for_test()
   app_state_set_running(true)
