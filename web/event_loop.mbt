@@ -120,7 +120,7 @@ pub fn EventLoop::try_new_with_platform_attributes(
   _attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop raise @core.EventLoopError {
   if event_loop_global_created.val {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   app_state_install_web_callbacks()
   event_loop_global_created.val = true
@@ -448,7 +448,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   app : A,
 ) -> Unit raise @core.EventLoopError {
   if app_state_is_running() {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   app_state_set_running(true)
   app_state_clear_exit()
@@ -510,17 +510,17 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   }
   self.dispatch_events(app)
   if app_state_exit_requested() {
-    @core.PumpStatus::Exit(app_state_exit_code())
+    Exit(app_state_exit_code())
   } else {
-    @core.PumpStatus::Continue
+    Continue
   }
 }
 
 ///|
 fn theme_from_native(theme : Int) -> @core.Theme? {
   match theme {
-    1 => Some(@core.Theme::Dark)
-    0 => Some(@core.Theme::Light)
+    1 => Some(Dark)
+    0 => Some(Light)
     _ => None
   }
 }

@@ -71,46 +71,46 @@ let web_event_drag_leave : Int = 63
 fn web_mouse_button(button : Int) -> @core.MouseButton {
   match @core.MouseButton::try_from_u8(button) {
     Some(mouse) => mouse
-    None => @core.MouseButton::Left
+    None => Left
   }
 }
 
 ///|
 fn web_element_state(pressed : Bool) -> @core.ElementState {
   if pressed {
-    @core.ElementState::Pressed
+    Pressed
   } else {
-    @core.ElementState::Released
+    Released
   }
 }
 
 ///|
 fn web_key_from_text(text : String) -> @core.Key {
   match text {
-    "Enter" => @core.Key::Named(@core.NamedKey::Enter)
-    "Tab" => @core.Key::Named(@core.NamedKey::Tab)
-    "Backspace" => @core.Key::Named(@core.NamedKey::Backspace)
-    "Escape" => @core.Key::Named(@core.NamedKey::Escape)
-    "Shift" => @core.Key::Named(@core.NamedKey::Shift)
-    "Control" => @core.Key::Named(@core.NamedKey::Control)
-    "Alt" => @core.Key::Named(@core.NamedKey::Alt)
-    "Meta" => @core.Key::Named(@core.NamedKey::Meta)
-    "CapsLock" => @core.Key::Named(@core.NamedKey::CapsLock)
-    "ArrowLeft" => @core.Key::Named(@core.NamedKey::ArrowLeft)
-    "ArrowRight" => @core.Key::Named(@core.NamedKey::ArrowRight)
-    "ArrowUp" => @core.Key::Named(@core.NamedKey::ArrowUp)
-    "ArrowDown" => @core.Key::Named(@core.NamedKey::ArrowDown)
-    "Home" => @core.Key::Named(@core.NamedKey::Home)
-    "End" => @core.Key::Named(@core.NamedKey::End)
-    "PageUp" => @core.Key::Named(@core.NamedKey::PageUp)
-    "PageDown" => @core.Key::Named(@core.NamedKey::PageDown)
-    "Insert" => @core.Key::Named(@core.NamedKey::Insert)
-    "Delete" => @core.Key::Named(@core.NamedKey::Delete)
+    "Enter" => Named(Enter)
+    "Tab" => Named(Tab)
+    "Backspace" => Named(Backspace)
+    "Escape" => Named(Escape)
+    "Shift" => Named(Shift)
+    "Control" => Named(Control)
+    "Alt" => Named(Alt)
+    "Meta" => Named(Meta)
+    "CapsLock" => Named(CapsLock)
+    "ArrowLeft" => Named(ArrowLeft)
+    "ArrowRight" => Named(ArrowRight)
+    "ArrowUp" => Named(ArrowUp)
+    "ArrowDown" => Named(ArrowDown)
+    "Home" => Named(Home)
+    "End" => Named(End)
+    "PageUp" => Named(PageUp)
+    "PageDown" => Named(PageDown)
+    "Insert" => Named(Insert)
+    "Delete" => Named(Delete)
     _ =>
       if text.length() == 1 {
-        @core.Key::Character(text)
+        Character(text)
       } else {
-        @core.Key::Unidentified(@core.NativeKey::Web(text))
+        Unidentified(Web(text))
       }
   }
 }
@@ -118,70 +118,68 @@ fn web_key_from_text(text : String) -> @core.Key {
 ///|
 fn web_key_code_from_code(code : String) -> @core.KeyCode {
   match code {
-    "KeyA" => @core.KeyCode::KeyA
-    "KeyB" => @core.KeyCode::KeyB
-    "KeyC" => @core.KeyCode::KeyC
-    "KeyD" => @core.KeyCode::KeyD
-    "KeyE" => @core.KeyCode::KeyE
-    "KeyF" => @core.KeyCode::KeyF
-    "KeyG" => @core.KeyCode::KeyG
-    "KeyH" => @core.KeyCode::KeyH
-    "KeyI" => @core.KeyCode::KeyI
-    "KeyJ" => @core.KeyCode::KeyJ
-    "KeyK" => @core.KeyCode::KeyK
-    "KeyL" => @core.KeyCode::KeyL
-    "KeyM" => @core.KeyCode::KeyM
-    "KeyN" => @core.KeyCode::KeyN
-    "KeyO" => @core.KeyCode::KeyO
-    "KeyP" => @core.KeyCode::KeyP
-    "KeyQ" => @core.KeyCode::KeyQ
-    "KeyR" => @core.KeyCode::KeyR
-    "KeyS" => @core.KeyCode::KeyS
-    "KeyT" => @core.KeyCode::KeyT
-    "KeyU" => @core.KeyCode::KeyU
-    "KeyV" => @core.KeyCode::KeyV
-    "KeyW" => @core.KeyCode::KeyW
-    "KeyX" => @core.KeyCode::KeyX
-    "KeyY" => @core.KeyCode::KeyY
-    "KeyZ" => @core.KeyCode::KeyZ
-    "Digit0" => @core.KeyCode::Digit0
-    "Digit1" => @core.KeyCode::Digit1
-    "Digit2" => @core.KeyCode::Digit2
-    "Digit3" => @core.KeyCode::Digit3
-    "Digit4" => @core.KeyCode::Digit4
-    "Digit5" => @core.KeyCode::Digit5
-    "Digit6" => @core.KeyCode::Digit6
-    "Digit7" => @core.KeyCode::Digit7
-    "Digit8" => @core.KeyCode::Digit8
-    "Digit9" => @core.KeyCode::Digit9
-    "Enter" => @core.KeyCode::Enter
-    "Tab" => @core.KeyCode::Tab
-    "Backspace" => @core.KeyCode::Backspace
-    "Escape" => @core.KeyCode::Escape
-    "Space" => @core.KeyCode::Space
-    "ArrowLeft" => @core.KeyCode::ArrowLeft
-    "ArrowRight" => @core.KeyCode::ArrowRight
-    "ArrowUp" => @core.KeyCode::ArrowUp
-    "ArrowDown" => @core.KeyCode::ArrowDown
-    "ShiftLeft" => @core.KeyCode::ShiftLeft
-    "ShiftRight" => @core.KeyCode::ShiftRight
-    "ControlLeft" => @core.KeyCode::ControlLeft
-    "ControlRight" => @core.KeyCode::ControlRight
-    "AltLeft" => @core.KeyCode::AltLeft
-    "AltRight" => @core.KeyCode::AltRight
-    "MetaLeft" => @core.KeyCode::MetaLeft
-    "MetaRight" => @core.KeyCode::MetaRight
-    _ => @core.KeyCode::Unidentified
+    "KeyA" => KeyA
+    "KeyB" => KeyB
+    "KeyC" => KeyC
+    "KeyD" => KeyD
+    "KeyE" => KeyE
+    "KeyF" => KeyF
+    "KeyG" => KeyG
+    "KeyH" => KeyH
+    "KeyI" => KeyI
+    "KeyJ" => KeyJ
+    "KeyK" => KeyK
+    "KeyL" => KeyL
+    "KeyM" => KeyM
+    "KeyN" => KeyN
+    "KeyO" => KeyO
+    "KeyP" => KeyP
+    "KeyQ" => KeyQ
+    "KeyR" => KeyR
+    "KeyS" => KeyS
+    "KeyT" => KeyT
+    "KeyU" => KeyU
+    "KeyV" => KeyV
+    "KeyW" => KeyW
+    "KeyX" => KeyX
+    "KeyY" => KeyY
+    "KeyZ" => KeyZ
+    "Digit0" => Digit0
+    "Digit1" => Digit1
+    "Digit2" => Digit2
+    "Digit3" => Digit3
+    "Digit4" => Digit4
+    "Digit5" => Digit5
+    "Digit6" => Digit6
+    "Digit7" => Digit7
+    "Digit8" => Digit8
+    "Digit9" => Digit9
+    "Enter" => Enter
+    "Tab" => Tab
+    "Backspace" => Backspace
+    "Escape" => Escape
+    "Space" => Space
+    "ArrowLeft" => ArrowLeft
+    "ArrowRight" => ArrowRight
+    "ArrowUp" => ArrowUp
+    "ArrowDown" => ArrowDown
+    "ShiftLeft" => ShiftLeft
+    "ShiftRight" => ShiftRight
+    "ControlLeft" => ControlLeft
+    "ControlRight" => ControlRight
+    "AltLeft" => AltLeft
+    "AltRight" => AltRight
+    "MetaLeft" => MetaLeft
+    "MetaRight" => MetaRight
+    _ => Unidentified
   }
 }
 
 ///|
 fn web_key_location(code : String) -> @core.KeyLocation {
   match code {
-    "ShiftLeft" | "ControlLeft" | "AltLeft" | "MetaLeft" =>
-      @core.KeyLocation::Left
-    "ShiftRight" | "ControlRight" | "AltRight" | "MetaRight" =>
-      @core.KeyLocation::Right
+    "ShiftLeft" | "ControlLeft" | "AltLeft" | "MetaLeft" => Left
+    "ShiftRight" | "ControlRight" | "AltRight" | "MetaRight" => Right
     "Numpad0"
     | "Numpad1"
     | "Numpad2"
@@ -192,8 +190,8 @@ fn web_key_location(code : String) -> @core.KeyLocation {
     | "Numpad7"
     | "Numpad8"
     | "Numpad9"
-    | "NumpadEnter" => @core.KeyLocation::Numpad
-    _ => @core.KeyLocation::Standard
+    | "NumpadEnter" => Numpad
+    _ => Standard
   }
 }
 
@@ -204,12 +202,12 @@ fn web_key_event(code : String, key : String, pressed : Bool) -> @core.KeyEvent 
     web_key_code_from_code(code),
   )
   let text = match logical_key {
-    @core.Key::Character(text) => if text == "" { None } else { Some(text) }
-    @core.Key::Named(@core.NamedKey::Enter) => Some("\r")
-    @core.Key::Named(@core.NamedKey::Tab) => Some("\t")
+    Character(text) => if text == "" { None } else { Some(text) }
+    Named(Enter) => Some("\r")
+    Named(Tab) => Some("\t")
     _ => None
   }
-  @core.KeyEvent::KeyEvent(
+  KeyEvent(
     physical_key,
     logical_key,
     logical_key,
@@ -246,193 +244,144 @@ fn dispatch_web_event(
 ) -> Unit {
   match kind {
     k if k == web_event_animation_frame =>
-      app_state_queue_callback(NewEvents(@core.StartCause::Poll))
+      app_state_queue_callback(NewEvents(Poll))
     k if k == web_event_timeout => {
       let now = web_now_ms()
-      app_state_queue_callback(
-        NewEvents(@core.StartCause::ResumeTimeReached(now, now)),
-      )
+      app_state_queue_callback(NewEvents(ResumeTimeReached(now, now)))
     }
     k if k == web_event_proxy_wake => app_state_queue_callback(ProxyWakeUp)
     k if k == web_event_resize => {
-      let size = @dpi.PhysicalSize::PhysicalSize(arg0, arg1)
+      let size : @dpi.PhysicalSize = PhysicalSize(arg0, arg1)
       let old_scale = app_state_window_scale_factor(raw_id)
       app_state_set_window_surface_size(raw_id, size)
       let new_scale = web_scale_factor()
       if new_scale != old_scale {
         app_state_queue_window_event(
           raw_id,
-          @core.WindowEvent::ScaleFactorChanged(
-            new_scale,
-            @core.SurfaceSizeWriter::SurfaceSizeWriter(size),
-          ),
+          ScaleFactorChanged(new_scale, SurfaceSizeWriter(size)),
         )
       }
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::SurfaceResized(size),
-      )
+      app_state_queue_window_event(raw_id, SurfaceResized(size))
     }
     k if k == web_event_focus =>
-      app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(true))
+      app_state_queue_window_event(raw_id, Focused(true))
     k if k == web_event_blur =>
-      app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(false))
+      app_state_queue_window_event(raw_id, Focused(false))
     k if k == web_event_pointer_enter => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerEntered(
-          None,
-          position,
-          true,
-          @core.PointerKind::Mouse,
-        ),
+        PointerEntered(None, position, true, Mouse),
       )
     }
     k if k == web_event_pointer_move => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerMoved(
-          None,
-          position,
-          true,
-          @core.PointerSource::Mouse,
-        ),
+        PointerMoved(None, position, true, Mouse),
       )
     }
     k if k == web_event_pointer_leave => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerLeft(
-          None,
-          Some(position),
-          true,
-          @core.PointerKind::Mouse,
-        ),
+        PointerLeft(None, Some(position), true, Mouse),
       )
     }
     k if k == web_event_pointer_down || k == web_event_pointer_up => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
+        PointerButton(
           None,
           web_element_state(k == web_event_pointer_down),
           position,
           true,
-          @core.ButtonSource::Mouse(web_mouse_button(argd.to_int())),
+          Mouse(web_mouse_button(argd.to_int())),
         ),
       )
     }
     k if k == web_event_wheel =>
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::MouseWheel(
+        MouseWheel(
           None,
-          @core.MouseScrollDelta::PixelDelta(
-            @dpi.PhysicalPositionF64::PhysicalPositionF64(
-              arg0.to_double(),
-              arg1.to_double(),
-            ),
-          ),
-          @core.TouchPhase::Moved,
+          PixelDelta(PhysicalPositionF64(arg0.to_double(), arg1.to_double())),
+          Moved,
         ),
       )
     k if k == web_event_drag_enter => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::DragEntered(web_drag_paths(text), position),
+        DragEntered(web_drag_paths(text), position),
       )
     }
     k if k == web_event_drag_move => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::DragMoved(position),
-      )
+      app_state_queue_window_event(raw_id, DragMoved(position))
     }
     k if k == web_event_drag_drop => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::DragDropped(web_drag_paths(text), position),
+        DragDropped(web_drag_paths(text), position),
       )
     }
     k if k == web_event_drag_leave => {
-      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+      let position : @dpi.PhysicalPositionF64 = PhysicalPositionF64(
         arg0.to_double(),
         arg1.to_double(),
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::DragLeft(Some(position)),
-      )
+      app_state_queue_window_event(raw_id, DragLeft(Some(position)))
     }
     k if k == web_event_key_down || k == web_event_key_up =>
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::KeyboardInput(
+        KeyboardInput(
           None,
           web_key_event(text, text, k == web_event_key_down),
           false,
         ),
       )
     k if k == web_event_ime_commit =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Ime(@core.Ime::Commit(text)),
-      )
+      app_state_queue_window_event(raw_id, Ime(Commit(text)))
     k if k == web_event_ime_start =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Ime(@core.Ime::Enabled),
-      )
+      app_state_queue_window_event(raw_id, Ime(Enabled))
     k if k == web_event_ime_preedit => {
-      let cursor = if arg0 >= 0 && arg1 >= arg0 {
-        Some(@core.ImeCursorRange::ImeCursorRange(arg0, arg1))
+      let cursor : @core.ImeCursorRange? = if arg0 >= 0 && arg1 >= arg0 {
+        Some(ImeCursorRange(arg0, arg1))
       } else {
         None
       }
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Ime(@core.Ime::Preedit(text, cursor)),
-      )
+      app_state_queue_window_event(raw_id, Ime(Preedit(text, cursor)))
     }
     k if k == web_event_ime_delete_surrounding =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Ime(@core.Ime::DeleteSurrounding(arg0, arg1)),
-      )
+      app_state_queue_window_event(raw_id, Ime(DeleteSurrounding(arg0, arg1)))
     k if k == web_event_theme => {
-      let theme = if arg0 == 1 { @core.Theme::Dark } else { @core.Theme::Light }
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::ThemeChanged(theme),
-      )
+      let theme : @core.Theme = if arg0 == 1 { Dark } else { Light }
+      app_state_queue_window_event(raw_id, ThemeChanged(theme))
     }
     _ => ()
   }

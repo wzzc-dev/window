@@ -216,14 +216,12 @@ pub fn Window::new(
   {
     id: window_id,
     hwnd,
-    cursor_state: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor_state: Icon(Default),
     fullscreen_state: None,
     ime_capabilities_state: None,
     ime_surrounding_text_state: None,
-    ime_cursor_area_position_state: @dpi.PhysicalPosition::PhysicalPosition(
-      0, 0,
-    ),
-    ime_cursor_area_size_state: @dpi.PhysicalSize::PhysicalSize(1, 1),
+    ime_cursor_area_position_state: PhysicalPosition(0, 0),
+    ime_cursor_area_size_state: PhysicalSize(1, 1),
     is_decorated_state: attributes.decorations(),
     is_maximized_state: false,
     is_visible_state: attributes.visible(),
@@ -289,7 +287,7 @@ pub fn Window::inner_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_client_rect_top(self.hwnd)
   let right = native_get_client_rect_right(self.hwnd)
   let bottom = native_get_client_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
+  PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -298,7 +296,7 @@ pub fn Window::outer_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_window_rect_top(self.hwnd)
   let right = native_get_window_rect_right(self.hwnd)
   let bottom = native_get_window_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
+  PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -307,7 +305,7 @@ pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
   let top = native_get_client_rect_top(self.hwnd)
   let x = native_client_to_screen_x(self.hwnd, left, top)
   let y = native_client_to_screen_y(self.hwnd, left, top)
-  @dpi.PhysicalPosition::PhysicalPosition(x, y)
+  PhysicalPosition(x, y)
 }
 
 ///|
@@ -317,7 +315,7 @@ pub fn Window::outer_position(
 ) -> @dpi.PhysicalPosition raise @core.RequestError {
   let left = native_get_window_rect_left(self.hwnd)
   let top = native_get_window_rect_top(self.hwnd)
-  @dpi.PhysicalPosition::PhysicalPosition(left, top)
+  PhysicalPosition(left, top)
 }
 
 ///|
@@ -496,14 +494,14 @@ pub fn Window::set_cursor_icon(
 ) -> Unit {
   let cursor_handle = cursor_icon_to_native(cursor)
   ignore(native_set_cursor(cursor_handle))
-  self.cursor_state = @core.Cursor::Icon(cursor)
+  self.cursor_state = Icon(cursor)
 }
 
 ///|
 pub fn Window::set_cursor(self : Window, cursor : @core.Cursor) -> Unit {
   match cursor {
-    @core.Cursor::Icon(icon) => self.set_cursor_icon(icon)
-    @core.Cursor::Custom(_custom) => ()
+    Icon(icon) => self.set_cursor_icon(icon)
+    Custom(_custom) => ()
   }
   self.cursor_state = cursor
 }
@@ -543,15 +541,15 @@ pub fn Window::set_cursor_grab(
   mode : @core.CursorGrabMode,
 ) -> Unit raise @core.RequestError {
   match mode {
-    @core.CursorGrabMode::None => ignore(native_clip_cursor(0, 0, 0, 0))
-    @core.CursorGrabMode::Locked => {
+    None => ignore(native_clip_cursor(0, 0, 0, 0))
+    Locked => {
       let left = native_get_client_rect_left(self.hwnd)
       let top = native_get_client_rect_top(self.hwnd)
       let right = native_get_client_rect_right(self.hwnd)
       let bottom = native_get_client_rect_bottom(self.hwnd)
       ignore(native_clip_cursor(left, top, right, bottom))
     }
-    @core.CursorGrabMode::Confined =>
+    Confined =>
       raise @core.RequestError::not_supported(
         "Windows confined cursor grab is not supported yet",
       )
@@ -650,9 +648,9 @@ pub fn Window::set_window_level(
   level : @core.WindowLevel,
 ) -> Unit {
   let insert_after = match level {
-    @core.WindowLevel::Normal => hwnd_notopmost
-    @core.WindowLevel::AlwaysOnTop => hwnd_topmost
-    @core.WindowLevel::AlwaysOnBottom => hwnd_bottom
+    Normal => hwnd_notopmost
+    AlwaysOnTop => hwnd_topmost
+    AlwaysOnBottom => hwnd_bottom
   }
   ignore(
     native_set_window_pos(
@@ -671,9 +669,9 @@ pub fn Window::set_window_level(
 pub fn Window::window_level(self : Window) -> @core.WindowLevel {
   let ex_style = native_get_window_long_ex_style(self.hwnd)
   if (ex_style & (8 : Int).to_uint64()) != (0 : Int).to_uint64() {
-    @core.WindowLevel::AlwaysOnTop
+    AlwaysOnTop
   } else {
-    @core.WindowLevel::Normal
+    Normal
   }
 }
 
@@ -735,10 +733,8 @@ pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
   } else {
     self.ime_capabilities_state = None
     self.ime_surrounding_text_state = None
-    self.ime_cursor_area_position_state = @dpi.PhysicalPosition::PhysicalPosition(
-      0, 0,
-    )
-    self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(1, 1)
+    self.ime_cursor_area_position_state = PhysicalPosition(0, 0)
+    self.ime_cursor_area_size_state = PhysicalSize(1, 1)
   }
 }
 
@@ -762,9 +758,7 @@ pub fn Window::set_ime_cursor_area(
     1
   }
   self.ime_cursor_area_position_state = physical_position
-  self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(
-    width, height,
-  )
+  self.ime_cursor_area_size_state = PhysicalSize(width, height)
 }
 
 ///|
@@ -801,7 +795,7 @@ pub fn Window::set_ime_purpose(
 ///|
 pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
   let _ = self
-  @core.ImePurpose::Normal
+  Normal
 }
 
 ///|
@@ -810,20 +804,20 @@ pub fn Window::request_ime_update(
   request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
   match request {
-    @core.ImeRequest::Enable(enable_request) =>
+    Enable(enable_request) =>
       match self.ime_capabilities_state {
-        Some(_) => raise @core.ImeRequestError::AlreadyEnabled
+        Some(_) => raise AlreadyEnabled
         None => {
           self.ime_capabilities_state = Some(enable_request.capabilities())
           self.apply_ime_request_data(enable_request.request_data())
         }
       }
-    @core.ImeRequest::Update(request_data) =>
+    Update(request_data) =>
       match self.ime_capabilities_state {
         Some(_) => self.apply_ime_request_data(request_data)
-        None => raise @core.ImeRequestError::NotEnabled
+        None => raise NotEnabled
       }
-    @core.ImeRequest::Disable => self.set_ime_allowed(false)
+    Disable => self.set_ime_allowed(false)
   }
 }
 
@@ -919,14 +913,14 @@ pub fn Window::drag_resize_window(
 ) -> Unit raise @core.RequestError {
   native_release_capture()
   let hit_test = match direction {
-    @core.ResizeDirection::East => 11
-    @core.ResizeDirection::North => 12
-    @core.ResizeDirection::NorthEast => 14
-    @core.ResizeDirection::NorthWest => 13
-    @core.ResizeDirection::South => 15
-    @core.ResizeDirection::SouthEast => 17
-    @core.ResizeDirection::SouthWest => 16
-    @core.ResizeDirection::West => 10
+    East => 11
+    North => 12
+    NorthEast => 14
+    NorthWest => 13
+    South => 15
+    SouthEast => 17
+    SouthWest => 16
+    West => 10
   }
   ignore(native_send_message(self.hwnd, 0x00A1, hit_test.to_uint64(), 0))
 }
@@ -987,7 +981,7 @@ pub fn Window::set_borderless_game(self : Window, borderless : Bool) -> Unit {
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
   let _ = self
-  @core.OptionAsAlt::None
+  None
 }
 
 ///|
@@ -1103,7 +1097,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
+  PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|
@@ -1206,40 +1200,40 @@ pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
 ///|
 fn cursor_icon_to_native(icon : @core.CursorIcon) -> UInt64 {
   let name = match icon {
-    @core.CursorIcon::Default => (32512 : Int).to_uint64()
-    @core.CursorIcon::Pointer => (32649 : Int).to_uint64()
-    @core.CursorIcon::Text => (32513 : Int).to_uint64()
-    @core.CursorIcon::Crosshair => (32515 : Int).to_uint64()
-    @core.CursorIcon::Move => (32649 : Int).to_uint64()
-    @core.CursorIcon::Wait => (32514 : Int).to_uint64()
-    @core.CursorIcon::Progress => (32650 : Int).to_uint64()
-    @core.CursorIcon::Help => (32651 : Int).to_uint64()
-    @core.CursorIcon::NotAllowed => (32648 : Int).to_uint64()
-    @core.CursorIcon::Grab => (32649 : Int).to_uint64()
-    @core.CursorIcon::Grabbing => (32649 : Int).to_uint64()
-    @core.CursorIcon::EResize => (32643 : Int).to_uint64()
-    @core.CursorIcon::NResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::NeResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::NwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::SResize => (32646 : Int).to_uint64()
-    @core.CursorIcon::SeResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::SwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::WResize => (32643 : Int).to_uint64()
-    @core.CursorIcon::EwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::NsResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::NeswResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::NwseResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::ColResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::RowResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::AllScroll => (32649 : Int).to_uint64()
-    @core.CursorIcon::ZoomIn => (32512 : Int).to_uint64()
-    @core.CursorIcon::ZoomOut => (32512 : Int).to_uint64()
-    @core.CursorIcon::ContextMenu => (32651 : Int).to_uint64()
-    @core.CursorIcon::Cell => (32513 : Int).to_uint64()
-    @core.CursorIcon::VerticalText => (32513 : Int).to_uint64()
-    @core.CursorIcon::Alias => (32512 : Int).to_uint64()
-    @core.CursorIcon::Copy => (32512 : Int).to_uint64()
-    @core.CursorIcon::NoDrop => (32648 : Int).to_uint64()
+    Default => (32512 : Int).to_uint64()
+    Pointer => (32649 : Int).to_uint64()
+    Text => (32513 : Int).to_uint64()
+    Crosshair => (32515 : Int).to_uint64()
+    Move => (32649 : Int).to_uint64()
+    Wait => (32514 : Int).to_uint64()
+    Progress => (32650 : Int).to_uint64()
+    Help => (32651 : Int).to_uint64()
+    NotAllowed => (32648 : Int).to_uint64()
+    Grab => (32649 : Int).to_uint64()
+    Grabbing => (32649 : Int).to_uint64()
+    EResize => (32643 : Int).to_uint64()
+    NResize => (32645 : Int).to_uint64()
+    NeResize => (32642 : Int).to_uint64()
+    NwResize => (32644 : Int).to_uint64()
+    SResize => (32646 : Int).to_uint64()
+    SeResize => (32642 : Int).to_uint64()
+    SwResize => (32644 : Int).to_uint64()
+    WResize => (32643 : Int).to_uint64()
+    EwResize => (32644 : Int).to_uint64()
+    NsResize => (32645 : Int).to_uint64()
+    NeswResize => (32642 : Int).to_uint64()
+    NwseResize => (32642 : Int).to_uint64()
+    ColResize => (32644 : Int).to_uint64()
+    RowResize => (32645 : Int).to_uint64()
+    AllScroll => (32649 : Int).to_uint64()
+    ZoomIn => (32512 : Int).to_uint64()
+    ZoomOut => (32512 : Int).to_uint64()
+    ContextMenu => (32651 : Int).to_uint64()
+    Cell => (32513 : Int).to_uint64()
+    VerticalText => (32513 : Int).to_uint64()
+    Alias => (32512 : Int).to_uint64()
+    Copy => (32512 : Int).to_uint64()
+    NoDrop => (32648 : Int).to_uint64()
   }
   native_load_cursor((0 : Int).to_uint64(), name)
 }

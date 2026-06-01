@@ -173,7 +173,7 @@ pub fn Window::surface_size(self : Window) -> @dpi.PhysicalSize {
 
 ///|
 pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
-  @dpi.PhysicalPosition::PhysicalPosition(
+  PhysicalPosition(
     web_canvas_offset_left(self.canvas),
     web_canvas_offset_top(self.canvas),
   )
@@ -286,18 +286,18 @@ pub fn Window::set_cursor_icon(
     self.canvas,
     web_string_to_extern(web_cursor_name(cursor)),
   )
-  app_state_set_window_cursor(self.raw_id(), @core.Cursor::Icon(cursor))
+  app_state_set_window_cursor(self.raw_id(), Icon(cursor))
 }
 
 ///|
 pub fn Window::set_cursor(self : Window, cursor : @core.Cursor) -> Unit {
   match cursor {
-    @core.Cursor::Icon(icon) =>
+    Icon(icon) =>
       web_set_canvas_cursor(
         self.canvas,
         web_string_to_extern(web_cursor_name(icon)),
       )
-    @core.Cursor::Custom(_) => ()
+    Custom(_) => ()
   }
   app_state_set_window_cursor(self.raw_id(), cursor)
 }
@@ -312,12 +312,12 @@ pub fn Window::set_cursor_visible(self : Window, visible : Bool) -> Unit {
   self.cursor_visible_state = visible
   if visible {
     match self.cursor() {
-      @core.Cursor::Icon(icon) =>
+      Icon(icon) =>
         web_set_canvas_cursor(
           self.canvas,
           web_string_to_extern(web_cursor_name(icon)),
         )
-      @core.Cursor::Custom(_) => ()
+      Custom(_) => ()
     }
   } else {
     web_set_canvas_cursor(self.canvas, web_string_to_extern("none"))
@@ -350,7 +350,7 @@ pub fn Window::set_cursor_grab(
 ) -> Unit raise @core.RequestError {
   let _ = self
   match mode {
-    @core.CursorGrabMode::None => ()
+    None => ()
     _ =>
       raise @core.RequestError::not_supported(
         "Browser cursor grab only supports CursorGrabMode::None",
@@ -482,13 +482,13 @@ pub fn Window::set_ime_cursor_area(
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
   let _ = self
-  @dpi.PhysicalPosition::PhysicalPosition(0, 0)
+  PhysicalPosition(0, 0)
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
   let _ = self
-  @dpi.PhysicalSize::PhysicalSize(0, 0)
+  PhysicalSize(0, 0)
 }
 
 ///|
@@ -520,22 +520,22 @@ pub fn Window::request_ime_update(
   request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
   match request {
-    @core.ImeRequest::Enable(enable_request) => {
+    Enable(enable_request) => {
       if self.ime_allowed_state {
-        raise @core.ImeRequestError::AlreadyEnabled
+        raise AlreadyEnabled
       }
       self.ime_allowed_state = true
       self.ime_capabilities_state = Some(enable_request.capabilities())
       self.apply_ime_request_data(enable_request.request_data())
       web_set_ime_allowed(self.raw_id(), true)
     }
-    @core.ImeRequest::Update(request_data) => {
+    Update(request_data) => {
       if !self.ime_allowed_state {
-        raise @core.ImeRequestError::NotEnabled
+        raise NotEnabled
       }
       self.apply_ime_request_data(request_data)
     }
-    @core.ImeRequest::Disable => self.set_ime_allowed(false)
+    Disable => self.set_ime_allowed(false)
   }
 }
 
@@ -713,7 +713,7 @@ pub fn Window::set_borderless_game(self : Window, _borderless : Bool) -> Unit {
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
   let _ = self
-  @core.OptionAsAlt::None
+  None
 }
 
 ///|
@@ -827,7 +827,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
+  PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|

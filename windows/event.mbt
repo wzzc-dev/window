@@ -8,8 +8,8 @@ fn dispatch_native_window_event(
   argd : Double,
 ) -> Unit {
   match kind {
-    1 => app_state_queue_window_event(raw_id, @core.WindowEvent::CloseRequested)
-    2 => app_state_queue_window_event(raw_id, @core.WindowEvent::Destroyed)
+    1 => app_state_queue_window_event(raw_id, CloseRequested)
+    2 => app_state_queue_window_event(raw_id, Destroyed)
     3 =>
       if arg2 == size_minimized {
         ()
@@ -19,25 +19,20 @@ fn dispatch_native_window_event(
         if width > 0 && height > 0 {
           app_state_queue_window_event(
             raw_id,
-            @core.WindowEvent::SurfaceResized(
-              @dpi.PhysicalSize::PhysicalSize(width, height),
-            ),
+            SurfaceResized(PhysicalSize(width, height)),
           )
         }
       }
     4 => {
       let x = arg0
       let y = arg1
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Moved(@dpi.PhysicalPosition::PhysicalPosition(x, y)),
-      )
+      app_state_queue_window_event(raw_id, Moved(PhysicalPosition(x, y)))
     }
     5 => app_state_queue_redraw(raw_id)
     6 => {
       let active = arg0
       let focused = active == 1 || active == 2
-      app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(focused))
+      app_state_queue_window_event(raw_id, Focused(focused))
     }
     40 => {
       let dpi_x = arg0
@@ -46,7 +41,7 @@ fn dispatch_native_window_event(
       let window_id = @core.WindowId::from_raw(raw_id)
       let new_size = @dpi.PhysicalSize::PhysicalSize(dpi_x * 8, dpi_x * 5)
       app_state_queue_callback(
-        DeferredCallback::ScaleFactorChanged(
+        ScaleFactorChanged(
           window_id,
           scale_factor,
           new_size.width,
@@ -55,15 +50,8 @@ fn dispatch_native_window_event(
       )
     }
     41 => {
-      let theme = if argd > 0.0 {
-        @core.Theme::Dark
-      } else {
-        @core.Theme::Light
-      }
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::ThemeChanged(theme),
-      )
+      let theme = if argd > 0.0 { @core.Theme::Dark } else { Light }
+      app_state_queue_window_event(raw_id, ThemeChanged(theme))
     }
     _ => ()
   }
@@ -73,7 +61,7 @@ fn dispatch_native_window_event(
 fn decode_lparam_position(lparam : Int64) -> @dpi.PhysicalPositionF64 {
   let x = (lparam & 0xFFFF : Int64).to_int()
   let y = ((lparam >> 16) & 0xFFFF : Int64).to_int()
-  @dpi.PhysicalPositionF64::PhysicalPositionF64(x.to_double(), y.to_double())
+  PhysicalPositionF64(x.to_double(), y.to_double())
 }
 
 ///|
@@ -82,7 +70,7 @@ fn decode_lparam_position_signed(lparam : Int64) -> @dpi.PhysicalPositionF64 {
   let y_raw = ((lparam >> 16) & 0xFFFF : Int64).to_int()
   let x = if x_raw > 32767 { x_raw - 65536 } else { x_raw }
   let y = if y_raw > 32767 { y_raw - 65536 } else { y_raw }
-  @dpi.PhysicalPositionF64::PhysicalPositionF64(x.to_double(), y.to_double())
+  PhysicalPositionF64(x.to_double(), y.to_double())
 }
 
 ///|
@@ -141,22 +129,12 @@ fn dispatch_native_input_event(
         )
         app_state_queue_window_event(
           raw_id,
-          @core.WindowEvent::PointerEntered(
-            None,
-            position,
-            false,
-            @core.PointerKind::Mouse,
-          ),
+          PointerEntered(None, position, false, Mouse),
         )
       }
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerMoved(
-          None,
-          position,
-          false,
-          @core.PointerSource::Mouse,
-        ),
+        PointerMoved(None, position, false, Mouse),
       )
     }
     11 => {
@@ -164,128 +142,67 @@ fn dispatch_native_input_event(
       let position = decode_lparam_position_signed(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerLeft(
-          None,
-          Some(position),
-          false,
-          @core.PointerKind::Mouse,
-        ),
+        PointerLeft(None, Some(position), false, Mouse),
       )
     }
     12 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Pressed,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Left),
-        ),
+        PointerButton(None, Pressed, position, false, Mouse(Left)),
       )
     }
     13 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Released,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Left),
-        ),
+        PointerButton(None, Released, position, false, Mouse(Left)),
       )
     }
     14 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Pressed,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Right),
-        ),
+        PointerButton(None, Pressed, position, false, Mouse(Right)),
       )
     }
     15 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Released,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Right),
-        ),
+        PointerButton(None, Released, position, false, Mouse(Right)),
       )
     }
     16 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Pressed,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Middle),
-        ),
+        PointerButton(None, Pressed, position, false, Mouse(Middle)),
       )
     }
     17 => {
       let position = decode_lparam_position(lparam)
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Released,
-          position,
-          false,
-          @core.ButtonSource::Mouse(@core.MouseButton::Middle),
-        ),
+        PointerButton(None, Released, position, false, Mouse(Middle)),
       )
     }
     18 => {
       let position = decode_lparam_position(lparam)
       let xbutton = ((wparam >> 16) & 0xFFFF : UInt64).to_int()
-      let button = if xbutton == 1 {
-        @core.MouseButton::Back
-      } else {
-        @core.MouseButton::Forward
-      }
+      let button = if xbutton == 1 { @core.MouseButton::Back } else { Forward }
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Pressed,
-          position,
-          false,
-          @core.ButtonSource::Mouse(button),
-        ),
+        PointerButton(None, Pressed, position, false, Mouse(button)),
       )
     }
     19 => {
       let position = decode_lparam_position(lparam)
       let xbutton = ((wparam >> 16) & 0xFFFF : UInt64).to_int()
-      let button = if xbutton == 1 {
-        @core.MouseButton::Back
-      } else {
-        @core.MouseButton::Forward
-      }
+      let button = if xbutton == 1 { @core.MouseButton::Back } else { Forward }
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
-          None,
-          @core.ElementState::Released,
-          position,
-          false,
-          @core.ButtonSource::Mouse(button),
-        ),
+        PointerButton(None, Released, position, false, Mouse(button)),
       )
     }
     20 => {
@@ -294,11 +211,7 @@ fn dispatch_native_input_event(
       let lines = signed_delta.to_double() / wheel_delta.to_double()
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::MouseWheel(
-          None,
-          @core.MouseScrollDelta::LineDelta(0.0, lines),
-          @core.TouchPhase::Moved,
-        ),
+        MouseWheel(None, LineDelta(0.0, lines), Moved),
       )
     }
     21 => {
@@ -307,11 +220,7 @@ fn dispatch_native_input_event(
       let lines = signed_delta.to_double() / wheel_delta.to_double()
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::MouseWheel(
-          None,
-          @core.MouseScrollDelta::LineDelta(lines, 0.0),
-          @core.TouchPhase::Moved,
-        ),
+        MouseWheel(None, LineDelta(lines, 0.0), Moved),
       )
     }
     30 => {
@@ -326,7 +235,7 @@ fn dispatch_native_input_event(
         logical_key,
         logical_key,
         location,
-        @core.ElementState::Pressed,
+        Pressed,
         repeat,
         None,
         None,
@@ -334,12 +243,9 @@ fn dispatch_native_input_event(
       let modifiers = compute_modifiers_from_vk()
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::KeyboardInput(None, key_event, false),
+        KeyboardInput(None, key_event, false),
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::ModifiersChanged(modifiers),
-      )
+      app_state_queue_window_event(raw_id, ModifiersChanged(modifiers))
     }
     31 => {
       let vk_code = wparam.to_int()
@@ -352,7 +258,7 @@ fn dispatch_native_input_event(
         logical_key,
         logical_key,
         location,
-        @core.ElementState::Released,
+        Released,
         false,
         None,
         None,
@@ -360,12 +266,9 @@ fn dispatch_native_input_event(
       let modifiers = compute_modifiers_from_vk()
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::KeyboardInput(None, key_event, false),
+        KeyboardInput(None, key_event, false),
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::ModifiersChanged(modifiers),
-      )
+      app_state_queue_window_event(raw_id, ModifiersChanged(modifiers))
     }
     32 => {
       let vk_code = wparam.to_int()
@@ -379,15 +282,12 @@ fn dispatch_native_input_event(
         logical_key,
         logical_key,
         location,
-        @core.ElementState::Pressed,
+        Pressed,
         repeat,
         None,
         None,
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::KeyboardInput(None, key_event, true),
-      )
+      app_state_queue_window_event(raw_id, KeyboardInput(None, key_event, true))
     }
     33 => {
       let vk_code = wparam.to_int()
@@ -400,53 +300,34 @@ fn dispatch_native_input_event(
         logical_key,
         logical_key,
         location,
-        @core.ElementState::Released,
+        Released,
         false,
         None,
         None,
       )
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::KeyboardInput(None, key_event, true),
-      )
+      app_state_queue_window_event(raw_id, KeyboardInput(None, key_event, true))
     }
     34 => {
       let char_code = wparam.to_int()
       if char_code >= 0x20 && char_code != 0x7F {
         let ch = char_code.unsafe_to_char()
         let text = ch.to_string()
-        app_state_queue_window_event(
-          raw_id,
-          @core.WindowEvent::Ime(@core.Ime::Commit(text)),
-        )
+        app_state_queue_window_event(raw_id, Ime(Commit(text)))
       }
     }
-    35 =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Ime(@core.Ime::Enabled),
-      )
+    35 => app_state_queue_window_event(raw_id, Ime(Enabled))
     36 => {
       let text = text_from_native_utf8_ptr(wparam, lparam.to_int())
       if wparam == 0 && lparam == 0 {
-        app_state_queue_window_event(
-          raw_id,
-          @core.WindowEvent::Ime(@core.Ime::Disabled),
-        )
+        app_state_queue_window_event(raw_id, Ime(Disabled))
       } else {
-        app_state_queue_window_event(
-          raw_id,
-          @core.WindowEvent::Ime(@core.Ime::Preedit(text, None)),
-        )
+        app_state_queue_window_event(raw_id, Ime(Preedit(text, None)))
       }
     }
     37 => {
       let text = text_from_native_utf8_ptr(wparam, lparam.to_int())
       if text != "" {
-        app_state_queue_window_event(
-          raw_id,
-          @core.WindowEvent::Ime(@core.Ime::Commit(text)),
-        )
+        app_state_queue_window_event(raw_id, Ime(Commit(text)))
       }
     }
     _ => ()
@@ -470,117 +351,117 @@ fn dispatch_native_sync_query(raw_id : Int, kind : Int, _arg0 : Int) -> Int {
 fn vk_to_physical_key(vk_code : Int, _lparam : Int64) -> @core.PhysicalKey {
   let key_code = match vk_code {
     0x41 => @core.KeyCode::KeyA
-    0x42 => @core.KeyCode::KeyB
-    0x43 => @core.KeyCode::KeyC
-    0x44 => @core.KeyCode::KeyD
-    0x45 => @core.KeyCode::KeyE
-    0x46 => @core.KeyCode::KeyF
-    0x47 => @core.KeyCode::KeyG
-    0x48 => @core.KeyCode::KeyH
-    0x49 => @core.KeyCode::KeyI
-    0x4A => @core.KeyCode::KeyJ
-    0x4B => @core.KeyCode::KeyK
-    0x4C => @core.KeyCode::KeyL
-    0x4D => @core.KeyCode::KeyM
-    0x4E => @core.KeyCode::KeyN
-    0x4F => @core.KeyCode::KeyO
-    0x50 => @core.KeyCode::KeyP
-    0x51 => @core.KeyCode::KeyQ
-    0x52 => @core.KeyCode::KeyR
-    0x53 => @core.KeyCode::KeyS
-    0x54 => @core.KeyCode::KeyT
-    0x55 => @core.KeyCode::KeyU
-    0x56 => @core.KeyCode::KeyV
-    0x57 => @core.KeyCode::KeyW
-    0x58 => @core.KeyCode::KeyX
-    0x59 => @core.KeyCode::KeyY
-    0x5A => @core.KeyCode::KeyZ
-    0x30 => @core.KeyCode::Digit0
-    0x31 => @core.KeyCode::Digit1
-    0x32 => @core.KeyCode::Digit2
-    0x33 => @core.KeyCode::Digit3
-    0x34 => @core.KeyCode::Digit4
-    0x35 => @core.KeyCode::Digit5
-    0x36 => @core.KeyCode::Digit6
-    0x37 => @core.KeyCode::Digit7
-    0x38 => @core.KeyCode::Digit8
-    0x39 => @core.KeyCode::Digit9
-    0x70 => @core.KeyCode::F1
-    0x71 => @core.KeyCode::F2
-    0x72 => @core.KeyCode::F3
-    0x73 => @core.KeyCode::F4
-    0x74 => @core.KeyCode::F5
-    0x75 => @core.KeyCode::F6
-    0x76 => @core.KeyCode::F7
-    0x77 => @core.KeyCode::F8
-    0x78 => @core.KeyCode::F9
-    0x79 => @core.KeyCode::F10
-    0x7A => @core.KeyCode::F11
-    0x7B => @core.KeyCode::F12
-    0x7C => @core.KeyCode::F13
-    0x7D => @core.KeyCode::F14
-    0x7E => @core.KeyCode::F15
-    0x7F => @core.KeyCode::F16
-    0x80 => @core.KeyCode::F17
-    0x81 => @core.KeyCode::F18
-    0x82 => @core.KeyCode::F19
-    0x83 => @core.KeyCode::F20
-    0x84 => @core.KeyCode::F21
-    0x85 => @core.KeyCode::F22
-    0x86 => @core.KeyCode::F23
-    0x87 => @core.KeyCode::F24
-    0x08 => @core.KeyCode::Backspace
-    0x09 => @core.KeyCode::Tab
-    0x0D => @core.KeyCode::Enter
-    0x1B => @core.KeyCode::Escape
-    0x20 => @core.KeyCode::Space
-    0x2D => @core.KeyCode::Insert
-    0x2E => @core.KeyCode::Delete
-    0x24 => @core.KeyCode::Home
-    0x23 => @core.KeyCode::End
-    0x21 => @core.KeyCode::PageUp
-    0x22 => @core.KeyCode::PageDown
-    0x25 => @core.KeyCode::ArrowLeft
-    0x26 => @core.KeyCode::ArrowUp
-    0x27 => @core.KeyCode::ArrowRight
-    0x28 => @core.KeyCode::ArrowDown
-    0x10 => @core.KeyCode::ShiftLeft
-    0x11 => @core.KeyCode::ControlLeft
-    0x12 => @core.KeyCode::AltLeft
-    0x5D => @core.KeyCode::ContextMenu
-    0x14 => @core.KeyCode::CapsLock
-    0x90 => @core.KeyCode::NumLock
-    0x91 => @core.KeyCode::ScrollLock
-    0x2C => @core.KeyCode::PrintScreen
-    0x13 => @core.KeyCode::Pause
-    0x60 => @core.KeyCode::Numpad0
-    0x61 => @core.KeyCode::Numpad1
-    0x62 => @core.KeyCode::Numpad2
-    0x63 => @core.KeyCode::Numpad3
-    0x64 => @core.KeyCode::Numpad4
-    0x65 => @core.KeyCode::Numpad5
-    0x66 => @core.KeyCode::Numpad6
-    0x67 => @core.KeyCode::Numpad7
-    0x68 => @core.KeyCode::Numpad8
-    0x69 => @core.KeyCode::Numpad9
-    0x6E => @core.KeyCode::NumpadDecimal
-    0x6A => @core.KeyCode::NumpadMultiply
-    0x6B => @core.KeyCode::NumpadAdd
-    0x6D => @core.KeyCode::NumpadSubtract
-    0x6F => @core.KeyCode::NumpadDivide
-    0x6C => @core.KeyCode::NumpadEnter
-    0xBB => @core.KeyCode::Equal
-    0xBD => @core.KeyCode::Minus
-    0xDB => @core.KeyCode::BracketLeft
-    0xDD => @core.KeyCode::BracketRight
-    0xBA => @core.KeyCode::Semicolon
-    0xDE => @core.KeyCode::Quote
-    0xDC => @core.KeyCode::Backslash
-    0xBC => @core.KeyCode::Comma
-    0xBE => @core.KeyCode::Period
-    0xBF => @core.KeyCode::Slash
-    0xC0 => @core.KeyCode::Backquote
-    _ => @core.KeyCode::Unidentified
+    0x42 => KeyB
+    0x43 => KeyC
+    0x44 => KeyD
+    0x45 => KeyE
+    0x46 => KeyF
+    0x47 => KeyG
+    0x48 => KeyH
+    0x49 => KeyI
+    0x4A => KeyJ
+    0x4B => KeyK
+    0x4C => KeyL
+    0x4D => KeyM
+    0x4E => KeyN
+    0x4F => KeyO
+    0x50 => KeyP
+    0x51 => KeyQ
+    0x52 => KeyR
+    0x53 => KeyS
+    0x54 => KeyT
+    0x55 => KeyU
+    0x56 => KeyV
+    0x57 => KeyW
+    0x58 => KeyX
+    0x59 => KeyY
+    0x5A => KeyZ
+    0x30 => Digit0
+    0x31 => Digit1
+    0x32 => Digit2
+    0x33 => Digit3
+    0x34 => Digit4
+    0x35 => Digit5
+    0x36 => Digit6
+    0x37 => Digit7
+    0x38 => Digit8
+    0x39 => Digit9
+    0x70 => F1
+    0x71 => F2
+    0x72 => F3
+    0x73 => F4
+    0x74 => F5
+    0x75 => F6
+    0x76 => F7
+    0x77 => F8
+    0x78 => F9
+    0x79 => F10
+    0x7A => F11
+    0x7B => F12
+    0x7C => F13
+    0x7D => F14
+    0x7E => F15
+    0x7F => F16
+    0x80 => F17
+    0x81 => F18
+    0x82 => F19
+    0x83 => F20
+    0x84 => F21
+    0x85 => F22
+    0x86 => F23
+    0x87 => F24
+    0x08 => Backspace
+    0x09 => Tab
+    0x0D => Enter
+    0x1B => Escape
+    0x20 => Space
+    0x2D => Insert
+    0x2E => Delete
+    0x24 => Home
+    0x23 => End
+    0x21 => PageUp
+    0x22 => PageDown
+    0x25 => ArrowLeft
+    0x26 => ArrowUp
+    0x27 => ArrowRight
+    0x28 => ArrowDown
+    0x10 => ShiftLeft
+    0x11 => ControlLeft
+    0x12 => AltLeft
+    0x5D => ContextMenu
+    0x14 => CapsLock
+    0x90 => NumLock
+    0x91 => ScrollLock
+    0x2C => PrintScreen
+    0x13 => Pause
+    0x60 => Numpad0
+    0x61 => Numpad1
+    0x62 => Numpad2
+    0x63 => Numpad3
+    0x64 => Numpad4
+    0x65 => Numpad5
+    0x66 => Numpad6
+    0x67 => Numpad7
+    0x68 => Numpad8
+    0x69 => Numpad9
+    0x6E => NumpadDecimal
+    0x6A => NumpadMultiply
+    0x6B => NumpadAdd
+    0x6D => NumpadSubtract
+    0x6F => NumpadDivide
+    0x6C => NumpadEnter
+    0xBB => Equal
+    0xBD => Minus
+    0xDB => BracketLeft
+    0xDD => BracketRight
+    0xBA => Semicolon
+    0xDE => Quote
+    0xDC => Backslash
+    0xBC => Comma
+    0xBE => Period
+    0xBF => Slash
+    0xC0 => Backquote
+    _ => Unidentified
   }
   @core.PhysicalKey::from_key_code(key_code)
 }
@@ -588,62 +469,62 @@ fn vk_to_physical_key(vk_code : Int, _lparam : Int64) -> @core.PhysicalKey {
 ///|
 fn vk_to_logical_key(vk_code : Int) -> @core.Key {
   match vk_code {
-    0x08 => @core.Key::Named(@core.NamedKey::Backspace)
-    0x09 => @core.Key::Named(@core.NamedKey::Tab)
-    0x0D => @core.Key::Named(@core.NamedKey::Enter)
-    0x1B => @core.Key::Named(@core.NamedKey::Escape)
-    0x20 => @core.Key::Character(" ")
-    0x21 => @core.Key::Named(@core.NamedKey::PageUp)
-    0x22 => @core.Key::Named(@core.NamedKey::PageDown)
-    0x23 => @core.Key::Named(@core.NamedKey::End)
-    0x24 => @core.Key::Named(@core.NamedKey::Home)
-    0x25 => @core.Key::Named(@core.NamedKey::ArrowLeft)
-    0x26 => @core.Key::Named(@core.NamedKey::ArrowUp)
-    0x27 => @core.Key::Named(@core.NamedKey::ArrowRight)
-    0x28 => @core.Key::Named(@core.NamedKey::ArrowDown)
-    0x2D => @core.Key::Named(@core.NamedKey::Insert)
-    0x2E => @core.Key::Named(@core.NamedKey::Delete)
-    0x10 => @core.Key::Named(@core.NamedKey::Shift)
-    0x11 => @core.Key::Named(@core.NamedKey::Control)
-    0x12 => @core.Key::Named(@core.NamedKey::Alt)
-    0x14 => @core.Key::Named(@core.NamedKey::CapsLock)
-    0x90 => @core.Key::Named(@core.NamedKey::NumLock)
-    0x91 => @core.Key::Named(@core.NamedKey::ScrollLock)
-    0x2C => @core.Key::Named(@core.NamedKey::PrintScreen)
-    0x13 => @core.Key::Named(@core.NamedKey::Pause)
-    0x5D => @core.Key::Named(@core.NamedKey::ContextMenu)
+    0x08 => Named(Backspace)
+    0x09 => Named(Tab)
+    0x0D => Named(Enter)
+    0x1B => Named(Escape)
+    0x20 => Character(" ")
+    0x21 => Named(PageUp)
+    0x22 => Named(PageDown)
+    0x23 => Named(End)
+    0x24 => Named(Home)
+    0x25 => Named(ArrowLeft)
+    0x26 => Named(ArrowUp)
+    0x27 => Named(ArrowRight)
+    0x28 => Named(ArrowDown)
+    0x2D => Named(Insert)
+    0x2E => Named(Delete)
+    0x10 => Named(Shift)
+    0x11 => Named(Control)
+    0x12 => Named(Alt)
+    0x14 => Named(CapsLock)
+    0x90 => Named(NumLock)
+    0x91 => Named(ScrollLock)
+    0x2C => Named(PrintScreen)
+    0x13 => Named(Pause)
+    0x5D => Named(ContextMenu)
     _ =>
       if vk_code >= 0x41 && vk_code <= 0x5A {
-        @core.Key::Character((vk_code + 32).unsafe_to_char().to_string())
+        Character((vk_code + 32).unsafe_to_char().to_string())
       } else if vk_code >= 0x30 && vk_code <= 0x39 {
-        @core.Key::Character(vk_code.unsafe_to_char().to_string())
+        Character(vk_code.unsafe_to_char().to_string())
       } else if vk_code >= 0x70 && vk_code <= 0x87 {
         let f_num = vk_code - 0x70 + 1
         match f_num {
-          1 => @core.Key::Named(@core.NamedKey::F1)
-          2 => @core.Key::Named(@core.NamedKey::F2)
-          3 => @core.Key::Named(@core.NamedKey::F3)
-          4 => @core.Key::Named(@core.NamedKey::F4)
-          5 => @core.Key::Named(@core.NamedKey::F5)
-          6 => @core.Key::Named(@core.NamedKey::F6)
-          7 => @core.Key::Named(@core.NamedKey::F7)
-          8 => @core.Key::Named(@core.NamedKey::F8)
-          9 => @core.Key::Named(@core.NamedKey::F9)
-          10 => @core.Key::Named(@core.NamedKey::F10)
-          11 => @core.Key::Named(@core.NamedKey::F11)
-          12 => @core.Key::Named(@core.NamedKey::F12)
-          13 => @core.Key::Named(@core.NamedKey::F13)
-          14 => @core.Key::Named(@core.NamedKey::F14)
-          15 => @core.Key::Named(@core.NamedKey::F15)
-          16 => @core.Key::Named(@core.NamedKey::F16)
-          17 => @core.Key::Named(@core.NamedKey::F17)
-          18 => @core.Key::Named(@core.NamedKey::F18)
-          19 => @core.Key::Named(@core.NamedKey::F19)
-          20 => @core.Key::Named(@core.NamedKey::F20)
-          _ => @core.Key::Unidentified(@core.NativeKey::Windows(vk_code))
+          1 => Named(F1)
+          2 => Named(F2)
+          3 => Named(F3)
+          4 => Named(F4)
+          5 => Named(F5)
+          6 => Named(F6)
+          7 => Named(F7)
+          8 => Named(F8)
+          9 => Named(F9)
+          10 => Named(F10)
+          11 => Named(F11)
+          12 => Named(F12)
+          13 => Named(F13)
+          14 => Named(F14)
+          15 => Named(F15)
+          16 => Named(F16)
+          17 => Named(F17)
+          18 => Named(F18)
+          19 => Named(F19)
+          20 => Named(F20)
+          _ => Unidentified(Windows(vk_code))
         }
       } else {
-        @core.Key::Unidentified(@core.NativeKey::Windows(vk_code))
+        Unidentified(Windows(vk_code))
       }
   }
 }
@@ -651,30 +532,10 @@ fn vk_to_logical_key(vk_code : Int) -> @core.Key {
 ///|
 fn vk_to_key_location(vk_code : Int, is_extended : Bool) -> @core.KeyLocation {
   match vk_code {
-    0x10 =>
-      if is_extended {
-        @core.KeyLocation::Right
-      } else {
-        @core.KeyLocation::Left
-      }
-    0x11 =>
-      if is_extended {
-        @core.KeyLocation::Right
-      } else {
-        @core.KeyLocation::Left
-      }
-    0x12 =>
-      if is_extended {
-        @core.KeyLocation::Right
-      } else {
-        @core.KeyLocation::Left
-      }
-    _ =>
-      if vk_code >= 0x60 && vk_code <= 0x6F {
-        @core.KeyLocation::Numpad
-      } else {
-        @core.KeyLocation::Standard
-      }
+    0x10 => if is_extended { Right } else { Left }
+    0x11 => if is_extended { Right } else { Left }
+    0x12 => if is_extended { Right } else { Left }
+    _ => if vk_code >= 0x60 && vk_code <= 0x6F { Numpad } else { Standard }
   }
 }
 

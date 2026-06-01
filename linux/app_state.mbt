@@ -45,7 +45,7 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     exit_requested: false,
     exit_code: 0,
     event_handler_in_use: false,
-    control_flow: @core.ControlFlow::Wait,
+    control_flow: Wait,
     modifiers: @core.ModifiersState::none(),
     pressed_modifiers: @core.ModifiersKeys::none(),
     pending_redraw_window_ids: [],
@@ -166,7 +166,7 @@ fn app_state_set_window_surface_size(
 fn app_state_window_surface_size(raw_id : Int) -> @dpi.PhysicalSize {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.surface_size
-    None => @dpi.PhysicalSize::PhysicalSize(1, 1)
+    None => PhysicalSize(1, 1)
   }
 }
 
@@ -230,7 +230,7 @@ fn app_state_set_window_cursor(raw_id : Int, cursor : @core.Cursor) -> Unit {
 fn app_state_window_cursor(raw_id : Int) -> @core.Cursor {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.cursor
-    None => @core.Cursor::Icon(@core.CursorIcon::Default)
+    None => Icon(Default)
   }
 }
 
@@ -394,7 +394,7 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
 fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
   if app_state_handler_ready() &&
     !(app_state_runtime.val.event_handler_in_use &&
-    callback is WindowEvent(_, @core.WindowEvent::RedrawRequested)) {
+    callback is WindowEvent(_, RedrawRequested)) {
     match app_state_runtime.val.dispatch_callback {
       Some(dispatch) => dispatch(callback)
       None => app_state_runtime.val.deferred_callbacks.push(callback)
@@ -449,7 +449,7 @@ fn[A : ApplicationHandler] app_state_dispatch_init_events(
   active_loop : ActiveEventLoop,
 ) -> Unit {
   app_state_set_dispatch_handler(app, active_loop)
-  app_state_queue_callback(NewEvents(@core.StartCause::Init))
+  app_state_queue_callback(NewEvents(Init))
   app_state_queue_callback(CanCreateSurfaces)
   app_state_dispatch_deferred_callbacks(app, active_loop)
 }
@@ -462,7 +462,7 @@ fn[A : ApplicationHandler] app_state_dispatch_redraws(
   let redraw_ids = app_state_runtime.val.pending_redraw_window_ids
   app_state_runtime.val.pending_redraw_window_ids = []
   for raw_id in redraw_ids {
-    app_state_queue_window_event(raw_id, @core.WindowEvent::RedrawRequested)
+    app_state_queue_window_event(raw_id, RedrawRequested)
   }
   app_state_dispatch_deferred_callbacks(app, active_loop)
 }

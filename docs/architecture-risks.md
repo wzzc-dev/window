@@ -92,7 +92,8 @@ callbacks can violate assumptions if queue transitions are not explicit.
 Current control:
 
 - macOS tests are compiled by `moon test --build-only`.
-- Core/dpi tests execute through `scripts/check_ci.sh`.
+- CI host detection and core/dpi tests execute through
+  `bash scripts/check_ci.sh`.
 - Deferred callback draining re-checks that a registered dispatch handler still
   exists before each queue pop, so a callback that clears the handler cannot
   cause the next deferred event to be removed and dropped.
@@ -111,10 +112,13 @@ fails on macOS framework arguments.
 
 Current control:
 
-- `scripts/check_ci.sh` uses `moon test --build-only` for macOS package test
-  artifacts and executable tests for framework-free packages.
+- `bash scripts/check_ci.sh` runs the host-detection self-check, executable
+  framework-free package tests, Web build smoke, and build-only native tests for
+  the matching host backend.
 - `docs/testing.md` documents the exact limitation and the expected validation
   command.
+- `docs/platform-gaps.md` tracks build smoke separately from runtime smoke so a
+  green local gate is not mistaken for AppKit runtime execution.
 
 Required direction:
 

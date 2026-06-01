@@ -3,14 +3,12 @@ test "windows window ime request state supports enable update disable" {
   let window = Window::{
     id: @core.WindowId::from_raw(1),
     hwnd: 1UL,
-    cursor_state: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor_state: Icon(Default),
     fullscreen_state: None,
     ime_capabilities_state: None,
     ime_surrounding_text_state: None,
-    ime_cursor_area_position_state: @dpi.PhysicalPosition::PhysicalPosition(
-      0, 0,
-    ),
-    ime_cursor_area_size_state: @dpi.PhysicalSize::PhysicalSize(1, 1),
+    ime_cursor_area_position_state: PhysicalPosition(0, 0),
+    ime_cursor_area_size_state: PhysicalSize(1, 1),
     is_decorated_state: true,
     is_maximized_state: false,
     is_visible_state: true,
@@ -40,7 +38,7 @@ test "windows window ime request state supports enable update disable" {
     data,
   )
   guard enable is Some(enable) else { fail("expected enable request") }
-  window.request_ime_update(@core.ImeRequest::Enable(enable)) catch {
+  window.request_ime_update(Enable(enable)) catch {
     _ => fail("expected enable")
   }
   inspect(window.ime_allowed(), content="true")
@@ -48,18 +46,11 @@ test "windows window ime request state supports enable update disable" {
     Some(value) => inspect(value.text(), content="你好")
     None => fail("expected surrounding text")
   }
-  assert_true(
-    window.ime_cursor_area_position() ==
-    @dpi.PhysicalPosition::PhysicalPosition(12, 18),
-  )
-  assert_true(
-    window.ime_cursor_area_size() == @dpi.PhysicalSize::PhysicalSize(2, 20),
-  )
-  window.request_ime_update(@core.ImeRequest::Disable) catch {
+  assert_true(window.ime_cursor_area_position() == PhysicalPosition(12, 18))
+  assert_true(window.ime_cursor_area_size() == PhysicalSize(2, 20))
+  window.request_ime_update(Disable) catch {
     _ => fail("expected disable")
   }
   inspect(window.ime_allowed(), content="false")
-  assert_true(
-    window.ime_cursor_area_size() == @dpi.PhysicalSize::PhysicalSize(1, 1),
-  )
+  assert_true(window.ime_cursor_area_size() == PhysicalSize(1, 1))
 }

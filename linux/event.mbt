@@ -43,21 +43,21 @@ let linux_event_key_up : Int = 21
 ///|
 fn linux_mouse_button(button : Int) -> @core.MouseButton {
   match button {
-    0x110 => @core.MouseButton::Left
-    0x111 => @core.MouseButton::Right
-    0x112 => @core.MouseButton::Middle
-    0x113 => @core.MouseButton::Back
-    0x114 => @core.MouseButton::Forward
-    _ => @core.MouseButton::Left
+    0x110 => Left
+    0x111 => Right
+    0x112 => Middle
+    0x113 => Back
+    0x114 => Forward
+    _ => Left
   }
 }
 
 ///|
 fn linux_element_state(pressed : Bool) -> @core.ElementState {
   if pressed {
-    @core.ElementState::Pressed
+    Pressed
   } else {
-    @core.ElementState::Released
+    Released
   }
 }
 
@@ -68,11 +68,11 @@ fn linux_key_event(key_code : Int, pressed : Bool) -> @core.KeyEvent {
   let physical_key = linux_physical_key(key_code, native_code)
   let modifiers = app_state_modifiers()
   let logical_key = linux_logical_key(key_code, native_key, modifiers)
-  @core.KeyEvent::KeyEvent(
+  KeyEvent(
     physical_key,
     logical_key,
     linux_key_without_modifiers(key_code, native_key),
-    @core.KeyLocation::Standard,
+    Standard,
     linux_element_state(pressed),
     false,
     linux_key_text(key_code, modifiers, pressed),
@@ -99,10 +99,10 @@ fn linux_key_without_modifiers(
   match linux_key_code(key_code) {
     Some(code) =>
       match linux_named_key(code) {
-        Some(named) => @core.Key::Named(named)
+        Some(named) => Named(named)
         None =>
           match linux_unshifted_text(code) {
-            Some(text) => @core.Key::Character(text)
+            Some(text) => Character(text)
             None => @core.Key::from_native(native_key)
           }
       }
@@ -119,10 +119,10 @@ fn linux_logical_key(
   match linux_key_code(key_code) {
     Some(code) =>
       match linux_named_key(code) {
-        Some(named) => @core.Key::Named(named)
+        Some(named) => Named(named)
         None =>
           match linux_text_for_key_code(code, modifiers) {
-            Some(text) => @core.Key::Character(text)
+            Some(text) => Character(text)
             None => @core.Key::from_native(native_key)
           }
       }
@@ -164,54 +164,54 @@ fn linux_text_for_key_code(
 ///|
 fn linux_unshifted_text(code : @core.KeyCode) -> String? {
   match code {
-    @core.KeyCode::KeyA => Some("a")
-    @core.KeyCode::KeyB => Some("b")
-    @core.KeyCode::KeyC => Some("c")
-    @core.KeyCode::KeyD => Some("d")
-    @core.KeyCode::KeyE => Some("e")
-    @core.KeyCode::KeyF => Some("f")
-    @core.KeyCode::KeyG => Some("g")
-    @core.KeyCode::KeyH => Some("h")
-    @core.KeyCode::KeyI => Some("i")
-    @core.KeyCode::KeyJ => Some("j")
-    @core.KeyCode::KeyK => Some("k")
-    @core.KeyCode::KeyL => Some("l")
-    @core.KeyCode::KeyM => Some("m")
-    @core.KeyCode::KeyN => Some("n")
-    @core.KeyCode::KeyO => Some("o")
-    @core.KeyCode::KeyP => Some("p")
-    @core.KeyCode::KeyQ => Some("q")
-    @core.KeyCode::KeyR => Some("r")
-    @core.KeyCode::KeyS => Some("s")
-    @core.KeyCode::KeyT => Some("t")
-    @core.KeyCode::KeyU => Some("u")
-    @core.KeyCode::KeyV => Some("v")
-    @core.KeyCode::KeyW => Some("w")
-    @core.KeyCode::KeyX => Some("x")
-    @core.KeyCode::KeyY => Some("y")
-    @core.KeyCode::KeyZ => Some("z")
-    @core.KeyCode::Digit1 => Some("1")
-    @core.KeyCode::Digit2 => Some("2")
-    @core.KeyCode::Digit3 => Some("3")
-    @core.KeyCode::Digit4 => Some("4")
-    @core.KeyCode::Digit5 => Some("5")
-    @core.KeyCode::Digit6 => Some("6")
-    @core.KeyCode::Digit7 => Some("7")
-    @core.KeyCode::Digit8 => Some("8")
-    @core.KeyCode::Digit9 => Some("9")
-    @core.KeyCode::Digit0 => Some("0")
-    @core.KeyCode::Space => Some(" ")
-    @core.KeyCode::Minus => Some("-")
-    @core.KeyCode::Equal => Some("=")
-    @core.KeyCode::BracketLeft => Some("[")
-    @core.KeyCode::BracketRight => Some("]")
-    @core.KeyCode::Backslash => Some("\\")
-    @core.KeyCode::Semicolon => Some(";")
-    @core.KeyCode::Quote => Some("'")
-    @core.KeyCode::Backquote => Some("`")
-    @core.KeyCode::Comma => Some(",")
-    @core.KeyCode::Period => Some(".")
-    @core.KeyCode::Slash => Some("/")
+    KeyA => Some("a")
+    KeyB => Some("b")
+    KeyC => Some("c")
+    KeyD => Some("d")
+    KeyE => Some("e")
+    KeyF => Some("f")
+    KeyG => Some("g")
+    KeyH => Some("h")
+    KeyI => Some("i")
+    KeyJ => Some("j")
+    KeyK => Some("k")
+    KeyL => Some("l")
+    KeyM => Some("m")
+    KeyN => Some("n")
+    KeyO => Some("o")
+    KeyP => Some("p")
+    KeyQ => Some("q")
+    KeyR => Some("r")
+    KeyS => Some("s")
+    KeyT => Some("t")
+    KeyU => Some("u")
+    KeyV => Some("v")
+    KeyW => Some("w")
+    KeyX => Some("x")
+    KeyY => Some("y")
+    KeyZ => Some("z")
+    Digit1 => Some("1")
+    Digit2 => Some("2")
+    Digit3 => Some("3")
+    Digit4 => Some("4")
+    Digit5 => Some("5")
+    Digit6 => Some("6")
+    Digit7 => Some("7")
+    Digit8 => Some("8")
+    Digit9 => Some("9")
+    Digit0 => Some("0")
+    Space => Some(" ")
+    Minus => Some("-")
+    Equal => Some("=")
+    BracketLeft => Some("[")
+    BracketRight => Some("]")
+    Backslash => Some("\\")
+    Semicolon => Some(";")
+    Quote => Some("'")
+    Backquote => Some("`")
+    Comma => Some(",")
+    Period => Some(".")
+    Slash => Some("/")
     _ => None
   }
 }
@@ -219,54 +219,54 @@ fn linux_unshifted_text(code : @core.KeyCode) -> String? {
 ///|
 fn linux_shifted_text(code : @core.KeyCode) -> String? {
   match code {
-    @core.KeyCode::KeyA => Some("A")
-    @core.KeyCode::KeyB => Some("B")
-    @core.KeyCode::KeyC => Some("C")
-    @core.KeyCode::KeyD => Some("D")
-    @core.KeyCode::KeyE => Some("E")
-    @core.KeyCode::KeyF => Some("F")
-    @core.KeyCode::KeyG => Some("G")
-    @core.KeyCode::KeyH => Some("H")
-    @core.KeyCode::KeyI => Some("I")
-    @core.KeyCode::KeyJ => Some("J")
-    @core.KeyCode::KeyK => Some("K")
-    @core.KeyCode::KeyL => Some("L")
-    @core.KeyCode::KeyM => Some("M")
-    @core.KeyCode::KeyN => Some("N")
-    @core.KeyCode::KeyO => Some("O")
-    @core.KeyCode::KeyP => Some("P")
-    @core.KeyCode::KeyQ => Some("Q")
-    @core.KeyCode::KeyR => Some("R")
-    @core.KeyCode::KeyS => Some("S")
-    @core.KeyCode::KeyT => Some("T")
-    @core.KeyCode::KeyU => Some("U")
-    @core.KeyCode::KeyV => Some("V")
-    @core.KeyCode::KeyW => Some("W")
-    @core.KeyCode::KeyX => Some("X")
-    @core.KeyCode::KeyY => Some("Y")
-    @core.KeyCode::KeyZ => Some("Z")
-    @core.KeyCode::Digit1 => Some("!")
-    @core.KeyCode::Digit2 => Some("@")
-    @core.KeyCode::Digit3 => Some("#")
-    @core.KeyCode::Digit4 => Some("$")
-    @core.KeyCode::Digit5 => Some("%")
-    @core.KeyCode::Digit6 => Some("^")
-    @core.KeyCode::Digit7 => Some("&")
-    @core.KeyCode::Digit8 => Some("*")
-    @core.KeyCode::Digit9 => Some("(")
-    @core.KeyCode::Digit0 => Some(")")
-    @core.KeyCode::Space => Some(" ")
-    @core.KeyCode::Minus => Some("_")
-    @core.KeyCode::Equal => Some("+")
-    @core.KeyCode::BracketLeft => Some("{")
-    @core.KeyCode::BracketRight => Some("}")
-    @core.KeyCode::Backslash => Some("|")
-    @core.KeyCode::Semicolon => Some(":")
-    @core.KeyCode::Quote => Some("\"")
-    @core.KeyCode::Backquote => Some("~")
-    @core.KeyCode::Comma => Some("<")
-    @core.KeyCode::Period => Some(">")
-    @core.KeyCode::Slash => Some("?")
+    KeyA => Some("A")
+    KeyB => Some("B")
+    KeyC => Some("C")
+    KeyD => Some("D")
+    KeyE => Some("E")
+    KeyF => Some("F")
+    KeyG => Some("G")
+    KeyH => Some("H")
+    KeyI => Some("I")
+    KeyJ => Some("J")
+    KeyK => Some("K")
+    KeyL => Some("L")
+    KeyM => Some("M")
+    KeyN => Some("N")
+    KeyO => Some("O")
+    KeyP => Some("P")
+    KeyQ => Some("Q")
+    KeyR => Some("R")
+    KeyS => Some("S")
+    KeyT => Some("T")
+    KeyU => Some("U")
+    KeyV => Some("V")
+    KeyW => Some("W")
+    KeyX => Some("X")
+    KeyY => Some("Y")
+    KeyZ => Some("Z")
+    Digit1 => Some("!")
+    Digit2 => Some("@")
+    Digit3 => Some("#")
+    Digit4 => Some("$")
+    Digit5 => Some("%")
+    Digit6 => Some("^")
+    Digit7 => Some("&")
+    Digit8 => Some("*")
+    Digit9 => Some("(")
+    Digit0 => Some(")")
+    Space => Some(" ")
+    Minus => Some("_")
+    Equal => Some("+")
+    BracketLeft => Some("{")
+    BracketRight => Some("}")
+    Backslash => Some("|")
+    Semicolon => Some(":")
+    Quote => Some("\"")
+    Backquote => Some("~")
+    Comma => Some("<")
+    Period => Some(">")
+    Slash => Some("?")
     _ => None
   }
 }
@@ -274,41 +274,37 @@ fn linux_shifted_text(code : @core.KeyCode) -> String? {
 ///|
 fn linux_named_key(code : @core.KeyCode) -> @core.NamedKey? {
   match code {
-    @core.KeyCode::Enter => Some(@core.NamedKey::Enter)
-    @core.KeyCode::Tab => Some(@core.NamedKey::Tab)
-    @core.KeyCode::Backspace => Some(@core.NamedKey::Backspace)
-    @core.KeyCode::Escape => Some(@core.NamedKey::Escape)
-    @core.KeyCode::ShiftLeft | @core.KeyCode::ShiftRight =>
-      Some(@core.NamedKey::Shift)
-    @core.KeyCode::ControlLeft | @core.KeyCode::ControlRight =>
-      Some(@core.NamedKey::Control)
-    @core.KeyCode::AltLeft | @core.KeyCode::AltRight =>
-      Some(@core.NamedKey::Alt)
-    @core.KeyCode::MetaLeft | @core.KeyCode::MetaRight =>
-      Some(@core.NamedKey::Meta)
-    @core.KeyCode::CapsLock => Some(@core.NamedKey::CapsLock)
-    @core.KeyCode::Insert => Some(@core.NamedKey::Insert)
-    @core.KeyCode::Delete => Some(@core.NamedKey::Delete)
-    @core.KeyCode::Home => Some(@core.NamedKey::Home)
-    @core.KeyCode::End => Some(@core.NamedKey::End)
-    @core.KeyCode::PageUp => Some(@core.NamedKey::PageUp)
-    @core.KeyCode::PageDown => Some(@core.NamedKey::PageDown)
-    @core.KeyCode::ArrowLeft => Some(@core.NamedKey::ArrowLeft)
-    @core.KeyCode::ArrowRight => Some(@core.NamedKey::ArrowRight)
-    @core.KeyCode::ArrowUp => Some(@core.NamedKey::ArrowUp)
-    @core.KeyCode::ArrowDown => Some(@core.NamedKey::ArrowDown)
-    @core.KeyCode::F1 => Some(@core.NamedKey::F1)
-    @core.KeyCode::F2 => Some(@core.NamedKey::F2)
-    @core.KeyCode::F3 => Some(@core.NamedKey::F3)
-    @core.KeyCode::F4 => Some(@core.NamedKey::F4)
-    @core.KeyCode::F5 => Some(@core.NamedKey::F5)
-    @core.KeyCode::F6 => Some(@core.NamedKey::F6)
-    @core.KeyCode::F7 => Some(@core.NamedKey::F7)
-    @core.KeyCode::F8 => Some(@core.NamedKey::F8)
-    @core.KeyCode::F9 => Some(@core.NamedKey::F9)
-    @core.KeyCode::F10 => Some(@core.NamedKey::F10)
-    @core.KeyCode::F11 => Some(@core.NamedKey::F11)
-    @core.KeyCode::F12 => Some(@core.NamedKey::F12)
+    Enter => Some(Enter)
+    Tab => Some(Tab)
+    Backspace => Some(Backspace)
+    Escape => Some(Escape)
+    ShiftLeft | ShiftRight => Some(Shift)
+    ControlLeft | ControlRight => Some(Control)
+    AltLeft | AltRight => Some(Alt)
+    MetaLeft | MetaRight => Some(Meta)
+    CapsLock => Some(CapsLock)
+    Insert => Some(Insert)
+    Delete => Some(Delete)
+    Home => Some(Home)
+    End => Some(End)
+    PageUp => Some(PageUp)
+    PageDown => Some(PageDown)
+    ArrowLeft => Some(ArrowLeft)
+    ArrowRight => Some(ArrowRight)
+    ArrowUp => Some(ArrowUp)
+    ArrowDown => Some(ArrowDown)
+    F1 => Some(F1)
+    F2 => Some(F2)
+    F3 => Some(F3)
+    F4 => Some(F4)
+    F5 => Some(F5)
+    F6 => Some(F6)
+    F7 => Some(F7)
+    F8 => Some(F8)
+    F9 => Some(F9)
+    F10 => Some(F10)
+    F11 => Some(F11)
+    F12 => Some(F12)
     _ => None
   }
 }
@@ -316,89 +312,89 @@ fn linux_named_key(code : @core.KeyCode) -> @core.NamedKey? {
 ///|
 fn linux_key_code(key_code : Int) -> @core.KeyCode? {
   match key_code {
-    16 => Some(@core.KeyCode::KeyQ)
-    17 => Some(@core.KeyCode::KeyW)
-    18 => Some(@core.KeyCode::KeyE)
-    19 => Some(@core.KeyCode::KeyR)
-    20 => Some(@core.KeyCode::KeyT)
-    21 => Some(@core.KeyCode::KeyY)
-    22 => Some(@core.KeyCode::KeyU)
-    23 => Some(@core.KeyCode::KeyI)
-    24 => Some(@core.KeyCode::KeyO)
-    25 => Some(@core.KeyCode::KeyP)
-    26 => Some(@core.KeyCode::BracketLeft)
-    27 => Some(@core.KeyCode::BracketRight)
-    28 => Some(@core.KeyCode::Enter)
-    30 => Some(@core.KeyCode::KeyA)
-    31 => Some(@core.KeyCode::KeyS)
-    32 => Some(@core.KeyCode::KeyD)
-    33 => Some(@core.KeyCode::KeyF)
-    34 => Some(@core.KeyCode::KeyG)
-    35 => Some(@core.KeyCode::KeyH)
-    36 => Some(@core.KeyCode::KeyJ)
-    37 => Some(@core.KeyCode::KeyK)
-    38 => Some(@core.KeyCode::KeyL)
-    39 => Some(@core.KeyCode::Semicolon)
-    40 => Some(@core.KeyCode::Quote)
-    41 => Some(@core.KeyCode::Backquote)
-    43 => Some(@core.KeyCode::Backslash)
-    44 => Some(@core.KeyCode::KeyZ)
-    45 => Some(@core.KeyCode::KeyX)
-    46 => Some(@core.KeyCode::KeyC)
-    47 => Some(@core.KeyCode::KeyV)
-    48 => Some(@core.KeyCode::KeyB)
-    49 => Some(@core.KeyCode::KeyN)
-    50 => Some(@core.KeyCode::KeyM)
-    51 => Some(@core.KeyCode::Comma)
-    52 => Some(@core.KeyCode::Period)
-    53 => Some(@core.KeyCode::Slash)
-    57 => Some(@core.KeyCode::Space)
-    2 => Some(@core.KeyCode::Digit1)
-    3 => Some(@core.KeyCode::Digit2)
-    4 => Some(@core.KeyCode::Digit3)
-    5 => Some(@core.KeyCode::Digit4)
-    6 => Some(@core.KeyCode::Digit5)
-    7 => Some(@core.KeyCode::Digit6)
-    8 => Some(@core.KeyCode::Digit7)
-    9 => Some(@core.KeyCode::Digit8)
-    10 => Some(@core.KeyCode::Digit9)
-    11 => Some(@core.KeyCode::Digit0)
-    12 => Some(@core.KeyCode::Minus)
-    13 => Some(@core.KeyCode::Equal)
-    14 => Some(@core.KeyCode::Backspace)
-    15 => Some(@core.KeyCode::Tab)
-    1 => Some(@core.KeyCode::Escape)
-    42 => Some(@core.KeyCode::ShiftLeft)
-    54 => Some(@core.KeyCode::ShiftRight)
-    29 => Some(@core.KeyCode::ControlLeft)
-    97 => Some(@core.KeyCode::ControlRight)
-    56 => Some(@core.KeyCode::AltLeft)
-    100 => Some(@core.KeyCode::AltRight)
-    125 => Some(@core.KeyCode::MetaLeft)
-    126 => Some(@core.KeyCode::MetaRight)
-    58 => Some(@core.KeyCode::CapsLock)
-    110 => Some(@core.KeyCode::Insert)
-    111 => Some(@core.KeyCode::Delete)
-    102 => Some(@core.KeyCode::Home)
-    107 => Some(@core.KeyCode::End)
-    104 => Some(@core.KeyCode::PageUp)
-    109 => Some(@core.KeyCode::PageDown)
-    105 => Some(@core.KeyCode::ArrowLeft)
-    106 => Some(@core.KeyCode::ArrowRight)
-    103 => Some(@core.KeyCode::ArrowUp)
-    108 => Some(@core.KeyCode::ArrowDown)
-    59 => Some(@core.KeyCode::F1)
-    60 => Some(@core.KeyCode::F2)
-    61 => Some(@core.KeyCode::F3)
-    62 => Some(@core.KeyCode::F4)
-    63 => Some(@core.KeyCode::F5)
-    64 => Some(@core.KeyCode::F6)
-    65 => Some(@core.KeyCode::F7)
-    66 => Some(@core.KeyCode::F8)
-    67 => Some(@core.KeyCode::F9)
-    68 => Some(@core.KeyCode::F10)
-    87 => Some(@core.KeyCode::F11)
-    88 => Some(@core.KeyCode::F12)
+    16 => Some(KeyQ)
+    17 => Some(KeyW)
+    18 => Some(KeyE)
+    19 => Some(KeyR)
+    20 => Some(KeyT)
+    21 => Some(KeyY)
+    22 => Some(KeyU)
+    23 => Some(KeyI)
+    24 => Some(KeyO)
+    25 => Some(KeyP)
+    26 => Some(BracketLeft)
+    27 => Some(BracketRight)
+    28 => Some(Enter)
+    30 => Some(KeyA)
+    31 => Some(KeyS)
+    32 => Some(KeyD)
+    33 => Some(KeyF)
+    34 => Some(KeyG)
+    35 => Some(KeyH)
+    36 => Some(KeyJ)
+    37 => Some(KeyK)
+    38 => Some(KeyL)
+    39 => Some(Semicolon)
+    40 => Some(Quote)
+    41 => Some(Backquote)
+    43 => Some(Backslash)
+    44 => Some(KeyZ)
+    45 => Some(KeyX)
+    46 => Some(KeyC)
+    47 => Some(KeyV)
+    48 => Some(KeyB)
+    49 => Some(KeyN)
+    50 => Some(KeyM)
+    51 => Some(Comma)
+    52 => Some(Period)
+    53 => Some(Slash)
+    57 => Some(Space)
+    2 => Some(Digit1)
+    3 => Some(Digit2)
+    4 => Some(Digit3)
+    5 => Some(Digit4)
+    6 => Some(Digit5)
+    7 => Some(Digit6)
+    8 => Some(Digit7)
+    9 => Some(Digit8)
+    10 => Some(Digit9)
+    11 => Some(Digit0)
+    12 => Some(Minus)
+    13 => Some(Equal)
+    14 => Some(Backspace)
+    15 => Some(Tab)
+    1 => Some(Escape)
+    42 => Some(ShiftLeft)
+    54 => Some(ShiftRight)
+    29 => Some(ControlLeft)
+    97 => Some(ControlRight)
+    56 => Some(AltLeft)
+    100 => Some(AltRight)
+    125 => Some(MetaLeft)
+    126 => Some(MetaRight)
+    58 => Some(CapsLock)
+    110 => Some(Insert)
+    111 => Some(Delete)
+    102 => Some(Home)
+    107 => Some(End)
+    104 => Some(PageUp)
+    109 => Some(PageDown)
+    105 => Some(ArrowLeft)
+    106 => Some(ArrowRight)
+    103 => Some(ArrowUp)
+    108 => Some(ArrowDown)
+    59 => Some(F1)
+    60 => Some(F2)
+    61 => Some(F3)
+    62 => Some(F4)
+    63 => Some(F5)
+    64 => Some(F6)
+    65 => Some(F7)
+    66 => Some(F8)
+    67 => Some(F9)
+    68 => Some(F10)
+    87 => Some(F11)
+    88 => Some(F12)
     _ => None
   }
 }
@@ -476,34 +472,21 @@ fn dispatch_native_window_event(
 ) -> Unit {
   match kind {
     k if k == linux_event_close =>
-      app_state_queue_window_event(raw_id, @core.WindowEvent::CloseRequested)
+      app_state_queue_window_event(raw_id, CloseRequested)
     k if k == linux_event_destroyed =>
-      app_state_queue_window_event(raw_id, @core.WindowEvent::Destroyed)
+      app_state_queue_window_event(raw_id, Destroyed)
     k if k == linux_event_configure => {
       let size = linux_nonzero_size(arg0, arg1)
       app_state_set_window_surface_size(raw_id, size)
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::SurfaceResized(size),
-      )
+      app_state_queue_window_event(raw_id, SurfaceResized(size))
     }
     k if k == linux_event_redraw => app_state_queue_redraw(raw_id)
     k if k == linux_event_focus =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::Focused(arg0 != 0),
-      )
+      app_state_queue_window_event(raw_id, Focused(arg0 != 0))
     k if k == linux_event_proxy_wake => app_state_queue_proxy_wake_up()
     41 => {
-      let theme = if argd > 0.0 {
-        @core.Theme::Dark
-      } else {
-        @core.Theme::Light
-      }
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::ThemeChanged(theme),
-      )
+      let theme = if argd > 0.0 { @core.Theme::Dark } else { Light }
+      app_state_queue_window_event(raw_id, ThemeChanged(theme))
     }
     _ => ()
   }
@@ -526,12 +509,7 @@ fn dispatch_native_input_event(
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerEntered(
-          None,
-          position,
-          true,
-          @core.PointerKind::Mouse,
-        ),
+        PointerEntered(None, position, true, Mouse),
       )
     }
     k if k == linux_event_pointer_move => {
@@ -541,24 +519,11 @@ fn dispatch_native_input_event(
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerMoved(
-          None,
-          position,
-          true,
-          @core.PointerSource::Mouse,
-        ),
+        PointerMoved(None, position, true, Mouse),
       )
     }
     k if k == linux_event_pointer_leave =>
-      app_state_queue_window_event(
-        raw_id,
-        @core.WindowEvent::PointerLeft(
-          None,
-          None,
-          true,
-          @core.PointerKind::Mouse,
-        ),
-      )
+      app_state_queue_window_event(raw_id, PointerLeft(None, None, true, Mouse))
     k if k == linux_event_pointer_down || k == linux_event_pointer_up => {
       let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),
@@ -566,42 +531,34 @@ fn dispatch_native_input_event(
       )
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::PointerButton(
+        PointerButton(
           None,
           linux_element_state(k == linux_event_pointer_down),
           position,
           true,
-          @core.ButtonSource::Mouse(linux_mouse_button(arg2)),
+          Mouse(linux_mouse_button(arg2)),
         ),
       )
     }
     k if k == linux_event_wheel =>
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::MouseWheel(
+        MouseWheel(
           None,
-          @core.MouseScrollDelta::PixelDelta(
-            @dpi.PhysicalPositionF64::PhysicalPositionF64(
-              arg0.to_double(),
-              arg1.to_double(),
-            ),
-          ),
-          @core.TouchPhase::Moved,
+          PixelDelta(PhysicalPositionF64(arg0.to_double(), arg1.to_double())),
+          Moved,
         ),
       )
     k if k == linux_event_key_down || k == linux_event_key_up => {
       match
         app_state_update_key_modifier(argi.to_int(), k == linux_event_key_down) {
         Some(modifiers) =>
-          app_state_queue_window_event(
-            raw_id,
-            @core.WindowEvent::ModifiersChanged(modifiers),
-          )
+          app_state_queue_window_event(raw_id, ModifiersChanged(modifiers))
         None => ()
       }
       app_state_queue_window_event(
         raw_id,
-        @core.WindowEvent::KeyboardInput(
+        KeyboardInput(
           None,
           linux_key_event(argi.to_int(), k == linux_event_key_down),
           false,

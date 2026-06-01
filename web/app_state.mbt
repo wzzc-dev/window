@@ -40,8 +40,8 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     exit_requested: false,
     exit_code: 0,
     event_handler_in_use: false,
-    control_flow: @core.ControlFlow::Wait,
-    poll_strategy: PollStrategy::AnimationFrame,
+    control_flow: Wait,
+    poll_strategy: AnimationFrame,
     pending_redraw_window_ids: [],
     window_entries: [],
     deferred_callbacks: [],
@@ -204,7 +204,7 @@ fn app_state_set_window_cursor(raw_id : Int, cursor : @core.Cursor) -> Unit {
 fn app_state_window_cursor(raw_id : Int) -> @core.Cursor {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.cursor
-    None => @core.Cursor::Icon(@core.CursorIcon::Default)
+    None => Icon(Default)
   }
 }
 
@@ -319,7 +319,7 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
 fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
   if app_state_handler_ready() &&
     !(app_state_runtime.val.event_handler_in_use &&
-    callback is WindowEvent(_, @core.WindowEvent::RedrawRequested)) {
+    callback is WindowEvent(_, RedrawRequested)) {
     match app_state_runtime.val.dispatch_callback {
       Some(dispatch) => dispatch(callback)
       None => app_state_runtime.val.deferred_callbacks.push(callback)
@@ -372,7 +372,7 @@ fn[A : ApplicationHandler] app_state_dispatch_init_events(
   active_loop : ActiveEventLoop,
 ) -> Unit {
   app_state_set_dispatch_handler(app, active_loop)
-  app_state_queue_callback(NewEvents(@core.StartCause::Init))
+  app_state_queue_callback(NewEvents(Init))
   app_state_queue_callback(CanCreateSurfaces)
   app_state_dispatch_deferred_callbacks(app, active_loop)
 }
@@ -385,7 +385,7 @@ fn[A : ApplicationHandler] app_state_dispatch_redraws(
   let redraw_ids = app_state_runtime.val.pending_redraw_window_ids
   app_state_runtime.val.pending_redraw_window_ids = []
   for raw_id in redraw_ids {
-    app_state_queue_window_event(raw_id, @core.WindowEvent::RedrawRequested)
+    app_state_queue_window_event(raw_id, RedrawRequested)
   }
   app_state_dispatch_deferred_callbacks(app, active_loop)
 }
@@ -393,13 +393,13 @@ fn[A : ApplicationHandler] app_state_dispatch_redraws(
 ///|
 fn app_state_schedule_tick() -> Unit {
   match app_state_control_flow() {
-    @core.ControlFlow::Poll =>
+    Poll =>
       match app_state_poll_strategy() {
-        PollStrategy::AnimationFrame => web_schedule_animation_frame()
-        PollStrategy::Timeout(delay_ms) => web_schedule_timeout(delay_ms)
+        AnimationFrame => web_schedule_animation_frame()
+        Timeout(delay_ms) => web_schedule_timeout(delay_ms)
       }
-    @core.ControlFlow::Wait => ()
-    @core.ControlFlow::WaitUntil(resume_time_ms) => {
+    Wait => ()
+    WaitUntil(resume_time_ms) => {
       let now = web_now_ms()
       let delay = if resume_time_ms <= now {
         0

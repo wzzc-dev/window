@@ -183,7 +183,7 @@ pub fn Window::surface_size(self : Window) -> @dpi.PhysicalSize {
 ///|
 pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
   let _ = self
-  @dpi.PhysicalPosition::PhysicalPosition(0, 0)
+  PhysicalPosition(0, 0)
 }
 
 ///|
@@ -316,7 +316,7 @@ pub fn Window::set_cursor_icon(
   self : Window,
   cursor : @core.CursorIcon,
 ) -> Unit {
-  app_state_set_window_cursor(self.raw_id(), @core.Cursor::Icon(cursor))
+  app_state_set_window_cursor(self.raw_id(), Icon(cursor))
 }
 
 ///|
@@ -360,7 +360,7 @@ pub fn Window::set_cursor_grab(
 ) -> Unit raise @core.RequestError {
   let _ = self
   match mode {
-    @core.CursorGrabMode::None => ()
+    None => ()
     _ =>
       raise @core.RequestError::not_supported(
         "Linux cursor grab only supports CursorGrabMode::None",
@@ -472,13 +472,13 @@ pub fn Window::set_ime_cursor_area(
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
   let _ = self
-  @dpi.PhysicalPosition::PhysicalPosition(0, 0)
+  PhysicalPosition(0, 0)
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
   let _ = self
-  @dpi.PhysicalSize::PhysicalSize(0, 0)
+  PhysicalSize(0, 0)
 }
 
 ///|
@@ -510,7 +510,7 @@ pub fn Window::request_ime_update(
   _request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
   let _ = self
-  raise @core.ImeRequestError::NotSupported
+  raise NotSupported
 }
 
 ///|
@@ -648,7 +648,7 @@ pub fn Window::set_borderless_game(self : Window, _borderless : Bool) -> Unit {
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
   let _ = self
-  @core.OptionAsAlt::None
+  None
 }
 
 ///|
@@ -762,7 +762,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
+  PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|

@@ -11,6 +11,9 @@ This fork tracks upstream window 0.5.1 and adds the MoUI-oriented Web, Windows, 
 - Web: experimental browser support on the `wasm-gc` target (`wzzc-dev/window/web`)
 - Not supported yet: X11 and other Unix backends
 
+See `docs/platform-gaps.md` for the current MoUI readiness matrix and
+backend-specific build/runtime smoke status.
+
 ### Windows Support (Preview)
 
 Use the `wzzc-dev/window/windows` package for Win32 windows and event loops.
@@ -49,6 +52,15 @@ Build the example:
 ```bash
 moon build examples/window_web --target wasm-gc
 ```
+
+For a noninteractive asset smoke check that verifies the host page, runtime
+glue, and generated wasm exports:
+
+```bash
+scripts/check_web_assets.sh
+```
+
+The matching interactive smoke helper is `scripts/smoke_runtime.sh web`.
 
 Run the local browser example from the repository root:
 
@@ -316,19 +328,37 @@ moon run examples/window_linux --target native
 moon build examples/window_web --target wasm-gc
 ```
 
+Native examples are platform-specific: run the macOS, Windows, and Linux
+examples on their matching host. The Web example builds with `wasm-gc` and runs
+through the browser host page described above.
+
 ## Validation
 
 Use the repository gate before publishing or committing backend changes:
 
 ```bash
-scripts/check_ci.sh
+bash scripts/check_ci.sh
 ```
+
+The gate is host-aware: it always checks shared packages and Web build smoke,
+then builds only the native backend and native examples that match the current
+host. Set `WINDOW_CI_HOST=macos`, `linux`, `windows`, or `none` to debug a
+specific gate path. This selects a gate branch; it does not cross-compile
+native stubs, and mismatched host overrides fail fast. Linux and Windows smoke
+checks still need matching hosts.
+
+Interactive runtime smoke is separate from the default gate. Use
+`scripts/smoke_runtime.sh macos`, `web`, `linux`, or `windows` on a matching
+host; set `WINDOW_RUNTIME_SMOKE_DRY_RUN=1` to print the selected command and
+checklist without launching a window or browser server.
 
 For the slower upstream-vs-MoonBit example transcript comparison:
 
 ```bash
-RUN_EXAMPLE_TRANSCRIPTS=1 scripts/check_ci.sh
+RUN_EXAMPLE_TRANSCRIPTS=1 bash scripts/check_ci.sh
 ```
 
 See `docs/testing.md` for why the macOS package currently uses
 `moon test --build-only` instead of full framework-linked native test execution.
+See `docs/platform-gaps.md` before treating a backend as MoUI-ready; build
+smoke and runtime smoke are tracked separately there.

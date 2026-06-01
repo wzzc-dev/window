@@ -40,9 +40,9 @@ fn assert_keyboard_character_text(
   expected_text : String?,
 ) -> Unit raise {
   match event {
-    @core.WindowEvent::KeyboardInput(_, key_event, false) => {
+    KeyboardInput(_, key_event, false) => {
       match key_event.logical_key() {
-        @core.Key::Character(key) => inspect(key, content=expected_key)
+        Character(key) => inspect(key, content=expected_key)
         _ => fail("expected character logical key")
       }
       match (key_event.text(), expected_text) {
@@ -60,10 +60,10 @@ test "linux app state allocates window ids and stores control flow" {
   reset_test_state()
   assert_eq(app_state_next_window_id(), 1)
   assert_eq(app_state_next_window_id(), 2)
-  app_state_set_control_flow(@core.ControlFlow::Poll)
-  assert_eq(app_state_control_flow(), @core.ControlFlow::Poll)
-  app_state_set_control_flow(@core.ControlFlow::WaitUntil(1234L))
-  assert_eq(app_state_control_flow(), @core.ControlFlow::WaitUntil(1234L))
+  app_state_set_control_flow(Poll)
+  assert_eq(app_state_control_flow(), Poll)
+  app_state_set_control_flow(WaitUntil(1234L))
+  assert_eq(app_state_control_flow(), WaitUntil(1234L))
 }
 
 ///|
@@ -84,23 +84,17 @@ test "linux dispatch maps resize pointer key and redraw" {
   app_state_queue_redraw(raw_id)
   app_state_dispatch_redraws(app, active_loop)
   assert_eq(app.events.length(), 5)
-  assert_true(app.events[0] is @core.WindowEvent::SurfaceResized(_))
-  assert_true(app.events[1] is @core.WindowEvent::PointerMoved(_, _, _, _))
+  assert_true(app.events[0] is SurfaceResized(_))
+  assert_true(app.events[1] is PointerMoved(_, _, _, _))
   match app.events[2] {
-    @core.WindowEvent::PointerButton(
-      _,
-      @core.ElementState::Pressed,
-      position,
-      true,
-      @core.ButtonSource::Mouse(@core.MouseButton::Left)
-    ) => {
+    PointerButton(_, Pressed, position, true, Mouse(Left)) => {
       assert_eq(position.x(), 12.0)
       assert_eq(position.y(), 34.0)
     }
     _ => fail("expected pointer button with native coordinates")
   }
   assert_keyboard_character_text(app.events[3], "a", Some("a"))
-  assert_true(app.events[4] is @core.WindowEvent::RedrawRequested)
+  assert_true(app.events[4] is RedrawRequested)
 }
 
 ///|
@@ -115,7 +109,7 @@ test "linux key dispatch includes basic text and shift state" {
   dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 30L)
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::ModifiersChanged(modifiers) => {
+    ModifiersChanged(modifiers) => {
       assert_true(modifiers.shift_key())
       assert_false(modifiers.control_key())
     }
@@ -136,7 +130,7 @@ test "linux control shortcuts do not emit insertable text" {
   dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 46L)
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::ModifiersChanged(modifiers) => {
+    ModifiersChanged(modifiers) => {
       assert_true(modifiers.control_key())
       assert_false(modifiers.shift_key())
     }

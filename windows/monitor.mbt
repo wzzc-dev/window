@@ -70,11 +70,11 @@ fn primary_monitor() -> @core.MonitorHandle? {
       let height = native_monitor_rect_height_at(i)
       let scale = native_monitor_scale_factor_at(i)
       return Some(
-        @core.MonitorHandle::MonitorHandle(
+        MonitorHandle(
           native_id,
           Some(name),
-          @dpi.PhysicalPosition::PhysicalPosition(x, y),
-          @dpi.PhysicalSize::PhysicalSize(width, height),
+          PhysicalPosition(x, y),
+          PhysicalSize(width, height),
           scale,
           None,
           [],
