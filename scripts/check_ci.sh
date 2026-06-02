@@ -7,9 +7,12 @@ cd "$ROOT"
 
 host="$(detect_window_ci_host)"
 
-scripts/check_ci_host.sh
-scripts/check_runtime_smoke.sh
-scripts/check_docs_smoke.sh
+bash scripts/check_ci_host.sh
+bash scripts/check_runtime_smoke.sh
+bash scripts/check_docs_smoke.sh
+bash scripts/check_moui_readiness.sh
+bash scripts/check_moui_evidence.sh
+bash scripts/check_moon_baseline.sh
 moon check
 moon check --warn-list +73
 moon check --target all --warn-list +73
@@ -36,10 +39,14 @@ case "$host" in
     ;;
 esac
 
-scripts/check_examples_build.sh
-scripts/check_web_assets.sh
-scripts/check_ffi_surface.sh
+bash scripts/check_examples_build.sh
+bash scripts/check_moui_macos_smoke.sh
+bash scripts/check_moui_linux_smoke.sh
+bash scripts/check_moui_windows_smoke.sh
+bash scripts/check_web_assets.sh
+bash scripts/check_moui_web_smoke.sh
+bash scripts/check_ffi_surface.sh
 
 if [[ "${RUN_EXAMPLE_TRANSCRIPTS:-0}" == "1" ]]; then
-  scripts/check_example_transcripts.sh
+  bash scripts/check_example_transcripts.sh
 fi

@@ -34,9 +34,8 @@ fn web_string_to_extern(s : String) -> WebString {
 }
 
 ///|
-fn web_string_from_id(id : Int) -> String {
+fn web_string_from_extern(handle : WebString) -> String {
   let buf = StringBuilder::new()
-  let handle = web_begin_read_string(id)
   while true {
     let ch = web_string_read_char(handle)
     if ch == -1 {
@@ -46,6 +45,11 @@ fn web_string_from_id(id : Int) -> String {
   }
   web_finish_read_string(handle)
   buf.to_string()
+}
+
+///|
+fn web_string_from_id(id : Int) -> String {
+  web_string_from_extern(web_begin_read_string(id))
 }
 
 ///|
@@ -62,7 +66,7 @@ extern "wasm" fn web_get_canvas_by_id(id : WebString) -> WebCanvas = "window_web
 extern "wasm" fn web_canvas_is_valid(canvas : WebCanvas) -> Bool = "window_web" "canvas_is_valid"
 
 ///|
-extern "wasm" fn web_canvas_id(canvas : WebCanvas) -> String = "window_web" "canvas_id"
+extern "wasm" fn web_canvas_id(canvas : WebCanvas) -> WebString = "window_web" "canvas_id"
 
 ///|
 extern "wasm" fn web_canvas_width(canvas : WebCanvas) -> Int = "window_web" "canvas_width"

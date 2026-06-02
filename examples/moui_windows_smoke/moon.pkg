@@ -1,0 +1,13 @@
+import {
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
+  "wzzc-dev/window/windows",
+}
+
+supported_targets = "native"
+
+options(
+  "is-main": true,
+  "native-stub": [ "input_native.c" ],
+  targets: { "main.mbt": [ "native" ] },
+)

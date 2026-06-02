@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "wzzc-dev/window/examples/moui_linux_smoke"
+
+import {
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/linux",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+type App
+pub impl @linux.ApplicationHandler for App
+
+// Type aliases
+
+// Traits
+

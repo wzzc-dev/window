@@ -347,6 +347,7 @@ test "reentrant_non_redraw_window_event_is_queued" {
 test "before_waiting_dispatches_redraws_then_about_to_wait" {
   reset_app_state_runtime_for_test()
   app_state_set_running(true)
+  app_state_runtime.val.is_launched = true
   let seen : Ref[Array[String]] = Ref([])
   app_state_runtime.val.dispatch_callback = Some(fn(callback) {
     seen.val.push(callback_name_for_test(callback))
@@ -523,6 +524,7 @@ test "nested_redraw_is_dropped_while_handler_is_in_use" {
 test "before_waiting_drains_deferred_callbacks_before_about_to_wait" {
   reset_app_state_runtime_for_test()
   app_state_set_running(true)
+  app_state_runtime.val.is_launched = true
   let seen : Ref[Array[String]] = Ref([])
   app_state_runtime.val.dispatch_callback = Some(fn(callback) {
     seen.val.push(callback_name_for_test(callback))

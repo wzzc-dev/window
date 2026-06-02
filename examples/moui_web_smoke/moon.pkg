@@ -1,0 +1,13 @@
+import {
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
+  "wzzc-dev/window/web",
+}
+
+supported_targets = "wasm-gc"
+
+options(
+  "is-main": true,
+  link: { "wasm-gc": { "exports": [ "web_dispatch_event" ] } },
+  targets: { "main.mbt": [ "wasm-gc" ] },
+)

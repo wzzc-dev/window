@@ -4,4 +4,6 @@ _build/
 .moonagent/
 winit-reference/
 .vscode
-linux/generated/
+linux/generated/*
+!linux/generated/xdg-shell-protocol.c
+!linux/generated/xdg-decoration-protocol.c

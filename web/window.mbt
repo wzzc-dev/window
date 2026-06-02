@@ -122,7 +122,7 @@ pub fn Window::id(self : Window) -> @core.WindowId {
 
 ///|
 pub fn Window::canvas_id(self : Window) -> String {
-  web_canvas_id(self.canvas)
+  web_string_from_extern(web_canvas_id(self.canvas))
 }
 
 ///|

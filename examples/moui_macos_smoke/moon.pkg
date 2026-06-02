@@ -1,0 +1,19 @@
+import {
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
+  "wzzc-dev/window/examples/util",
+  "wzzc-dev/window/macos",
+}
+
+supported_targets = "native"
+
+options(
+  "is-main": true,
+  "native-stub": [ "input_native.m" ],
+  link: {
+    "native": {
+      "cc-link-flags": "-framework AppKit -framework Foundation -lobjc",
+    },
+  },
+  targets: { "main.mbt": [ "native" ] },
+)

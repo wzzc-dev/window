@@ -37,6 +37,10 @@ expect_success() {
   fi
   require_text "$backend dry run" "$output" "Runtime smoke checklist for $backend:"
   require_text "$backend dry run" "$output" "Dry run only; command not launched"
+  if [[ "$backend" == "web" ]]; then
+    require_text "$backend dry run" "$output" \
+      "examples/moui_web_smoke/index.html for MoUI consumer evidence"
+  fi
 }
 
 expect_failure() {

@@ -69,7 +69,19 @@ function fileIsAtLeastAsNewAs(file, dependency) {
   if (!fs.existsSync(file)) {
     return false;
   }
+  if (fileIsWaylandProtocolPlaceholder(file)) {
+    return false;
+  }
   return fs.statSync(file).mtimeMs >= fs.statSync(dependency).mtimeMs;
+}
+
+function fileIsWaylandProtocolPlaceholder(file) {
+  if (!fs.existsSync(file)) {
+    return false;
+  }
+  return fs
+    .readFileSync(file, "utf8")
+    .includes("MOONBIT_WINDOW_WAYLAND_PROTOCOL_PLACEHOLDER");
 }
 
 function ensureGeneratedFile(command, args, output, dependency, description) {

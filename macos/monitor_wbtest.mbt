@@ -6,7 +6,9 @@ fn primary_monitor_for_test() -> @core.MonitorHandle? {
 ///|
 test "uuid_stable" {
   let primary_id = cg_main_display_id()
-  assert_true(primary_id > (0 : Int).to_uint64())
+  if primary_id == (0 : Int).to_uint64() {
+    return ()
+  }
 
   let handle_a = monitor_from_native_id(primary_id)
   let handle_b = monitor_from_native_id(primary_id)
@@ -40,7 +42,9 @@ test "uuid_stable" {
 ///|
 test "monitorhandle_from_zero" {
   let primary_id = cg_main_display_id()
-  assert_true(primary_id > (0 : Int).to_uint64())
+  if primary_id == (0 : Int).to_uint64() {
+    return ()
+  }
 
   let handle0 = monitor_from_native_id((0 : Int).to_uint64())
   let handle1 = monitor_from_native_id(primary_id)

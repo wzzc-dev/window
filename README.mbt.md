@@ -12,12 +12,39 @@ This fork tracks upstream window 0.5.1 and adds the MoUI-oriented Web, Windows, 
 - Not supported yet: X11 and other Unix backends
 
 See `docs/platform-gaps.md` for the current MoUI readiness matrix and
-backend-specific build/runtime smoke status.
+backend-specific build/runtime smoke status. See
+`docs/moui-integration-smoke.md` for the additional consumer-side evidence
+expected before treating a backend as MoUI-ready.
+
+### macOS Support
+
+Use the `wzzc-dev/window/macos` package for AppKit windows and event loops on
+the `native` target.
+
+The default gate builds the macOS backend and examples. For the automated
+MoUI-oriented runtime smoke that verifies surface creation, AppKit handles,
+resize/redraw delivery, representative pointer/keyboard input, and clean
+shutdown:
+
+```bash
+scripts/check_moui_macos_smoke.sh --run
+```
+
+The matching runtime helper is `scripts/smoke_runtime.sh macos`. It uses the
+built AppKit executable instead of `moon run` because the current MoonBit
+native runner path does not execute framework-linked AppKit examples reliably.
 
 ### Windows Support (Preview)
 
 Use the `wzzc-dev/window/windows` package for Win32 windows and event loops.
 The Windows backend currently targets MoonBit `native` builds.
+
+For the MoUI-oriented smoke artifact on a Windows host:
+
+```bash
+scripts/check_moui_windows_smoke.sh
+scripts/check_moui_windows_smoke.sh --run
+```
 
 #### MSVC
 
@@ -60,7 +87,17 @@ glue, and generated wasm exports:
 scripts/check_web_assets.sh
 ```
 
-The matching interactive smoke helper is `scripts/smoke_runtime.sh web`.
+For the MoUI-oriented consumer smoke artifact that verifies canvas identity,
+surface/scale, redraw, resize, pointer, and keyboard evidence hooks:
+
+```bash
+scripts/check_moui_web_smoke.sh
+scripts/smoke_runtime.sh web
+```
+
+The matching interactive smoke helper runs the Web asset and MoUI consumer
+preflight, serves the repository, and prints both the generic Web demo URL and
+the MoUI consumer page URL.
 
 Run the local browser example from the repository root:
 
@@ -109,9 +146,24 @@ moon build examples/window_linux --target native
 moon run examples/window_linux --target native
 ```
 
+For the MoUI-oriented smoke artifact on a Linux Wayland host:
+
+```bash
+scripts/check_moui_linux_smoke.sh
+scripts/check_moui_linux_smoke.sh --run
+WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run
+```
+
+The automated Linux MoUI smoke covers surface creation, public Wayland handles,
+`present_rgba_pixels(...)`, resize/redraw delivery, and clean shutdown.
+Representative input is logged when supplied by the compositor or operator; it
+is still required evidence before calling Linux MoUI-ready. Set
+`WINDOW_MOUI_LINUX_REQUIRE_INPUT=1` when running with compositor automation or
+manual input capture to require pointer and keyboard evidence.
+
 The build script uses `pkg-config` to locate `wayland-client` and
-`wayland-scanner` to generate the `xdg-shell` client protocol files during the
-prebuild step.
+`wayland-scanner` to generate the `xdg-shell` and `xdg-decoration` client
+protocol files during the prebuild step.
 
 
 ## Install
@@ -338,6 +390,9 @@ Use the repository gate before publishing or committing backend changes:
 
 ```bash
 bash scripts/check_ci.sh
+scripts/check_moon_baseline.sh
+scripts/check_moui_readiness.sh
+scripts/check_moui_evidence.sh
 ```
 
 The gate is host-aware: it always checks shared packages and Web build smoke,
@@ -351,6 +406,22 @@ Interactive runtime smoke is separate from the default gate. Use
 `scripts/smoke_runtime.sh macos`, `web`, `linux`, or `windows` on a matching
 host; set `WINDOW_RUNTIME_SMOKE_DRY_RUN=1` to print the selected command and
 checklist without launching a window or browser server.
+
+After a matching-host runtime run, use `scripts/record_moui_evidence.sh
+<backend>` to print a standard evidence entry for `docs/platform-gaps.md`. The
+helper does not edit docs or promote a pending backend automatically. For
+native backends, passed evidence must be generated on the matching host or name
+the remote matching host with `--host`. Any `--status passed` entry must
+explicitly set `--window-opened yes`, `--resize-redraw yes`, `--input yes`, and
+`--clean-exit yes`. Use `--consumer-input yes` only after downstream MoUI input
+delivery has also been observed; backend runtime input and MoUI consumer input
+are recorded separately. Any MoUI consumer evidence field also requires
+`--consumer-command` so the observed facts are traceable. Use
+`--text-input yes` only after the consumer smoke observes keyboard text or IME
+commit text through the public backend API. Use
+`--monitor-cursor yes` only after the consumer smoke observes monitor/current
+monitor queries and cursor state mutation through the public backend API.
+`scripts/check_moui_evidence.sh` is the noninteractive guard for that behavior.
 
 For the slower upstream-vs-MoonBit example transcript comparison:
 

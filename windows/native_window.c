@@ -1,6 +1,4 @@
-#ifndef _WIN32
-#error "native_window.c is only for Windows"
-#endif
+#ifdef _WIN32
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -1053,3 +1051,339 @@ moonbit_bytes_t mbw_read_registry_utf8(const uint16_t *key_path,
   bytes[3] = (uint8_t)((out >> 24) & 0xFF);
   return bytes;
 }
+
+#else
+
+#include <moonbit.h>
+#include <stdint.h>
+
+typedef void (*mbw_window_event_trampoline_t)(void *closure, int32_t kind,
+                                              int32_t raw_id, int32_t arg0,
+                                              int32_t arg1, int32_t arg2,
+                                              double argd);
+typedef void (*mbw_input_event_trampoline_t)(void *closure, int32_t raw_id,
+                                             int32_t kind, uint64_t wparam,
+                                             int64_t lparam);
+typedef int32_t (*mbw_sync_query_trampoline_t)(void *closure, int32_t raw_id,
+                                               int32_t kind, int32_t arg0);
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_register_window_class(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_create_msg_window(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_create_window(int32_t width, int32_t height, uint64_t ex_style,
+                           uint64_t style, int32_t x, int32_t y,
+                           uint64_t parent_hwnd) {
+  (void)width;
+  (void)height;
+  (void)ex_style;
+  (void)style;
+  (void)x;
+  (void)y;
+  (void)parent_hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_set_window_raw_id(uint64_t hwnd, int32_t raw_id) {
+  (void)hwnd;
+  (void)raw_id;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_destroy_window(uint64_t hwnd) { (void)hwnd; }
+
+MOONBIT_FFI_EXPORT
+void mbw_install_window_event_callback(
+    mbw_window_event_trampoline_t trampoline, void *closure) {
+  (void)trampoline;
+  (void)closure;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_install_input_event_callback(mbw_input_event_trampoline_t trampoline,
+                                      void *closure) {
+  (void)trampoline;
+  (void)closure;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_install_sync_query_callback(mbw_sync_query_trampoline_t trampoline,
+                                     void *closure) {
+  (void)trampoline;
+  (void)closure;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_process_one_message(uint64_t hwnd, uint32_t min_msg,
+                                uint32_t max_msg, uint32_t remove_msg) {
+  (void)hwnd;
+  (void)min_msg;
+  (void)max_msg;
+  (void)remove_msg;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wait_and_process_message(uint64_t hwnd, uint32_t min_msg,
+                                     uint32_t max_msg) {
+  (void)hwnd;
+  (void)min_msg;
+  (void)max_msg;
+  return -1;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wait_timeout_and_process(uint32_t timeout_ms) {
+  (void)timeout_ms;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_read_registry_utf8(const uint16_t *key_path,
+                                       const uint16_t *value_name) {
+  (void)key_path;
+  (void)value_name;
+  return moonbit_make_bytes(0, 0);
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_post_thread_message(uint32_t thread_id, uint32_t msg,
+                                uint64_t wparam, int64_t lparam) {
+  (void)thread_id;
+  (void)msg;
+  (void)wparam;
+  (void)lparam;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint32_t mbw_get_current_thread_id(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_set_window_text(uint64_t hwnd, moonbit_bytes_t text) {
+  (void)hwnd;
+  (void)text;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_set_window_pos(uint64_t hwnd, uint64_t insert_after, int32_t x,
+                           int32_t y, int32_t width, int32_t height,
+                           uint64_t flags) {
+  (void)hwnd;
+  (void)insert_after;
+  (void)x;
+  (void)y;
+  (void)width;
+  (void)height;
+  (void)flags;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_show_window(uint64_t hwnd, int32_t cmd) {
+  (void)hwnd;
+  (void)cmd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_rect_left(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_rect_top(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_rect_right(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_rect_bottom(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_client_rect_left(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_client_rect_top(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_client_rect_right(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_client_rect_bottom(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_client_to_screen_x(uint64_t hwnd, int32_t x, int32_t y) {
+  (void)hwnd;
+  (void)y;
+  return x;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_client_to_screen_y(uint64_t hwnd, int32_t x, int32_t y) {
+  (void)hwnd;
+  (void)x;
+  return y;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_key_state(int32_t vk) {
+  (void)vk;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_consume_utf8_text(uint64_t ptr, int32_t len) {
+  (void)ptr;
+  (void)len;
+  return moonbit_make_bytes(0, 0);
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_invalidate_rect(uint64_t hwnd, int32_t erase) {
+  (void)hwnd;
+  (void)erase;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_set_cursor(uint64_t cursor) { return cursor; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_load_cursor(uint64_t instance, uint64_t cursor_name) {
+  (void)instance;
+  (void)cursor_name;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_clip_cursor(int32_t left, int32_t top, int32_t right,
+                        int32_t bottom) {
+  (void)left;
+  (void)top;
+  (void)right;
+  (void)bottom;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_set_cursor_pos(int32_t x, int32_t y) {
+  (void)x;
+  (void)y;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_enable_modern_dpi_awareness(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint32_t mbw_get_dpi_for_window(uint64_t hwnd) {
+  (void)hwnd;
+  return 96;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_is_iconic(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_is_zoomed(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_is_window_visible(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_get_foreground_window(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_set_foreground_window(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_get_window_long_style(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_get_window_long_ex_style(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_set_window_long_style(uint64_t hwnd, uint64_t style) {
+  (void)hwnd;
+  return style;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_set_window_long_ex_style(uint64_t hwnd, uint64_t ex_style) {
+  (void)hwnd;
+  return ex_style;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_release_capture(void) {}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_send_message(uint64_t hwnd, uint32_t msg, uint64_t wparam,
+                          int64_t lparam) {
+  (void)hwnd;
+  (void)msg;
+  (void)wparam;
+  (void)lparam;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_system_metrics(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_track_mouse_event(uint64_t hwnd, uint32_t flags) {
+  (void)hwnd;
+  (void)flags;
+  return 0;
+}
+
+#endif

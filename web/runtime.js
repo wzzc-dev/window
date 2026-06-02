@@ -155,9 +155,10 @@ export function createWindowWebImports() {
       return canvas;
     },
     get_canvas_by_id(id) {
-      const canvas = document.getElementById(stringValue(id));
+      const canvasId = stringValue(id);
+      const canvas = document.getElementById(canvasId);
       if (canvas instanceof HTMLCanvasElement) {
-        canvases.set(id, canvas);
+        canvases.set(canvas.id, canvas);
         return canvas;
       }
       return null;
@@ -166,7 +167,7 @@ export function createWindowWebImports() {
       return canvas instanceof HTMLCanvasElement;
     },
     canvas_id(canvas) {
-      return canvas ? ensureCanvasId(canvas) : "";
+      return createStringHandle(canvas ? ensureCanvasId(canvas) : "");
     },
     canvas_width(canvas) {
       return canvas?.width ?? 0;
