@@ -33,6 +33,34 @@ The gate runs:
 - `scripts/check_moui_web_smoke.sh`
 - `scripts/check_ffi_surface.sh`
 
+## GitHub CI
+
+`.github/workflows/moui-ready.yml` runs on pushes and pull requests targeting
+`moui-support`, and can also be launched with `workflow_dispatch`. The workflow
+keeps the GitHub gate aligned with the local evidence model instead of relying
+on a generic green build:
+
+- macOS/Web CI runs `bash scripts/check_ci.sh`, executes
+  `scripts/check_moui_macos_smoke.sh --run`, records Web consumer evidence from
+  `scripts/check_moui_web_smoke.sh`, writes GitHub Actions job summaries, and
+  uploads the `moui-ready-evidence-macos-web` artifact with
+  `actions/upload-artifact`.
+- Linux CI installs Wayland development dependencies, runs
+  `WINDOW_CI_HOST=linux bash scripts/check_ci.sh`, writes a pending strict
+  runtime evidence entry plus the
+  `scripts/capture_moui_runtime_evidence.sh linux --dry-run` command plan, and
+  uploads the `moui-ready-evidence-linux` artifact.
+- Windows CI runs the Windows gate from MSYS2/UCRT with
+  `WINDOW_CI_HOST=windows bash scripts/check_ci.sh`, writes a pending strict
+  runtime evidence entry plus the
+  `scripts/capture_moui_runtime_evidence.sh windows --dry-run` command plan,
+  and uploads the `moui-ready-evidence-windows` artifact.
+
+Those artifacts are copyable `bash scripts/record_moui_evidence.sh` outputs for
+review. They do not edit `docs/platform-gaps.md` automatically; Linux/Windows
+remain pending until a matching runtime transcript is captured, verified, and
+reviewed.
+
 The gate is host-aware because native stubs are platform-specific. macOS
 should not try to compile Win32 headers or Wayland generated C files; Linux
 should not try to compile AppKit or Win32 stubs; Windows should not try to

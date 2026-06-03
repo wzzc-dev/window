@@ -48,6 +48,7 @@ require_ordered_text() {
 }
 
 for path in \
+  .github/workflows/moui-ready.yml \
   docs/moui-integration-smoke.md \
   docs/platform-gaps.md \
   docs/testing.md \
@@ -90,6 +91,10 @@ require_text docs/platform-gaps.md "| macOS | Passed"
 require_text docs/platform-gaps.md "| Web | Passed"
 require_text docs/platform-gaps.md "| Linux | Pending matching Linux host"
 require_text docs/platform-gaps.md "| Windows | Pending matching Windows host"
+require_text docs/platform-gaps.md ".github/workflows/moui-ready.yml"
+require_text docs/platform-gaps.md "moui-ready-evidence-macos-web"
+require_text docs/platform-gaps.md "moui-ready-evidence-linux"
+require_text docs/platform-gaps.md "moui-ready-evidence-windows"
 require_text docs/platform-gaps.md 'Treat `Pending` as missing evidence'
 require_text docs/platform-gaps.md "MoUI-ready only after its build smoke and runtime smoke have both been observed"
 reject_text docs/platform-gaps.md "| Linux | Passed"
@@ -124,6 +129,10 @@ require_text docs/moui-integration-smoke.md "Window::rwh_06_window_handle()"
 require_text docs/moui-integration-smoke.md "destroy requested"
 require_text docs/moui-integration-smoke.md "--consumer-command \"scripts/check_moui_macos_smoke.sh --run\""
 require_text docs/testing.md "execute the smoke through"
+require_text docs/testing.md ".github/workflows/moui-ready.yml"
+require_text docs/testing.md "moui-ready-evidence-macos-web"
+require_text docs/testing.md "moui-ready-evidence-linux"
+require_text docs/testing.md "moui-ready-evidence-windows"
 require_text docs/testing.md "moon run"
 require_text docs/moui-integration-smoke.md "browser http://127.0.0.1:8000/examples/moui_web_smoke/index.html"
 require_text docs/moui-integration-smoke.md "scripts/check_moui_runtime_log.sh linux <captured-log>"
@@ -139,6 +148,19 @@ require_text docs/moui-integration-smoke.md 'pointer/keyboard/IME text `a` befor
 require_text docs/moui-integration-smoke.md "raw display/window identity"
 require_text docs/moui-integration-smoke.md "replays its captured transcript through"
 
+require_text .github/workflows/moui-ready.yml "moui-support"
+require_text .github/workflows/moui-ready.yml "bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "WINDOW_CI_HOST=linux bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "WINDOW_CI_HOST=windows bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "scripts/check_moui_macos_smoke.sh --run"
+require_text .github/workflows/moui-ready.yml "scripts/check_moui_web_smoke.sh"
+require_text .github/workflows/moui-ready.yml "scripts/capture_moui_runtime_evidence.sh linux"
+require_text .github/workflows/moui-ready.yml "scripts/capture_moui_runtime_evidence.sh windows"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-macos-web"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-linux"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-windows"
+require_text .github/workflows/moui-ready.yml "GITHUB_STEP_SUMMARY"
+
 require_text scripts/check_moui_web_smoke.sh "canvas_id=moui-web-smoke-canvas size=640x360"
 require_text scripts/check_moui_web_smoke.sh "MOUISmoke: pointer x=24 y=32"
 require_text scripts/check_moui_web_smoke.sh "MOUISmoke: keyboard text=a"
@@ -146,6 +168,8 @@ require_text scripts/check_web_assets.sh "wzzc-dev/window/examples/window_web/wi
 require_text scripts/check_moui_web_smoke.sh "wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm"
 require_text scripts/check_web_assets.sh "moon --target-dir \"\$ROOT/_build\" build examples/window_web --target wasm-gc"
 require_text scripts/check_moui_web_smoke.sh "moon --target-dir \"\$ROOT/_build\" build examples/moui_web_smoke --target wasm-gc"
+require_text scripts/check_web_assets.sh "ensure_wasm_at_documented_path"
+require_text scripts/check_moui_web_smoke.sh "ensure_wasm_at_documented_path"
 require_text examples/moui_web_smoke/index.html "requiredEvidence"
 require_text examples/moui_web_smoke/index.html "MOUISmoke: surface canvas_id=moui-web-smoke-canvas size=640x360"
 require_text examples/moui_web_smoke/index.html "MOUISmoke: pointer x=24 y=32"

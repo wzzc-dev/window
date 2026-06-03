@@ -28,6 +28,7 @@ require_text() {
 }
 
 for path in \
+  .github/workflows/moui-ready.yml \
   README.mbt.md \
   docs/moui-integration-smoke.md \
   docs/upstream.md \
@@ -112,6 +113,12 @@ if rg -q --fixed-strings "Only the macOS backend is implemented." docs/upstream.
 fi
 
 require_text docs/testing.md "scripts/check_ci_host.sh"
+require_text docs/testing.md ".github/workflows/moui-ready.yml"
+require_text docs/testing.md "moui-ready-evidence-macos-web"
+require_text docs/testing.md "moui-ready-evidence-linux"
+require_text docs/testing.md "moui-ready-evidence-windows"
+require_text docs/testing.md "actions/upload-artifact"
+require_text docs/testing.md "GitHub Actions job summaries"
 require_text docs/testing.md "scripts/check_runtime_smoke.sh"
 require_text docs/testing.md "scripts/check_moui_runtime_log.sh"
 require_text docs/testing.md "bash scripts/capture_moui_runtime_evidence.sh"
@@ -202,6 +209,11 @@ require_text docs/testing.md "--monitor-cursor yes"
 require_text docs/testing.md "--clean-shutdown yes"
 
 require_text docs/platform-gaps.md 'Treat `Pending` as missing evidence'
+require_text docs/platform-gaps.md ".github/workflows/moui-ready.yml"
+require_text docs/platform-gaps.md "moui-ready-evidence-macos-web"
+require_text docs/platform-gaps.md "moui-ready-evidence-linux"
+require_text docs/platform-gaps.md "moui-ready-evidence-windows"
+require_text docs/platform-gaps.md "GitHub Actions job summaries"
 require_text docs/platform-gaps.md "docs/moui-integration-smoke.md"
 require_text docs/platform-gaps.md "scripts/check_runtime_smoke.sh"
 require_text docs/platform-gaps.md "scripts/check_moui_runtime_log.sh"
@@ -262,6 +274,23 @@ require_text docs/platform-gaps.md 'replace `pending` values only with facts obs
 
 require_text scripts/check_ci.sh "bash scripts/check_ci_host.sh"
 require_text scripts/check_ci.sh "bash scripts/check_runtime_smoke.sh"
+require_text .github/workflows/moui-ready.yml "branches:"
+require_text .github/workflows/moui-ready.yml "moui-support"
+require_text .github/workflows/moui-ready.yml "actions/checkout@v6"
+require_text .github/workflows/moui-ready.yml "actions/setup-node@v6"
+require_text .github/workflows/moui-ready.yml "actions/upload-artifact@v7"
+require_text .github/workflows/moui-ready.yml "msys2/setup-msys2@v2"
+require_text .github/workflows/moui-ready.yml "bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "WINDOW_CI_HOST=linux bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "WINDOW_CI_HOST=windows bash scripts/check_ci.sh"
+require_text .github/workflows/moui-ready.yml "scripts/check_moui_macos_smoke.sh --run"
+require_text .github/workflows/moui-ready.yml "scripts/check_moui_web_smoke.sh"
+require_text .github/workflows/moui-ready.yml "scripts/capture_moui_runtime_evidence.sh linux"
+require_text .github/workflows/moui-ready.yml "scripts/capture_moui_runtime_evidence.sh windows"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-macos-web"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-linux"
+require_text .github/workflows/moui-ready.yml "moui-ready-evidence-windows"
+require_text .github/workflows/moui-ready.yml "GITHUB_STEP_SUMMARY"
 require_text scripts/check_runtime_smoke.sh "expect_log_success linux"
 require_text scripts/check_runtime_smoke.sh "expect_log_failure windows"
 require_text scripts/check_runtime_smoke.sh "expect_log_order_failure"
@@ -299,6 +328,10 @@ require_text scripts/check_ci.sh "bash scripts/check_moui_windows_smoke.sh"
 require_text scripts/check_ci.sh "bash scripts/check_web_assets.sh"
 require_text scripts/check_ci.sh "bash scripts/check_moui_web_smoke.sh"
 require_text scripts/check_ci.sh "bash scripts/check_ffi_surface.sh"
+require_text scripts/check_web_assets.sh "ensure_wasm_at_documented_path"
+require_text scripts/check_web_assets.sh "generated_wasm"
+require_text scripts/check_moui_web_smoke.sh "ensure_wasm_at_documented_path"
+require_text scripts/check_moui_web_smoke.sh "generated_wasm"
 require_text scripts/check_ffi_surface.sh "ffi-linux-export-allowlist.txt"
 require_text scripts/check_ffi_surface.sh "ffi-windows-export-allowlist.txt"
 require_text scripts/check_ffi_surface.sh "check_export_allowlist \"Linux\""

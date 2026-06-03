@@ -34,6 +34,17 @@ require_binary_text() {
     fail "$path does not contain expected binary text: $text"
 }
 
+ensure_wasm_at_documented_path() {
+  local generated_path="$1"
+  local documented_path="$2"
+  if [[ -f "$documented_path" ]]; then
+    return
+  fi
+  require_nonempty_file "$generated_path"
+  mkdir -p "$(dirname "$documented_path")"
+  cp "$generated_path" "$documented_path"
+}
+
 check_node_consumer_runtime() {
   if ! command -v node >/dev/null 2>&1; then
     printf 'Skipping MoUI Web Node consumer runtime smoke: node not found\n'
@@ -255,9 +266,11 @@ pkg="examples/moui_web_smoke"
 html="$pkg/index.html"
 main="$pkg/main.mbt"
 wasm="_build/wasm-gc/debug/build/wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm"
+generated_wasm="_build/wasm-gc/debug/build/examples/moui_web_smoke/moui_web_smoke.wasm"
 
 require_file "$html"
 require_file "$main"
+ensure_wasm_at_documented_path "$generated_wasm" "$wasm"
 require_nonempty_file "$wasm"
 
 require_text "$main" "WindowAttributesWeb::default().with_canvas_id"

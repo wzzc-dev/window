@@ -1,0 +1,291 @@
+name: MoUI Ready Evidence
+
+on:
+  push:
+    branches:
+      - moui-support
+  pull_request:
+    branches:
+      - moui-support
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moui-ready-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MOUI_EVIDENCE_DIR: artifacts/moui-ready
+
+jobs:
+  macos-web-evidence:
+    name: macOS/Web MoUI evidence
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install MoonBit
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon version
+
+      - name: Run host-aware repository gate
+        shell: bash
+        run: bash scripts/check_ci.sh
+
+      - name: Capture macOS runtime evidence
+        shell: bash
+        run: |
+          mkdir -p "$MOUI_EVIDENCE_DIR"
+          scripts/check_moui_macos_smoke.sh --run \
+            | tee "$MOUI_EVIDENCE_DIR/moui-macos-runtime.log"
+          bash scripts/record_moui_evidence.sh macos \
+            --status passed \
+            --host "GitHub Actions macOS ${RUNNER_ARCH}" \
+            --commands "bash scripts/check_ci.sh; scripts/check_moui_macos_smoke.sh --run" \
+            --window-opened yes \
+            --resize-redraw yes \
+            --input yes \
+            --clean-exit yes \
+            --runtime-log pending \
+            --runtime-log-command pending \
+            --consumer-command "scripts/check_moui_macos_smoke.sh --run" \
+            --surface yes \
+            --redraw yes \
+            --resize-scale yes \
+            --consumer-input yes \
+            --text-input yes \
+            --renderer-handle yes \
+            --monitor-cursor yes \
+            --clean-shutdown yes \
+            --notes "GitHub Actions macOS runtime smoke printed surface/handles/monitor/cursor, resize/redraw, pointer 24,32, keyboard text a, destroyed before finished, and exited cleanly" \
+            > "$MOUI_EVIDENCE_DIR/moui-macos-evidence.md"
+
+      - name: Record Web consumer evidence
+        shell: bash
+        run: |
+          bash scripts/record_moui_evidence.sh web \
+            --status passed \
+            --host "GitHub Actions macOS ${RUNNER_ARCH}" \
+            --commands "bash scripts/check_ci.sh; scripts/check_moui_web_smoke.sh" \
+            --window-opened yes \
+            --resize-redraw yes \
+            --input yes \
+            --clean-exit yes \
+            --runtime-log pending \
+            --runtime-log-command pending \
+            --consumer-command "scripts/check_moui_web_smoke.sh" \
+            --surface yes \
+            --redraw yes \
+            --resize-scale yes \
+            --consumer-input yes \
+            --text-input yes \
+            --renderer-handle yes \
+            --monitor-cursor pending \
+            --clean-shutdown yes \
+            --notes "GitHub Actions Node DOM-shim MoUI Web consumer smoke reached ready with canvas_id=moui-web-smoke-canvas, 640x360 surface, redraw, resize, pointer 24,32, and keyboard text a" \
+            > "$MOUI_EVIDENCE_DIR/moui-web-evidence.md"
+
+      - name: Write job summary
+        shell: bash
+        run: |
+          {
+            printf '## MoUI-ready macOS/Web evidence\n\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-macos-evidence.md"
+            printf '\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-web-evidence.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload MoUI-ready evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: moui-ready-evidence-macos-web
+          path: artifacts/moui-ready
+          if-no-files-found: error
+
+  linux-build-evidence:
+    name: Linux MoUI build evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Linux native dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-bin \
+            libwayland-dev \
+            pkg-config \
+            ripgrep \
+            wayland-protocols
+
+      - name: Install MoonBit
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.moon/bin:$PATH"
+          moon version
+
+      - name: Run Linux host-aware repository gate
+        shell: bash
+        run: WINDOW_CI_HOST=linux bash scripts/check_ci.sh
+
+      - name: Record Linux pending runtime evidence
+        shell: bash
+        run: |
+          mkdir -p "$MOUI_EVIDENCE_DIR"
+          bash scripts/capture_moui_runtime_evidence.sh linux \
+            --dry-run \
+            --log "$MOUI_EVIDENCE_DIR/moui-linux-runtime.log" \
+            > "$MOUI_EVIDENCE_DIR/moui-linux-capture-dry-run.txt"
+          bash scripts/record_moui_evidence.sh linux \
+            --status pending \
+            --host "GitHub Actions Linux build CI" \
+            --commands "WINDOW_CI_HOST=linux bash scripts/check_ci.sh; bash scripts/capture_moui_runtime_evidence.sh linux --log $MOUI_EVIDENCE_DIR/moui-linux-runtime.log" \
+            --window-opened pending \
+            --resize-redraw pending \
+            --input pending \
+            --clean-exit pending \
+            --runtime-log pending \
+            --runtime-log-command "scripts/check_moui_runtime_log.sh linux $MOUI_EVIDENCE_DIR/moui-linux-runtime.log" \
+            --consumer-command "WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run" \
+            --surface pending \
+            --redraw pending \
+            --resize-scale pending \
+            --consumer-input pending \
+            --text-input pending \
+            --renderer-handle pending \
+            --monitor-cursor pending \
+            --clean-shutdown pending \
+            --notes "GitHub Actions Linux build smoke passed; strict Wayland runtime evidence remains pending until the capture helper runs on a Wayland/Weston host with pointer and keyboard text a before ready" \
+            > "$MOUI_EVIDENCE_DIR/moui-linux-pending-evidence.md"
+
+      - name: Write job summary
+        shell: bash
+        run: |
+          {
+            printf '## MoUI-ready Linux evidence\n\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-linux-pending-evidence.md"
+            printf '\n\n### Capture dry run\n\n```text\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-linux-capture-dry-run.txt"
+            printf '\n```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload MoUI-ready evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: moui-ready-evidence-linux
+          path: artifacts/moui-ready
+          if-no-files-found: error
+
+  windows-build-evidence:
+    name: Windows MoUI build evidence
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: >-
+            base-devel
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-ripgrep
+
+      - name: Install MoonBit
+        shell: pwsh
+        run: |
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$HOME\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & "$HOME\.moon\bin\moon.exe" version
+
+      - name: Run Windows host-aware repository gate
+        shell: msys2 {0}
+        run: |
+          export PATH="$(cygpath -u "$USERPROFILE")/.moon/bin:$PATH"
+          moon.exe version
+          WINDOW_CI_HOST=windows bash scripts/check_ci.sh
+
+      - name: Record Windows pending runtime evidence
+        shell: msys2 {0}
+        run: |
+          export PATH="$(cygpath -u "$USERPROFILE")/.moon/bin:$PATH"
+          mkdir -p "$MOUI_EVIDENCE_DIR"
+          bash scripts/capture_moui_runtime_evidence.sh windows \
+            --dry-run \
+            --log "$MOUI_EVIDENCE_DIR/moui-windows-runtime.log" \
+            > "$MOUI_EVIDENCE_DIR/moui-windows-capture-dry-run.txt"
+          bash scripts/record_moui_evidence.sh windows \
+            --status pending \
+            --host "GitHub Actions Windows build CI" \
+            --commands "WINDOW_CI_HOST=windows bash scripts/check_ci.sh; bash scripts/capture_moui_runtime_evidence.sh windows --log $MOUI_EVIDENCE_DIR/moui-windows-runtime.log" \
+            --window-opened pending \
+            --resize-redraw pending \
+            --input pending \
+            --clean-exit pending \
+            --runtime-log pending \
+            --runtime-log-command "scripts/check_moui_runtime_log.sh windows $MOUI_EVIDENCE_DIR/moui-windows-runtime.log" \
+            --consumer-command "scripts/check_moui_windows_smoke.sh --run" \
+            --surface pending \
+            --redraw pending \
+            --resize-scale pending \
+            --consumer-input pending \
+            --text-input pending \
+            --renderer-handle pending \
+            --monitor-cursor pending \
+            --clean-shutdown pending \
+            --notes "GitHub Actions Windows build smoke passed; strict Win32 runtime evidence remains pending until the capture helper runs on a Windows host with pointer, keyboard, and IME text a before ready" \
+            > "$MOUI_EVIDENCE_DIR/moui-windows-pending-evidence.md"
+
+      - name: Write job summary
+        shell: msys2 {0}
+        run: |
+          summary_path="$(cygpath -u "$GITHUB_STEP_SUMMARY")"
+          {
+            printf '## MoUI-ready Windows evidence\n\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-windows-pending-evidence.md"
+            printf '\n\n### Capture dry run\n\n```text\n'
+            cat "$MOUI_EVIDENCE_DIR/moui-windows-capture-dry-run.txt"
+            printf '\n```\n'
+          } >> "$summary_path"
+
+      - name: Upload MoUI-ready evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: moui-ready-evidence-windows
+          path: artifacts/moui-ready
+          if-no-files-found: error

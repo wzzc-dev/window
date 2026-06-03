@@ -10,6 +10,13 @@ before a backend is treated as ready for MoUI integration.
 ## Current Baseline
 
 - `bash scripts/check_ci.sh` is the default host-aware build gate.
+- `.github/workflows/moui-ready.yml` mirrors the gate on GitHub for
+  `moui-support`, writes GitHub Actions job summaries, and uploads reviewed
+  evidence artifacts: `moui-ready-evidence-macos-web`,
+  `moui-ready-evidence-linux`, and `moui-ready-evidence-windows`. The macOS/Web
+  job records passed evidence through the existing smoke helpers; Linux and
+  Windows jobs record pending strict-runtime capture plans until matching-host
+  transcripts are captured and verified.
 - `scripts/check_moui_readiness.sh` audits the MoUI smoke matrix so pending
   Linux/Windows evidence is not accidentally documented as passed.
 - `scripts/check_moui_evidence.sh` verifies the evidence helper's host-safety
