@@ -15,7 +15,7 @@ usage() {
 Usage: scripts/check_moui_macos_smoke.sh [--run]
 
 Without --run, build and statically verify the macOS MoUI smoke artifact on a
-macOS host. With --run, launch the built AppKit executable and require it to
+macOS host. With --run, execute the AppKit smoke through moon run and require it to
   print the surface, handle, resize, redraw, pointer, keyboard, ready,
   destroyed, and finished sentinel lines.
 EOF
@@ -51,12 +51,11 @@ require_output_order() {
 }
 
 run_runtime_smoke() {
-  local exe="$1"
   local output_file timeout_sec pid status output
   timeout_sec="${WINDOW_MOUI_MACOS_SMOKE_TIMEOUT_SEC:-15}"
   output_file="$(mktemp "${TMPDIR:-/tmp}/moui-macos-smoke.XXXXXX")"
   set +e
-  "$exe" >"$output_file" 2>&1 &
+  "$@" >"$output_file" 2>&1 &
   pid=$!
   status=0
   for ((i = 0; i < timeout_sec * 10; i += 1)); do
@@ -128,14 +127,13 @@ pkg="examples/moui_macos_smoke"
 main="$pkg/main.mbt"
 manifest="$pkg/moon.pkg"
 stub="$pkg/input_native.m"
-exe="_build/native/debug/build/examples/moui_macos_smoke/moui_macos_smoke.exe"
+run_command=(moon run "$pkg" --target native)
 
 moon build "$pkg" --target native >/dev/null
 
 require_file "$main"
 require_file "$manifest"
 require_file "$stub"
-require_file "$exe"
 require_text "$manifest" '"native-stub": [ "input_native.m" ]'
 require_text "$manifest" '"cc-link-flags": "-framework AppKit -framework Foundation -lobjc"'
 require_text "$stub" "mbw_moui_macos_smoke_send_input"
@@ -157,8 +155,8 @@ require_text "$main" "SurfaceResized"
 require_text "$main" "RedrawRequested"
 
 if [[ "$run_mode" == "1" ]]; then
-  run_runtime_smoke "$exe"
-  printf 'MoUI macOS runtime smoke passed: %s\n' "$exe"
+  run_runtime_smoke "${run_command[@]}"
+  printf 'MoUI macOS runtime smoke passed: %s\n' "${run_command[*]}"
 else
-  printf 'MoUI macOS smoke build check passed: %s\n' "$exe"
+  printf 'MoUI macOS smoke build check passed: %s\n' "$pkg"
 fi

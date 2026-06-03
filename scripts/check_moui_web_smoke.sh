@@ -176,7 +176,7 @@ const spectest = {
 };
 
 const bytes = await readFile(
-  "_build/wasm-gc/debug/build/examples/moui_web_smoke/moui_web_smoke.wasm",
+  "_build/wasm-gc/debug/build/wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm",
 );
 let instance;
 try {
@@ -249,12 +249,12 @@ console.log("MoUI Web Node consumer runtime smoke passed");
 EOF
 }
 
-moon build examples/moui_web_smoke --target wasm-gc >/dev/null
+moon --target-dir "$ROOT/_build" build examples/moui_web_smoke --target wasm-gc >/dev/null
 
 pkg="examples/moui_web_smoke"
 html="$pkg/index.html"
 main="$pkg/main.mbt"
-wasm="_build/wasm-gc/debug/build/examples/moui_web_smoke/moui_web_smoke.wasm"
+wasm="_build/wasm-gc/debug/build/wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm"
 
 require_file "$html"
 require_file "$main"
@@ -271,7 +271,7 @@ require_text "$main" "KeyboardInput"
 require_text "$main" "SurfaceResized"
 
 require_text "$html" "../../web/runtime.js?window-web-dev=1"
-require_text "$html" "../../_build/wasm-gc/debug/build/examples/moui_web_smoke/moui_web_smoke.wasm?window-web-dev=1"
+require_text "$html" "../../_build/wasm-gc/debug/build/wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm?window-web-dev=1"
 require_text "$html" "window.__mouiWebSmoke"
 require_text "$html" "dispatchConsumerEvents"
 require_text "$html" "MOUISmoke: PASS"

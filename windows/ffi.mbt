@@ -2,6 +2,9 @@
 extern "C" fn native_register_window_class() -> Int = "mbw_register_window_class"
 
 ///|
+extern "C" fn native_hinstance_handle() -> UInt64 = "mbw_hinstance_handle"
+
+///|
 extern "C" fn native_create_msg_window() -> UInt64 = "mbw_create_msg_window"
 
 ///|
@@ -13,6 +16,7 @@ extern "C" fn native_create_window(
   x : Int,
   y : Int,
   parent_hwnd : UInt64,
+  raw_id : Int,
 ) -> UInt64 = "mbw_create_window"
 
 ///|

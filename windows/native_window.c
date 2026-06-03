@@ -77,24 +77,57 @@ typedef struct {
   int32_t raw_id;
 } MBWWindowState;
 
+static MBWWindowState *mbw_window_state(HWND hwnd) {
+  if (!hwnd) {
+    return NULL;
+  }
+  return (MBWWindowState *)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+}
+
+static int32_t mbw_publish_window_state(HWND hwnd, MBWWindowState *state) {
+  SetLastError(0);
+  LONG_PTR previous = SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)state);
+  return previous != 0 || GetLastError() == 0;
+}
+
+static void mbw_clear_window_state(HWND hwnd) {
+  MBWWindowState *state = mbw_window_state(hwnd);
+  if (!state) {
+    return;
+  }
+  SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+  free(state);
+}
+
 static int32_t mbw_load_imm32(void) {
   if (g_imm32 && g_imm_get_context && g_imm_release_context &&
       g_imm_get_composition_string) {
     return 1;
   }
-  g_imm32 = LoadLibraryW(L"imm32.dll");
-  if (!g_imm32) {
+  HMODULE imm32 = LoadLibraryW(L"imm32.dll");
+  if (!imm32) {
     return 0;
   }
-  g_imm_get_context =
-      (mbw_imm_get_context_t)GetProcAddress(g_imm32, "ImmGetContext");
-  g_imm_release_context =
-      (mbw_imm_release_context_t)GetProcAddress(g_imm32, "ImmReleaseContext");
-  g_imm_get_composition_string =
+  mbw_imm_get_context_t get_context =
+      (mbw_imm_get_context_t)GetProcAddress(imm32, "ImmGetContext");
+  mbw_imm_release_context_t release_context =
+      (mbw_imm_release_context_t)GetProcAddress(imm32, "ImmReleaseContext");
+  mbw_imm_get_composition_string_t get_composition_string =
       (mbw_imm_get_composition_string_t)GetProcAddress(
-          g_imm32, "ImmGetCompositionStringW");
-  return g_imm_get_context && g_imm_release_context &&
-         g_imm_get_composition_string;
+          imm32, "ImmGetCompositionStringW");
+  if (!get_context || !release_context || !get_composition_string) {
+    FreeLibrary(imm32);
+    g_imm32 = NULL;
+    g_imm_get_context = NULL;
+    g_imm_release_context = NULL;
+    g_imm_get_composition_string = NULL;
+    return 0;
+  }
+  g_imm32 = imm32;
+  g_imm_get_context = get_context;
+  g_imm_release_context = release_context;
+  g_imm_get_composition_string = get_composition_string;
+  return 1;
 }
 
 static char *mbw_wide_to_utf8_alloc(const wchar_t *wide, int32_t wide_len,
@@ -174,17 +207,22 @@ static void mbw_queue_ime_text(HWND hwnd, MBWWindowState *state, int32_t kind,
 
 static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
                                      LPARAM lparam) {
-  MBWWindowState *state =
-      (MBWWindowState *)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+  MBWWindowState *state = mbw_window_state(hwnd);
 
   if (msg == WM_NCCREATE) {
     CREATESTRUCTW *cs = (CREATESTRUCTW *)lparam;
-    MBWWindowState *new_state = (MBWWindowState *)calloc(1, sizeof(MBWWindowState));
-    if (new_state) {
-      new_state->raw_id = 0;
-      SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)new_state);
+    MBWWindowState *new_state =
+        (MBWWindowState *)calloc(1, sizeof(MBWWindowState));
+    if (!new_state) {
+      return FALSE;
     }
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
+    new_state->raw_id =
+        cs ? (int32_t)(intptr_t)cs->lpCreateParams : 0;
+    if (!mbw_publish_window_state(hwnd, new_state)) {
+      free(new_state);
+      return FALSE;
+    }
+    return TRUE;
   }
 
   if (msg == WM_DESTROY) {
@@ -193,8 +231,7 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
         g_window_event_trampoline(g_window_event_closure, 2, state->raw_id, 0,
                                   0, 0, 0.0);
       }
-      SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
-      free(state);
+      mbw_clear_window_state(hwnd);
     }
     return 0;
   }
@@ -274,13 +311,20 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
       int32_t new_dpi_x = LOWORD(wparam);
       int32_t new_dpi_y = HIWORD(wparam);
       double scale = (double)new_dpi_x / 96.0;
-      g_window_event_trampoline(g_window_event_closure, 40, state->raw_id,
-                                new_dpi_x, new_dpi_y, 0, scale);
       RECT *suggested = (RECT *)lparam;
-      SetWindowPos(hwnd, NULL, suggested->left, suggested->top,
-                   suggested->right - suggested->left,
-                   suggested->bottom - suggested->top,
-                   SWP_NOZORDER | SWP_NOACTIVATE);
+      int32_t suggested_width = 0;
+      int32_t suggested_height = 0;
+      if (suggested) {
+        suggested_width = suggested->right - suggested->left;
+        suggested_height = suggested->bottom - suggested->top;
+      }
+      g_window_event_trampoline(g_window_event_closure, 40, state->raw_id,
+                                suggested_width, suggested_height, 0, scale);
+      if (suggested) {
+        SetWindowPos(hwnd, NULL, suggested->left, suggested->top,
+                     suggested_width, suggested_height,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
+      }
       return 0;
     }
 
@@ -464,9 +508,28 @@ int32_t mbw_register_window_class(void) {
 }
 
 MOONBIT_FFI_EXPORT
+uint64_t mbw_hinstance_handle(void) {
+  if (!g_hinstance) {
+    g_hinstance = GetModuleHandleW(NULL);
+  }
+  return (uint64_t)g_hinstance;
+}
+
+MOONBIT_FFI_EXPORT
 uint64_t mbw_create_msg_window(void) {
-  g_msg_window = CreateWindowExW(0, g_class_name, L"", 0, 0, 0, 0, 0,
-                                 HWND_MESSAGE, NULL, g_hinstance, NULL);
+  if (!mbw_register_window_class()) {
+    g_msg_window = NULL;
+    g_main_thread_id = 0;
+    return 0;
+  }
+  HWND msg_window = CreateWindowExW(0, g_class_name, L"", 0, 0, 0, 0, 0,
+                                    HWND_MESSAGE, NULL, g_hinstance, NULL);
+  if (!msg_window) {
+    g_msg_window = NULL;
+    g_main_thread_id = 0;
+    return 0;
+  }
+  g_msg_window = msg_window;
   g_main_thread_id = GetCurrentThreadId();
   return (uint64_t)g_msg_window;
 }
@@ -474,18 +537,28 @@ uint64_t mbw_create_msg_window(void) {
 MOONBIT_FFI_EXPORT
 uint64_t mbw_create_window(int32_t width, int32_t height, uint64_t ex_style,
                            uint64_t style, int32_t x, int32_t y,
-                           uint64_t parent_hwnd) {
+                           uint64_t parent_hwnd, int32_t raw_id) {
+  if (!mbw_register_window_class()) {
+    return 0;
+  }
   HWND parent = (parent_hwnd != 0) ? (HWND)parent_hwnd : NULL;
   HWND hwnd = CreateWindowExW(
       (DWORD)ex_style, g_class_name, L"", (DWORD)style, x, y, width, height,
-      parent, NULL, g_hinstance, NULL);
+      parent, NULL, g_hinstance, (LPVOID)(intptr_t)raw_id);
+  MBWWindowState *state = mbw_window_state(hwnd);
+  if (!hwnd || !state || state->raw_id != raw_id) {
+    mbw_clear_window_state(hwnd);
+    if (hwnd) {
+      DestroyWindow(hwnd);
+    }
+    return 0;
+  }
   return (uint64_t)hwnd;
 }
 
 MOONBIT_FFI_EXPORT
 void mbw_set_window_raw_id(uint64_t hwnd, int32_t raw_id) {
-  MBWWindowState *state =
-      (MBWWindowState *)GetWindowLongPtrW((HWND)hwnd, GWLP_USERDATA);
+  MBWWindowState *state = mbw_window_state((HWND)hwnd);
   if (state) {
     state->raw_id = raw_id;
   }
@@ -493,8 +566,7 @@ void mbw_set_window_raw_id(uint64_t hwnd, int32_t raw_id) {
 
 MOONBIT_FFI_EXPORT
 int32_t mbw_get_window_raw_id(uint64_t hwnd) {
-  MBWWindowState *state =
-      (MBWWindowState *)GetWindowLongPtrW((HWND)hwnd, GWLP_USERDATA);
+  MBWWindowState *state = mbw_window_state((HWND)hwnd);
   if (state) {
     return state->raw_id;
   }
@@ -503,7 +575,15 @@ int32_t mbw_get_window_raw_id(uint64_t hwnd) {
 
 MOONBIT_FFI_EXPORT
 void mbw_destroy_window(uint64_t hwnd) {
-  DestroyWindow((HWND)hwnd);
+  HWND window = (HWND)hwnd;
+  if (!window) {
+    return;
+  }
+  DestroyWindow(window);
+  if (window == g_msg_window) {
+    g_msg_window = NULL;
+    g_main_thread_id = 0;
+  }
 }
 
 MOONBIT_FFI_EXPORT
@@ -1071,12 +1151,15 @@ MOONBIT_FFI_EXPORT
 int32_t mbw_register_window_class(void) { return 0; }
 
 MOONBIT_FFI_EXPORT
+uint64_t mbw_hinstance_handle(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
 uint64_t mbw_create_msg_window(void) { return 0; }
 
 MOONBIT_FFI_EXPORT
 uint64_t mbw_create_window(int32_t width, int32_t height, uint64_t ex_style,
                            uint64_t style, int32_t x, int32_t y,
-                           uint64_t parent_hwnd) {
+                           uint64_t parent_hwnd, int32_t raw_id) {
   (void)width;
   (void)height;
   (void)ex_style;
@@ -1084,6 +1167,7 @@ uint64_t mbw_create_window(int32_t width, int32_t height, uint64_t ex_style,
   (void)x;
   (void)y;
   (void)parent_hwnd;
+  (void)raw_id;
   return 0;
 }
 
@@ -1091,6 +1175,12 @@ MOONBIT_FFI_EXPORT
 void mbw_set_window_raw_id(uint64_t hwnd, int32_t raw_id) {
   (void)hwnd;
   (void)raw_id;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_raw_id(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
 }
 
 MOONBIT_FFI_EXPORT
@@ -1116,6 +1206,42 @@ void mbw_install_sync_query_callback(mbw_sync_query_trampoline_t trampoline,
   (void)trampoline;
   (void)closure;
 }
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_message(uint8_t *msg_buf, uint64_t hwnd, uint32_t min_msg,
+                        uint32_t max_msg) {
+  (void)msg_buf;
+  (void)hwnd;
+  (void)min_msg;
+  (void)max_msg;
+  return -1;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_peek_message(uint8_t *msg_buf, uint64_t hwnd, uint32_t min_msg,
+                         uint32_t max_msg, uint32_t remove_msg) {
+  (void)msg_buf;
+  (void)hwnd;
+  (void)min_msg;
+  (void)max_msg;
+  (void)remove_msg;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_translate_message(uint8_t *msg_buf) {
+  (void)msg_buf;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_dispatch_message(uint8_t *msg_buf) {
+  (void)msg_buf;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_post_quit_message(int32_t exit_code) { (void)exit_code; }
 
 MOONBIT_FFI_EXPORT
 int32_t mbw_process_one_message(uint64_t hwnd, uint32_t min_msg,
@@ -1162,6 +1288,9 @@ int32_t mbw_post_thread_message(uint32_t thread_id, uint32_t msg,
 
 MOONBIT_FFI_EXPORT
 uint32_t mbw_get_current_thread_id(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_get_module_handle(void) { return 0; }
 
 MOONBIT_FFI_EXPORT
 int32_t mbw_set_window_text(uint64_t hwnd, moonbit_bytes_t text) {
@@ -1254,6 +1383,14 @@ int32_t mbw_client_to_screen_y(uint64_t hwnd, int32_t x, int32_t y) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_client_to_screen(uint64_t hwnd, int32_t *x, int32_t *y) {
+  (void)hwnd;
+  (void)x;
+  (void)y;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_get_key_state(int32_t vk) {
   (void)vk;
   return 0;
@@ -1264,6 +1401,31 @@ moonbit_bytes_t mbw_consume_utf8_text(uint64_t ptr, int32_t len) {
   (void)ptr;
   (void)len;
   return moonbit_make_bytes(0, 0);
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_set_window_long_ptr(uint64_t hwnd, int32_t index,
+                                 uint64_t value) {
+  (void)hwnd;
+  (void)index;
+  return value;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_get_window_long_ptr(uint64_t hwnd, int32_t index) {
+  (void)hwnd;
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_def_window_proc(uint64_t hwnd, uint32_t msg, uint64_t wparam,
+                             int64_t lparam) {
+  (void)hwnd;
+  (void)msg;
+  (void)wparam;
+  (void)lparam;
+  return 0;
 }
 
 MOONBIT_FFI_EXPORT
@@ -1294,6 +1456,17 @@ int32_t mbw_clip_cursor(int32_t left, int32_t top, int32_t right,
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_get_cursor_pos(int32_t *x, int32_t *y) {
+  if (x != 0) {
+    *x = 0;
+  }
+  if (y != 0) {
+    *y = 0;
+  }
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_set_cursor_pos(int32_t x, int32_t y) {
   (void)x;
   (void)y;
@@ -1307,6 +1480,19 @@ MOONBIT_FFI_EXPORT
 uint32_t mbw_get_dpi_for_window(uint64_t hwnd) {
   (void)hwnd;
   return 96;
+}
+
+MOONBIT_FFI_EXPORT
+uint32_t mbw_msg_wait_for_multiple_objects_ex(uint32_t count,
+                                              uint64_t *handles,
+                                              uint32_t timeout_ms,
+                                              uint32_t mask, uint32_t flags) {
+  (void)count;
+  (void)handles;
+  (void)timeout_ms;
+  (void)mask;
+  (void)flags;
+  return 0;
 }
 
 MOONBIT_FFI_EXPORT
@@ -1337,6 +1523,12 @@ int32_t mbw_set_foreground_window(uint64_t hwnd) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_get_window_placement_show_cmd(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
 uint64_t mbw_get_window_long_style(uint64_t hwnd) {
   (void)hwnd;
   return 0;
@@ -1361,6 +1553,21 @@ uint64_t mbw_set_window_long_ex_style(uint64_t hwnd, uint64_t ex_style) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_adjust_window_rect_ex(int32_t *left, int32_t *top,
+                                  int32_t *right, int32_t *bottom,
+                                  uint64_t style, int32_t menu,
+                                  uint64_t ex_style) {
+  (void)left;
+  (void)top;
+  (void)right;
+  (void)bottom;
+  (void)style;
+  (void)menu;
+  (void)ex_style;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
 void mbw_release_capture(void) {}
 
 MOONBIT_FFI_EXPORT
@@ -1374,6 +1581,43 @@ uint64_t mbw_send_message(uint64_t hwnd, uint32_t msg, uint64_t wparam,
 }
 
 MOONBIT_FFI_EXPORT
+int64_t mbw_get_window_thread_process_id(uint64_t hwnd, uint32_t *pid) {
+  (void)hwnd;
+  if (pid != 0) {
+    *pid = 0;
+  }
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_screen_to_client(uint64_t hwnd, int32_t *x, int32_t *y) {
+  (void)hwnd;
+  (void)x;
+  (void)y;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_keyboard_state(uint8_t *key_state) {
+  (void)key_state;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+uint32_t mbw_map_virtual_key(uint32_t code, uint32_t map_type) {
+  (void)map_type;
+  return code;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_get_key_name_text(int64_t lparam, uint16_t *buf, int32_t size) {
+  (void)lparam;
+  (void)buf;
+  (void)size;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_get_system_metrics(int32_t index) {
   (void)index;
   return 0;
@@ -1383,6 +1627,31 @@ MOONBIT_FFI_EXPORT
 int32_t mbw_track_mouse_event(uint64_t hwnd, uint32_t flags) {
   (void)hwnd;
   (void)flags;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+double mbw_getDoubleClickTime(void) { return 0.0; }
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_system_parameters_info(uint32_t action, uint32_t param,
+                                   void *data, uint32_t win_ini) {
+  (void)action;
+  (void)param;
+  (void)data;
+  (void)win_ini;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_read_registry_dword(const uint16_t *key_path,
+                                const uint16_t *value_name,
+                                uint32_t *out_value) {
+  (void)key_path;
+  (void)value_name;
+  if (out_value != 0) {
+    *out_value = 0;
+  }
   return 0;
 }
 

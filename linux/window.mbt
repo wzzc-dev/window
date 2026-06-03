@@ -12,10 +12,12 @@ pub struct Window {
   priv mut enabled_buttons_state : @core.WindowButtons
   priv mut window_level_state : @core.WindowLevel
   priv mut theme_state : @core.Theme?
-  priv mut ime_allowed_state : Bool
+  priv mut ime_capabilities_state : @core.ImeCapabilities?
   priv mut ime_hints_state : @core.ImeHint
   priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
+  priv mut ime_cursor_area_position_state : @dpi.PhysicalPosition
+  priv mut ime_cursor_area_size_state : @dpi.PhysicalSize
 }
 
 ///|
@@ -119,10 +121,12 @@ pub fn Window::new_with_linux_attributes(
     enabled_buttons_state: attributes.enabled_buttons(),
     window_level_state: attributes.window_level(),
     theme_state: attributes.theme(),
-    ime_allowed_state: false,
+    ime_capabilities_state: None,
     ime_hints_state: attributes.ime_hints(),
     ime_purpose_state: attributes.ime_purpose(),
     ime_surrounding_text_state: None,
+    ime_cursor_area_position_state: PhysicalPosition(0, 0),
+    ime_cursor_area_size_state: PhysicalSize(1, 1),
   }
 }
 
@@ -139,7 +143,7 @@ pub fn Window::id(self : Window) -> @core.WindowId {
 ///|
 pub fn Window::drop(self : Window) -> Unit {
   native_window_destroy(self.handle)
-  app_state_unregister_window(self.raw_id())
+  app_state_clear_window_runtime_state(self.raw_id())
 }
 
 ///|
@@ -452,33 +456,52 @@ pub fn Window::set_skip_taskbar(self : Window, _skip : Bool) -> Unit {
 
 ///|
 pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
-  self.ime_allowed_state = allowed
+  if allowed {
+    self.ime_capabilities_state = Some(
+      @core.ImeCapabilities::default()
+      .with_hint_and_purpose()
+      .with_cursor_area()
+      .with_surrounding_text(),
+    )
+  } else {
+    self.ime_capabilities_state = None
+    self.ime_surrounding_text_state = None
+    self.ime_cursor_area_position_state = PhysicalPosition(0, 0)
+    self.ime_cursor_area_size_state = PhysicalSize(1, 1)
+  }
 }
 
 ///|
 pub fn Window::ime_allowed(self : Window) -> Bool {
-  self.ime_allowed_state
+  self.ime_capabilities_state is Some(_)
 }
 
 ///|
 pub fn Window::set_ime_cursor_area(
   self : Window,
-  _position : @dpi.Position,
-  _size : @dpi.Size,
+  position : @dpi.Position,
+  size : @dpi.Size,
 ) -> Unit {
-  let _ = self
+  let physical_position = position.to_physical(self.scale_factor())
+  let physical_size = size.to_physical(self.scale_factor())
+  let width = if physical_size.width() > 0 { physical_size.width() } else { 1 }
+  let height = if physical_size.height() > 0 {
+    physical_size.height()
+  } else {
+    1
+  }
+  self.ime_cursor_area_position_state = physical_position
+  self.ime_cursor_area_size_state = PhysicalSize(width, height)
 }
 
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
-  let _ = self
-  PhysicalPosition(0, 0)
+  self.ime_cursor_area_position_state
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
-  let _ = self
-  PhysicalSize(0, 0)
+  self.ime_cursor_area_size_state
 }
 
 ///|
@@ -507,16 +530,29 @@ pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
 ///|
 pub fn Window::request_ime_update(
   self : Window,
-  _request : @core.ImeRequest,
+  request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
-  let _ = self
-  raise NotSupported
+  match request {
+    Enable(enable_request) =>
+      match self.ime_capabilities_state {
+        Some(_) => raise AlreadyEnabled
+        None => {
+          self.ime_capabilities_state = Some(enable_request.capabilities())
+          self.apply_ime_request_data(enable_request.request_data())
+        }
+      }
+    Update(request_data) =>
+      match self.ime_capabilities_state {
+        Some(_) => self.apply_ime_request_data(request_data)
+        None => raise NotEnabled
+      }
+    Disable => self.set_ime_allowed(false)
+  }
 }
 
 ///|
 pub fn Window::ime_capabilities(self : Window) -> @core.ImeCapabilities? {
-  let _ = self
-  Some(@core.ImeCapabilities::default())
+  self.ime_capabilities_state
 }
 
 ///|
@@ -530,6 +566,28 @@ pub fn Window::set_ime_surrounding_text(
 ///|
 pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
   self.ime_surrounding_text_state
+}
+
+///|
+fn Window::apply_ime_request_data(
+  self : Window,
+  request_data : @core.ImeRequestData,
+) -> Unit {
+  match request_data.hint_and_purpose() {
+    Some((hint, purpose)) => {
+      self.ime_hints_state = hint
+      self.ime_purpose_state = purpose
+    }
+    None => ()
+  }
+  match request_data.cursor_area() {
+    Some((position, size)) => self.set_ime_cursor_area(position, size)
+    None => ()
+  }
+  match request_data.surrounding_text() {
+    Some(text) => self.set_ime_surrounding_text(Some(text))
+    None => ()
+  }
 }
 
 ///|
@@ -845,8 +903,10 @@ pub fn Window::is_document_edited(self : Window) -> Bool {
 
 ///|
 pub fn Window::current_monitor(self : Window) -> @core.MonitorHandle? {
-  let _ = self
-  primary_monitor()
+  match app_state_window_handle(self.raw_id()) {
+    Some(handle) => current_monitor_for_window(handle)
+    None => None
+  }
 }
 
 ///|

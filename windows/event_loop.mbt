@@ -128,6 +128,9 @@ pub fn EventLoop::try_new_with_platform_attributes(
     raise @core.EventLoopError::os("OS error")
   }
   let msg_window = native_create_msg_window()
+  if msg_window == (0 : Int).to_uint64() {
+    raise @core.EventLoopError::os("OS error")
+  }
   let thread_id = native_get_current_thread_id()
   app_state_install_native_callbacks()
   event_loop_global_created.val = true
@@ -146,7 +149,10 @@ pub fn EventLoop::window_target(self : EventLoop) -> ActiveEventLoop {
 
 ///|
 pub fn EventLoop::drop(self : EventLoop) -> Unit {
-  let _ = self
+  if self.msg_window != (0 : Int).to_uint64() {
+    native_destroy_window(self.msg_window)
+    app_state_clear_all_window_runtime_state()
+  }
 }
 
 ///|
@@ -264,13 +270,13 @@ pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
 ///|
 pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|
 pub fn EventLoop::rwh_06_handle(self : EventLoop) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|

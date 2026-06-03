@@ -16,7 +16,7 @@ Usage: scripts/check_moui_windows_smoke.sh [--run]
 
 Without --run, build and statically verify the Windows MoUI smoke artifact on a
 Windows host. With --run, launch the built Win32 executable and require it to
-  print the surface, HWND, resize, redraw, pointer, keyboard/text, ready,
+  print the surface, HWND, resize, redraw, pointer, keyboard key/text, ready,
   destroyed, and finished sentinel lines.
 EOF
 }
@@ -33,28 +33,17 @@ require_text() {
     fail "$path does not contain expected text: $text"
 }
 
-require_output() {
-  local output="$1"
-  local text="$2"
-  [[ "$output" == *"$text"* ]] ||
-    fail "runtime output did not contain expected text: $text"
-}
-
-require_output_order() {
-  local output="$1"
-  local first="$2"
-  local second="$3"
-  local after_first="${output#*"$first"}"
-  if [[ "$after_first" == "$output" || "$after_first" != *"$second"* ]]; then
-    fail "runtime output did not contain $first before $second"
-  fi
+run_runtime_verifier() {
+  local output_file="$1"
+  bash scripts/check_moui_runtime_log.sh windows "$output_file" >/dev/null
 }
 
 run_runtime_smoke() {
   local exe="$1"
-  local output_file timeout_sec pid status output
+  local output_file timeout_sec pid status
   timeout_sec="${WINDOW_MOUI_WINDOWS_SMOKE_TIMEOUT_SEC:-15}"
   output_file="$(mktemp "${TMPDIR:-/tmp}/moui-windows-smoke.XXXXXX")"
+  trap 'rm -f "$output_file"' EXIT
   set +e
   "$exe" >"$output_file" 2>&1 &
   pid=$!
@@ -72,30 +61,14 @@ run_runtime_smoke() {
     wait "$pid" 2>/dev/null || true
     set -e
     printf '%s\n' "$(cat "$output_file")"
-    rm -f "$output_file"
     fail "runtime smoke timed out after ${timeout_sec}s"
   fi
   set -e
-  output="$(cat "$output_file")"
-  rm -f "$output_file"
-  printf '%s\n' "$output"
+  cat "$output_file"
   [[ "$status" -eq 0 ]] || fail "runtime exited with status $status"
-  require_output "$output" "MOUIWindowsSmoke: surface"
-  require_output "$output" "MOUIWindowsSmoke: handle"
-  require_output "$output" "MOUIWindowsSmoke: monitors"
-  require_output "$output" "MOUIWindowsSmoke: cursor"
-  require_output "$output" "MOUIWindowsSmoke: resize"
-  require_output "$output" "MOUIWindowsSmoke: redraw pre_present_notify"
-  require_output "$output" "MOUIWindowsSmoke: pointer"
-  require_output "$output" "MOUIWindowsSmoke: keyboard"
-  require_output "$output" "MOUIWindowsSmoke: ime text=a"
-  require_output "$output" "MOUIWindowsSmoke: ready"
-  require_output "$output" "MOUIWindowsSmoke: destroyed"
-  require_output "$output" "MOUIWindowsSmoke: finished"
-  require_output_order "$output" "MOUIWindowsSmoke: destroyed" "MOUIWindowsSmoke: finished"
-  if [[ "$output" == *"MOUIWindowsSmoke: failed"* ]]; then
-    fail "runtime reported failure"
-  fi
+  run_runtime_verifier "$output_file"
+  rm -f "$output_file"
+  trap - EXIT
 }
 
 run_mode=0
@@ -140,19 +113,45 @@ require_file "$exe"
 require_text "$manifest" '"native-stub": [ "input_native.c" ]'
 require_text "$stub" "mbw_moui_windows_smoke_send_input"
 require_text "$main" "window.window_handle()"
+require_text "$main" "window.display_handle()"
+require_text "$main" "window.rwh_06_display_handle()"
+require_text "$main" "window.rwh_06_window_handle()"
+require_text "$main" "display != (0 : Int).to_uint64()"
+require_text "$main" "raw_display == display"
+require_text "$main" "raw_window == hwnd"
 require_text "$main" "window.surface_size()"
 require_text "$main" "window.scale_factor()"
 require_text "$main" "window.available_monitors()"
 require_text "$main" "window.primary_monitor()"
 require_text "$main" "window.current_monitor()"
+require_text "$main" "monitor.native_id()"
+require_text "$main" "primary_id=0x"
+require_text "$main" "current_id=0x"
+require_text "$main" "self.saw_monitor = log_monitor_probe(window)"
 require_text "$main" "window.set_cursor_icon(Text)"
 require_text "$main" "window.cursor()"
+require_text "$main" "self.saw_cursor = log_cursor_probe(window)"
+require_text "$main" "cursor=\{self.saw_cursor}"
+require_text "$main" "window.request_ime_update(Enable(enable))"
+require_text "$main" "window.request_ime_update(Update(update_data))"
+require_text "$main" "window.request_ime_update(Disable)"
+require_text "$main" "window.ime_capabilities()"
+require_text "$main" "window.ime_hints()"
+require_text "$main" "window.ime_purpose()"
+require_text "$main" "with_hint_and_purpose"
+require_text "$main" "window.ime_surrounding_text()"
+require_text "$main" "window.ime_cursor_area_position()"
+require_text "$main" "window.ime_cursor_area_size()"
+require_text "$main" "MOUIWindowsSmoke: ime probe enabled=\{enabled} hint="
 require_text "$main" "window.pre_present_notify()"
 require_text "$main" "native_send_input"
 require_text "$main" "PointerMoved"
 require_text "$main" "KeyboardInput"
+require_text "$main" "MOUIWindowsSmoke: keyboard key="
 require_text "$main" "Ime(Commit(text))"
 require_text "$main" "MOUIWindowsSmoke: ready"
+require_text "$main" "window.drop()"
+require_text "$main" "MOUIWindowsSmoke: destroy requested"
 require_text "$main" "Destroyed"
 require_text "$main" "SurfaceResized"
 require_text "$main" "RedrawRequested"

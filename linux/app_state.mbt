@@ -73,6 +73,15 @@ fn app_state_context() -> UInt64 {
 }
 
 ///|
+fn app_state_clear_context_windows(context : UInt64) -> Unit {
+  if context != 0UL && app_state_runtime.val.context == context {
+    app_state_runtime.val.context = 0UL
+    app_state_runtime.val.window_entries = []
+    app_state_runtime.val.pending_redraw_window_ids = []
+  }
+}
+
+///|
 fn app_state_next_window_id() -> Int {
   let id = app_state_runtime.val.next_window_id
   app_state_runtime.val.next_window_id = id + 1
@@ -106,6 +115,12 @@ fn app_state_unregister_window(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_entries = next
+}
+
+///|
+fn app_state_clear_window_runtime_state(raw_id : Int) -> Unit {
+  app_state_clear_pending_redraw(raw_id)
+  app_state_unregister_window(raw_id)
 }
 
 ///|
@@ -349,6 +364,18 @@ fn app_state_update_key_modifier(
 }
 
 ///|
+fn app_state_clear_modifiers() -> @core.Modifiers? {
+  let before = app_state_modifiers()
+  if before.is_empty() {
+    None
+  } else {
+    app_state_runtime.val.modifiers = @core.ModifiersState::none()
+    app_state_runtime.val.pressed_modifiers = @core.ModifiersKeys::none()
+    Some(app_state_modifiers())
+  }
+}
+
+///|
 fn app_state_handler_ready() -> Bool {
   app_state_runtime.val.is_running &&
   !app_state_runtime.val.event_handler_in_use &&
@@ -419,16 +446,29 @@ fn app_state_queue_proxy_wake_up() -> Unit {
 
 ///|
 fn app_state_queue_redraw(raw_id : Int) -> Unit {
-  let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
-    id == raw_id
-  })
-  if found is None {
-    app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
-  }
   match app_state_window_handle(raw_id) {
-    Some(handle) => native_window_request_redraw(handle)
+    Some(handle) => {
+      let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
+        id == raw_id
+      })
+      if found is None {
+        app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
+      }
+      native_window_request_redraw(handle)
+    }
     None => ()
   }
+}
+
+///|
+fn app_state_clear_pending_redraw(raw_id : Int) -> Unit {
+  let next : Array[Int] = []
+  for id in app_state_runtime.val.pending_redraw_window_ids {
+    if id != raw_id {
+      next.push(id)
+    }
+  }
+  app_state_runtime.val.pending_redraw_window_ids = next
 }
 
 ///|

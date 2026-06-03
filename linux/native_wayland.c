@@ -60,6 +60,18 @@ enum {
 
 struct mbw_wayland_window;
 
+typedef struct mbw_wayland_output {
+  uint32_t registry_name;
+  struct wl_output *output;
+  int32_t x;
+  int32_t y;
+  int32_t width;
+  int32_t height;
+  int32_t scale;
+  char name[256];
+  struct mbw_wayland_output *next;
+} mbw_wayland_output_t;
+
 typedef struct mbw_wayland_present_buffer {
   struct mbw_wayland_window *window;
   struct wl_buffer *buffer;
@@ -78,6 +90,8 @@ typedef struct mbw_wayland_context {
   struct wl_keyboard *keyboard;
   struct xdg_wm_base *wm_base;
   struct zxdg_decoration_manager_v1 *decoration_manager;
+  mbw_wayland_output_t *outputs;
+  struct mbw_wayland_window *windows;
   struct wl_surface *cursor_surface;
   struct wl_buffer *cursor_buffer;
   void *cursor_data;
@@ -105,6 +119,7 @@ typedef struct mbw_wayland_window {
   int pointer_x;
   int pointer_y;
   int active_titlebar_button;
+  struct wl_output *current_output;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
   struct xdg_toplevel *xdg_toplevel;
@@ -115,6 +130,7 @@ typedef struct mbw_wayland_window {
   int placeholder_width;
   int placeholder_height;
   mbw_wayland_present_buffer_t *present_buffers;
+  struct mbw_wayland_window *next;
 } mbw_wayland_window_t;
 
 enum {
@@ -123,6 +139,12 @@ enum {
   MBW_WAYLAND_PRESENT_BAD_DIMENSIONS = 2,
   MBW_WAYLAND_PRESENT_BAD_PIXELS = 3,
   MBW_WAYLAND_PRESENT_ALLOC_FAILED = 4,
+};
+
+enum {
+  MBW_WAYLAND_FLUSH_OK = 0,
+  MBW_WAYLAND_FLUSH_NEEDS_WRITE = 1,
+  MBW_WAYLAND_FLUSH_FAILED = -1,
 };
 
 static void emit_window(int32_t kind, int32_t raw_id, int32_t arg0,
@@ -138,6 +160,23 @@ static void emit_input(int32_t raw_id, int32_t kind, int32_t arg0,
   if (g_input_trampoline && g_input_closure) {
     g_input_trampoline(g_input_closure, raw_id, kind, arg0, arg1, arg2, argi);
   }
+}
+
+static int flush_wayland_display(struct wl_display *display,
+                                 const char *label) {
+  if (!display) {
+    return MBW_WAYLAND_FLUSH_FAILED;
+  }
+  int ret = wl_display_flush(display);
+  if (ret >= 0) {
+    return MBW_WAYLAND_FLUSH_OK;
+  }
+  if (errno == EAGAIN) {
+    return MBW_WAYLAND_FLUSH_NEEDS_WRITE;
+  }
+  fprintf(stderr, "Wayland %s flush failed: errno=%d error=%d\n", label,
+          errno, wl_display_get_error(display));
+  return MBW_WAYLAND_FLUSH_FAILED;
 }
 
 static char *copy_bytes(const uint8_t *bytes, int32_t len,
@@ -251,6 +290,68 @@ static void destroy_placeholder_buffer(mbw_wayland_window_t *window) {
   }
   window->placeholder_width = 0;
   window->placeholder_height = 0;
+}
+
+static void destroy_window_resources(mbw_wayland_window_t *window) {
+  if (!window) {
+    return;
+  }
+  destroy_present_buffers(window);
+  destroy_placeholder_buffer(window);
+  if (window->decoration) {
+    zxdg_toplevel_decoration_v1_destroy(window->decoration);
+    window->decoration = NULL;
+  }
+  if (window->xdg_toplevel) {
+    xdg_toplevel_destroy(window->xdg_toplevel);
+    window->xdg_toplevel = NULL;
+  }
+  if (window->xdg_surface) {
+    xdg_surface_destroy(window->xdg_surface);
+    window->xdg_surface = NULL;
+  }
+  if (window->surface) {
+    wl_surface_destroy(window->surface);
+    window->surface = NULL;
+  }
+  free(window);
+}
+
+static void detach_window_from_context(mbw_wayland_window_t *window) {
+  if (!window || !window->context) {
+    return;
+  }
+  if (window->context->pointer_window == window) {
+    window->context->pointer_window = NULL;
+  }
+  if (window->context->keyboard_window == window) {
+    window->context->keyboard_window = NULL;
+  }
+  mbw_wayland_window_t **cursor = &window->context->windows;
+  while (*cursor) {
+    if (*cursor == window) {
+      *cursor = window->next;
+      break;
+    }
+    cursor = &(*cursor)->next;
+  }
+  window->next = NULL;
+}
+
+static void destroy_context_windows(mbw_wayland_context_t *context) {
+  if (!context) {
+    return;
+  }
+  context->pointer_window = NULL;
+  context->keyboard_window = NULL;
+  mbw_wayland_window_t *window = context->windows;
+  context->windows = NULL;
+  while (window) {
+    mbw_wayland_window_t *next = window->next;
+    window->next = NULL;
+    destroy_window_resources(window);
+    window = next;
+  }
 }
 
 static void put_pixel(uint32_t *pixels, int width, int x, int y,
@@ -401,6 +502,116 @@ static void cursor_release(void *data, struct wl_buffer *buffer) {
 static const struct wl_buffer_listener cursor_buffer_listener = {
     .release = cursor_release,
 };
+
+static mbw_wayland_output_t *find_output_by_registry_name(
+    mbw_wayland_context_t *context, uint32_t registry_name) {
+  if (!context) {
+    return NULL;
+  }
+  mbw_wayland_output_t *output = context->outputs;
+  while (output) {
+    if (output->registry_name == registry_name) {
+      return output;
+    }
+    output = output->next;
+  }
+  return NULL;
+}
+
+static void output_geometry(void *data, struct wl_output *wl_output, int32_t x,
+                            int32_t y, int32_t physical_width,
+                            int32_t physical_height, int32_t subpixel,
+                            const char *make, const char *model,
+                            int32_t transform) {
+  (void)wl_output;
+  (void)physical_width;
+  (void)physical_height;
+  (void)subpixel;
+  (void)transform;
+  mbw_wayland_output_t *output = (mbw_wayland_output_t *)data;
+  if (!output) {
+    return;
+  }
+  output->x = x;
+  output->y = y;
+  if (make && model && make[0] && model[0]) {
+    snprintf(output->name, sizeof(output->name), "%s %s", make, model);
+  } else if (model && model[0]) {
+    snprintf(output->name, sizeof(output->name), "%s", model);
+  } else if (make && make[0]) {
+    snprintf(output->name, sizeof(output->name), "%s", make);
+  }
+}
+
+static void output_mode(void *data, struct wl_output *wl_output,
+                        uint32_t flags, int32_t width, int32_t height,
+                        int32_t refresh) {
+  (void)wl_output;
+  (void)refresh;
+  mbw_wayland_output_t *output = (mbw_wayland_output_t *)data;
+  if (!output || !(flags & WL_OUTPUT_MODE_CURRENT)) {
+    return;
+  }
+  output->width = width > 0 ? width : 0;
+  output->height = height > 0 ? height : 0;
+}
+
+static void output_done(void *data, struct wl_output *wl_output) {
+  (void)data;
+  (void)wl_output;
+}
+
+static void output_scale(void *data, struct wl_output *wl_output,
+                         int32_t factor) {
+  (void)wl_output;
+  mbw_wayland_output_t *output = (mbw_wayland_output_t *)data;
+  if (!output) {
+    return;
+  }
+  output->scale = factor > 0 ? factor : 1;
+}
+
+static const struct wl_output_listener output_listener = {
+    .geometry = output_geometry,
+    .mode = output_mode,
+    .done = output_done,
+    .scale = output_scale,
+};
+
+static void destroy_output(mbw_wayland_context_t *context,
+                           mbw_wayland_output_t *output) {
+  if (!context || !output) {
+    return;
+  }
+  mbw_wayland_output_t **cursor = &context->outputs;
+  while (*cursor) {
+    if (*cursor == output) {
+      *cursor = output->next;
+      break;
+    }
+    cursor = &(*cursor)->next;
+  }
+  mbw_wayland_window_t *window = context->windows;
+  while (window) {
+    if (window->current_output == output->output) {
+      window->current_output = NULL;
+    }
+    window = window->next;
+  }
+  if (output->output) {
+    wl_output_destroy(output->output);
+  }
+  free(output);
+}
+
+static void destroy_outputs(mbw_wayland_context_t *context) {
+  if (!context) {
+    return;
+  }
+  while (context->outputs) {
+    destroy_output(context, context->outputs);
+  }
+}
 
 static int ensure_default_cursor(mbw_wayland_context_t *context) {
   if (!context || !context->compositor || !context->shm) {
@@ -689,14 +900,14 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
         request_maximized(window, !(window->requested_maximized || window->maximized));
         wl_surface_commit(window->surface);
         if (context && context->display) {
-          wl_display_flush(context->display);
+          (void)flush_wayland_display(context->display, "titlebar maximize");
         }
         return;
       } else if (titlebar_button == 3 && window->xdg_toplevel) {
         xdg_toplevel_set_minimized(window->xdg_toplevel);
         wl_surface_commit(window->surface);
         if (context && context->display) {
-          wl_display_flush(context->display);
+          (void)flush_wayland_display(context->display, "titlebar minimize");
         }
         return;
       } else if (titlebar_hit_drag(window, window->pointer_x,
@@ -870,19 +1081,25 @@ static void seat_capabilities(void *data, struct wl_seat *seat,
   }
   if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && !context->pointer) {
     context->pointer = wl_seat_get_pointer(seat);
-    wl_pointer_add_listener(context->pointer, &pointer_listener, context);
+    if (context->pointer) {
+      wl_pointer_add_listener(context->pointer, &pointer_listener, context);
+    }
   } else if (!(capabilities & WL_SEAT_CAPABILITY_POINTER) &&
              context->pointer) {
     wl_pointer_destroy(context->pointer);
     context->pointer = NULL;
+    context->pointer_window = NULL;
   }
   if ((capabilities & WL_SEAT_CAPABILITY_KEYBOARD) && !context->keyboard) {
     context->keyboard = wl_seat_get_keyboard(seat);
-    wl_keyboard_add_listener(context->keyboard, &keyboard_listener, context);
+    if (context->keyboard) {
+      wl_keyboard_add_listener(context->keyboard, &keyboard_listener, context);
+    }
   } else if (!(capabilities & WL_SEAT_CAPABILITY_KEYBOARD) &&
              context->keyboard) {
     wl_keyboard_destroy(context->keyboard);
     context->keyboard = NULL;
+    context->keyboard_window = NULL;
   }
 }
 
@@ -913,28 +1130,78 @@ static void registry_global(void *data, struct wl_registry *registry,
     context->seat =
         wl_registry_bind(registry, name, &wl_seat_interface,
                          version < 5 ? version : 5);
+    if (!context->seat) {
+      return;
+    }
     wl_seat_add_listener(context->seat, &seat_listener, context);
   } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
     context->wm_base =
         wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+    if (!context->wm_base) {
+      return;
+    }
     xdg_wm_base_add_listener(context->wm_base, &wm_base_listener, context);
   } else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) ==
              0) {
     context->decoration_manager = wl_registry_bind(
         registry, name, &zxdg_decoration_manager_v1_interface, 1);
+  } else if (strcmp(interface, wl_output_interface.name) == 0) {
+    mbw_wayland_output_t *output =
+        (mbw_wayland_output_t *)calloc(1, sizeof(mbw_wayland_output_t));
+    if (!output) {
+      return;
+    }
+    output->registry_name = name;
+    output->scale = 1;
+    snprintf(output->name, sizeof(output->name), "Wayland output %u", name);
+    output->output = wl_registry_bind(registry, name, &wl_output_interface,
+                                      version < 2 ? version : 2);
+    if (!output->output) {
+      free(output);
+      return;
+    }
+    wl_output_add_listener(output->output, &output_listener, output);
+    output->next = context->outputs;
+    context->outputs = output;
   }
 }
 
 static void registry_global_remove(void *data, struct wl_registry *registry,
                                    uint32_t name) {
-  (void)data;
   (void)registry;
-  (void)name;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  mbw_wayland_output_t *output = find_output_by_registry_name(context, name);
+  if (output) {
+    destroy_output(context, output);
+  }
 }
 
 static const struct wl_registry_listener registry_listener = {
     .global = registry_global,
     .global_remove = registry_global_remove,
+};
+
+static void surface_enter(void *data, struct wl_surface *surface,
+                          struct wl_output *output) {
+  (void)surface;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window) {
+    window->current_output = output;
+  }
+}
+
+static void surface_leave(void *data, struct wl_surface *surface,
+                          struct wl_output *output) {
+  (void)surface;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window && window->current_output == output) {
+    window->current_output = NULL;
+  }
+}
+
+static const struct wl_surface_listener surface_listener = {
+    .enter = surface_enter,
+    .leave = surface_leave,
 };
 
 MOONBIT_FFI_EXPORT
@@ -944,17 +1211,32 @@ uint64_t mbw_wayland_context_new(void) {
   if (!context) {
     return 0;
   }
+  context->wake_fd = -1;
   context->display = wl_display_connect(NULL);
   if (!context->display) {
     free(context);
     return 0;
   }
   context->wake_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+  if (context->wake_fd < 0) {
+    mbw_wayland_context_destroy((uint64_t)(uintptr_t)context);
+    return 0;
+  }
   context->registry = wl_display_get_registry(context->display);
+  if (!context->registry) {
+    mbw_wayland_context_destroy((uint64_t)(uintptr_t)context);
+    return 0;
+  }
   wl_registry_add_listener(context->registry, &registry_listener, context);
-  wl_display_roundtrip(context->display);
-  wl_display_roundtrip(context->display);
-  if (!context->compositor || !context->wm_base) {
+  if (wl_display_roundtrip(context->display) < 0) {
+    mbw_wayland_context_destroy((uint64_t)(uintptr_t)context);
+    return 0;
+  }
+  if (wl_display_roundtrip(context->display) < 0) {
+    mbw_wayland_context_destroy((uint64_t)(uintptr_t)context);
+    return 0;
+  }
+  if (!context->compositor || !context->shm || !context->wm_base) {
     mbw_wayland_context_destroy((uint64_t)(uintptr_t)context);
     return 0;
   }
@@ -968,6 +1250,7 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   if (!context) {
     return;
   }
+  destroy_context_windows(context);
   if (context->keyboard) {
     wl_keyboard_destroy(context->keyboard);
   }
@@ -986,6 +1269,7 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   if (context->seat) {
     wl_seat_destroy(context->seat);
   }
+  destroy_outputs(context);
   if (context->decoration_manager) {
     zxdg_decoration_manager_v1_destroy(context->decoration_manager);
   }
@@ -1030,6 +1314,109 @@ int32_t mbw_wayland_context_system_theme(uint64_t raw_context) {
   return -1;
 }
 
+static mbw_wayland_output_t *output_at(mbw_wayland_context_t *context,
+                                       int32_t index) {
+  if (!context || index < 0) {
+    return NULL;
+  }
+  mbw_wayland_output_t *output = context->outputs;
+  int32_t i = 0;
+  while (output) {
+    if (i == index) {
+      return output;
+    }
+    i++;
+    output = output->next;
+  }
+  return NULL;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_count(uint64_t raw_context) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  int32_t count = 0;
+  mbw_wayland_output_t *output = context ? context->outputs : NULL;
+  while (output) {
+    count++;
+    output = output->next;
+  }
+  return count;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_monitor_handle_at(uint64_t raw_context, int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output ? (uint64_t)(uintptr_t)output->output : 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_left_at(uint64_t raw_context, int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output ? output->x : 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_top_at(uint64_t raw_context, int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output ? output->y : 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_width_at(uint64_t raw_context, int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output && output->width > 0 ? output->width : 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_height_at(uint64_t raw_context, int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output && output->height > 0 ? output->height : 0;
+}
+
+MOONBIT_FFI_EXPORT
+double mbw_wayland_monitor_scale_factor_at(uint64_t raw_context,
+                                           int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  return output && output->scale > 0 ? (double)output->scale : 1.0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_monitor_name_bytes_at(uint64_t raw_context,
+                                                  int32_t index) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  mbw_wayland_output_t *output = output_at(context, index);
+  if (!output || !output->name[0]) {
+    return moonbit_make_bytes(0, 0);
+  }
+  int32_t len = (int32_t)strlen(output->name);
+  moonbit_bytes_t bytes = moonbit_make_bytes(len, 0);
+  memcpy(bytes, output->name, (size_t)len);
+  return bytes;
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_window_current_monitor_handle(uint64_t raw_window) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  return window && window->current_output
+             ? (uint64_t)(uintptr_t)window->current_output
+             : 0;
+}
+
 MOONBIT_FFI_EXPORT
 int64_t mbw_wayland_now_ms(void) {
   struct timespec ts;
@@ -1049,8 +1436,12 @@ int32_t mbw_wayland_context_dispatch(uint64_t raw_context, int32_t timeout_ms) {
     if (ret < 0) {
       fprintf(stderr, "Wayland dispatch pending failed: errno=%d error=%d\n",
               errno, wl_display_get_error(context->display));
+      return ret;
     }
-    wl_display_flush(context->display);
+    int flush_ret = flush_wayland_display(context->display, "dispatch pending");
+    if (flush_ret == MBW_WAYLAND_FLUSH_FAILED) {
+      return -1;
+    }
     return ret;
   }
   int fd = wl_display_get_fd(context->display);
@@ -1061,16 +1452,33 @@ int32_t mbw_wayland_context_dispatch(uint64_t raw_context, int32_t timeout_ms) {
   fds[1].fd = context->wake_fd;
   fds[1].events = POLLIN;
   fds[1].revents = 0;
-  wl_display_flush(context->display);
+  int flush_ret = flush_wayland_display(context->display, "dispatch");
+  if (flush_ret == MBW_WAYLAND_FLUSH_FAILED) {
+    return -1;
+  }
+  if (flush_ret == MBW_WAYLAND_FLUSH_NEEDS_WRITE) {
+    fds[0].events |= POLLOUT;
+  }
   int ret = poll(fds, context->wake_fd >= 0 ? 2 : 1, timeout_ms);
   if (ret < 0) {
     return errno == EINTR ? 0 : -1;
+  }
+  if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+    fprintf(stderr, "Wayland display fd error: revents=0x%x error=%d\n",
+            fds[0].revents, wl_display_get_error(context->display));
+    return -1;
   }
   if (context->wake_fd >= 0 && (fds[1].revents & POLLIN)) {
     uint64_t value = 0;
     ssize_t bytes_read = read(context->wake_fd, &value, sizeof(value));
     (void)bytes_read;
     emit_window(MBW_LINUX_EVENT_PROXY_WAKE, 0, 0, 0, 0, 0.0);
+  }
+  if (fds[0].revents & POLLOUT) {
+    int write_flush_ret = flush_wayland_display(context->display, "dispatch write-ready");
+    if (write_flush_ret == MBW_WAYLAND_FLUSH_FAILED) {
+      return -1;
+    }
   }
   if (fds[0].revents & POLLIN) {
     int dispatch_ret = wl_display_dispatch(context->display);
@@ -1129,13 +1537,22 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
                                                                          : 0;
   window->surface = wl_compositor_create_surface(context->compositor);
   if (!window->surface) {
-    free(window);
+    destroy_window_resources(window);
     return 0;
   }
   wl_surface_set_user_data(window->surface, window);
+  wl_surface_add_listener(window->surface, &surface_listener, window);
   window->xdg_surface =
       xdg_wm_base_get_xdg_surface(context->wm_base, window->surface);
+  if (!window->xdg_surface) {
+    destroy_window_resources(window);
+    return 0;
+  }
   window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);
+  if (!window->xdg_toplevel) {
+    destroy_window_resources(window);
+    return 0;
+  }
   xdg_surface_add_listener(window->xdg_surface, &xdg_surface_listener, window);
   xdg_toplevel_add_listener(window->xdg_toplevel, &xdg_toplevel_listener,
                             window);
@@ -1165,7 +1582,14 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   if (use_shm_placeholder) {
     attach_placeholder_buffer(window);
   }
-  wl_display_flush(context->display);
+  window->next = context->windows;
+  context->windows = window;
+  if (flush_wayland_display(context->display, "window create") ==
+      MBW_WAYLAND_FLUSH_FAILED) {
+    detach_window_from_context(window);
+    destroy_window_resources(window);
+    return 0;
+  }
   return (uint64_t)(uintptr_t)window;
 }
 
@@ -1202,21 +1626,8 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
     return;
   }
   emit_window(MBW_LINUX_EVENT_DESTROYED, window->raw_id, 0, 0, 0, 0.0);
-  destroy_present_buffers(window);
-  destroy_placeholder_buffer(window);
-  if (window->decoration) {
-    zxdg_toplevel_decoration_v1_destroy(window->decoration);
-  }
-  if (window->xdg_toplevel) {
-    xdg_toplevel_destroy(window->xdg_toplevel);
-  }
-  if (window->xdg_surface) {
-    xdg_surface_destroy(window->xdg_surface);
-  }
-  if (window->surface) {
-    wl_surface_destroy(window->surface);
-  }
-  free(window);
+  detach_window_from_context(window);
+  destroy_window_resources(window);
 }
 
 MOONBIT_FFI_EXPORT
@@ -1440,7 +1851,12 @@ int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
   wl_surface_damage_buffer(window->surface, 0, 0, width, height);
   wl_surface_commit(window->surface);
   if (window->context->display) {
-    wl_display_flush(window->context->display);
+    if (flush_wayland_display(window->context->display, "present") ==
+        MBW_WAYLAND_FLUSH_FAILED) {
+      unlink_present_buffer(frame);
+      destroy_present_buffer(frame);
+      return MBW_WAYLAND_PRESENT_BAD_WINDOW;
+    }
   }
   return MBW_WAYLAND_PRESENT_OK;
 }
@@ -1493,6 +1909,60 @@ MOONBIT_FFI_EXPORT
 int32_t mbw_wayland_context_system_theme(uint64_t raw_context) {
   (void)raw_context;
   return -1;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_count(uint64_t raw_context) {
+  (void)raw_context;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_monitor_handle_at(uint64_t raw_context, int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_left_at(uint64_t raw_context, int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_top_at(uint64_t raw_context, int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_width_at(uint64_t raw_context, int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_monitor_rect_height_at(uint64_t raw_context, int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+double mbw_wayland_monitor_scale_factor_at(uint64_t raw_context,
+                                           int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return 1.0;
+}
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_monitor_name_bytes_at(uint64_t raw_context,
+                                                  int32_t index) {
+  (void)raw_context;
+  (void)index;
+  return moonbit_make_bytes(0, 0);
+}
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_window_current_monitor_handle(uint64_t raw_window) {
+  (void)raw_window;
+  return 0;
 }
 MOONBIT_FFI_EXPORT
 int64_t mbw_wayland_now_ms(void) { return 0; }

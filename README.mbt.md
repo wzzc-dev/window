@@ -30,9 +30,9 @@ shutdown:
 scripts/check_moui_macos_smoke.sh --run
 ```
 
-The matching runtime helper is `scripts/smoke_runtime.sh macos`. It uses the
-built AppKit executable instead of `moon run` because the current MoonBit
-native runner path does not execute framework-linked AppKit examples reliably.
+The matching runtime helper is `scripts/smoke_runtime.sh macos`. It delegates
+to the same smoke script so the source check and runtime sentinel checks stay
+on one path.
 
 ### Windows Support (Preview)
 
@@ -44,7 +44,21 @@ For the MoUI-oriented smoke artifact on a Windows host:
 ```bash
 scripts/check_moui_windows_smoke.sh
 scripts/check_moui_windows_smoke.sh --run
+bash scripts/capture_moui_runtime_evidence.sh windows --log artifacts/moui-windows-runtime.log
 ```
+
+When a Windows runtime transcript is captured on another machine, validate it
+before recording evidence:
+
+```bash
+scripts/check_moui_runtime_log.sh windows <captured-log>
+```
+
+The Windows runtime smoke replays its captured transcript through the same log
+verifier before accepting `scripts/check_moui_windows_smoke.sh --run`.
+On a matching Windows host, `bash scripts/capture_moui_runtime_evidence.sh windows
+--log <path>` runs the host CI branch, saves the transcript, verifies it, and
+prints the standard evidence entry for review.
 
 #### MSVC
 
@@ -114,7 +128,7 @@ http://127.0.0.1:8000/examples/window_web/index.html
 The generated wasm is loaded from:
 
 ```text
-_build/wasm-gc/debug/build/examples/window_web/window_web.wasm
+_build/wasm-gc/debug/build/wzzc-dev/window/examples/window_web/window_web.wasm
 ```
 
 Applications using the Web backend need the browser host glue from
@@ -152,6 +166,14 @@ For the MoUI-oriented smoke artifact on a Linux Wayland host:
 scripts/check_moui_linux_smoke.sh
 scripts/check_moui_linux_smoke.sh --run
 WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run
+bash scripts/capture_moui_runtime_evidence.sh linux --log artifacts/moui-linux-runtime.log
+```
+
+When a Linux runtime transcript is captured on another machine, validate it
+before recording evidence:
+
+```bash
+scripts/check_moui_runtime_log.sh linux <captured-log>
 ```
 
 The automated Linux MoUI smoke covers surface creation, public Wayland handles,
@@ -159,7 +181,16 @@ The automated Linux MoUI smoke covers surface creation, public Wayland handles,
 Representative input is logged when supplied by the compositor or operator; it
 is still required evidence before calling Linux MoUI-ready. Set
 `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1` when running with compositor automation or
-manual input capture to require pointer and keyboard evidence.
+manual input capture to require pointer and keyboard evidence; that strict path
+also replays the captured transcript through
+`scripts/check_moui_runtime_log.sh linux <captured-log>` before passing.
+The core runtime path also replays its transcript through
+`scripts/check_moui_runtime_log.sh --linux-input pending-ok linux <captured-log>`
+so non-input Linux runtime evidence uses the same handle, monitor, and teardown
+verifier.
+On a matching Linux host, `bash scripts/capture_moui_runtime_evidence.sh linux --log
+<path>` runs the host CI branch, saves the strict transcript, verifies it, and
+prints the standard evidence entry for review.
 
 The build script uses `pkg-config` to locate `wayland-client` and
 `wayland-scanner` to generate the `xdg-shell` and `xdg-decoration` client
@@ -340,11 +371,17 @@ Import only the subpackages you need:
   when the app has not provided a renderer yet.
 - `Window::present_rgba_pixels(...)` presents renderer-owned RGBA pixel frames
   through Wayland `wl_shm` for CPU raster renderers such as MoUI Skia.
-- Keyboard events currently expose native XKB key codes without text decoding;
-  text input and IME are future work.
+- Basic monitor queries are backed by Wayland `wl_output` geometry/scale, and
+  `Window::current_monitor()` follows the surface enter/leave output when the
+  compositor reports it.
+- Keyboard events currently use a fixed key-code mapping for representative
+  character text. Public IME enable/update/disable request state is tracked for
+  consumers, while full layout-aware text input and Wayland IME/preedit
+  delivery are future work.
 - Decorations, taskbar integration, system menus, native drag-window, exclusive
-  fullscreen, precise monitor metadata, custom cursors, and rich raw-handle
-  parity are currently unsupported, no-op, or placeholder behavior.
+  fullscreen, precise monitor metadata beyond `wl_output`, custom cursors, and
+  rich raw-handle parity are currently unsupported, no-op, or placeholder
+  behavior.
 
 ## Rich Event Matching
 
@@ -404,16 +441,21 @@ checks still need matching hosts.
 
 Interactive runtime smoke is separate from the default gate. Use
 `scripts/smoke_runtime.sh macos`, `web`, `linux`, or `windows` on a matching
-host; set `WINDOW_RUNTIME_SMOKE_DRY_RUN=1` to print the selected command and
-checklist without launching a window or browser server.
+host for native runtime evidence; set `WINDOW_RUNTIME_SMOKE_DRY_RUN=1` to print
+the selected command and checklist without launching a window or browser
+server. Dry-run mode can be used on any host to audit the selected backend
+runtime command.
 
-After a matching-host runtime run, use `scripts/record_moui_evidence.sh
+After a matching-host runtime run, use `bash scripts/record_moui_evidence.sh
 <backend>` to print a standard evidence entry for `docs/platform-gaps.md`. The
 helper does not edit docs or promote a pending backend automatically. For
 native backends, passed evidence must be generated on the matching host or name
 the remote matching host with `--host`. Any `--status passed` entry must
 explicitly set `--window-opened yes`, `--resize-redraw yes`, `--input yes`, and
-`--clean-exit yes`. Use `--consumer-input yes` only after downstream MoUI input
+`--clean-exit yes`. For Linux/Windows passed evidence, validate the captured
+transcript with `scripts/check_moui_runtime_log.sh <linux|windows>
+<captured-log>` and include `--runtime-log yes` plus
+`--runtime-log-command`. Use `--consumer-input yes` only after downstream MoUI input
 delivery has also been observed; backend runtime input and MoUI consumer input
 are recorded separately. Any MoUI consumer evidence field also requires
 `--consumer-command` so the observed facts are traceable. Use

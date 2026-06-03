@@ -4,7 +4,7 @@ priv enum DeferredCallback {
   CanCreateSurfaces
   AboutToWait
   WindowEvent(@core.WindowId, @core.WindowEvent)
-  ScaleFactorChanged(@core.WindowId, Double, Int, Int)
+  ScaleFactorChanged(@core.WindowId, Double, @dpi.PhysicalSize)
 }
 
 ///|
@@ -83,6 +83,23 @@ fn app_state_unregister_window_handle(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_handles = next_entries
+}
+
+///|
+fn app_state_clear_window_runtime_state(raw_id : Int) -> Unit {
+  clear_windows_window_input_state(raw_id)
+  app_state_clear_pending_redraw(raw_id)
+  app_state_unregister_window_handle(raw_id)
+}
+
+///|
+fn app_state_clear_all_window_runtime_state() -> Unit {
+  let entries = app_state_runtime.val.window_handles
+  for entry in entries {
+    clear_windows_window_input_state(entry.raw_id)
+  }
+  app_state_runtime.val.pending_redraw_window_ids = []
+  app_state_runtime.val.window_handles = []
 }
 
 ///|
@@ -174,15 +191,8 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
     AboutToWait => app.about_to_wait(active_loop)
     WindowEvent(window_id, event) =>
       app.window_event(active_loop, window_id, event)
-    ScaleFactorChanged(window_id, scale_factor, dpi_x, dpi_y) => {
-      let size_writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(
-        PhysicalSize(
-          dpi_x *
-          app_state_scale_factor_for_window(window_id.into_raw()).to_int(),
-          dpi_y *
-          app_state_scale_factor_for_window(window_id.into_raw()).to_int(),
-        ),
-      )
+    ScaleFactorChanged(window_id, scale_factor, size) => {
+      let size_writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(size)
       app.window_event(
         active_loop,
         window_id,
@@ -218,12 +228,28 @@ fn app_state_queue_window_event(
 
 ///|
 fn app_state_queue_redraw(raw_id : Int) -> Unit {
-  let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
-    id == raw_id
-  })
-  if found is None {
-    app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
+  match app_state_window_handle(raw_id) {
+    Some(_hwnd) => {
+      let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
+        id == raw_id
+      })
+      if found is None {
+        app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
+      }
+    }
+    None => ()
   }
+}
+
+///|
+fn app_state_clear_pending_redraw(raw_id : Int) -> Unit {
+  let next : Array[Int] = []
+  for id in app_state_runtime.val.pending_redraw_window_ids {
+    if id != raw_id {
+      next.push(id)
+    }
+  }
+  app_state_runtime.val.pending_redraw_window_ids = next
 }
 
 ///|
@@ -257,14 +283,6 @@ fn app_state_dispatch_redraws() -> Unit {
     app_state_queue_window_event(raw_id, RedrawRequested)
   }
   app_state_dispatch_deferred_callbacks()
-}
-
-///|
-fn app_state_scale_factor_for_window(raw_id : Int) -> Double {
-  match app_state_window_handle(raw_id) {
-    Some(hwnd) => native_get_dpi_for_window(hwnd).to_double() / 96.0
-    None => 1.0
-  }
 }
 
 ///|

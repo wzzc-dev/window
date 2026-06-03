@@ -28,6 +28,9 @@ fail() {
 require_backend_host() {
   local backend="$1"
   local actual_host
+  if [[ "${WINDOW_RUNTIME_SMOKE_DRY_RUN:-0}" == "1" ]]; then
+    return 0
+  fi
   actual_host="$(detect_window_actual_host)"
   if [[ "$actual_host" != "$backend" ]]; then
     fail "$backend runtime smoke requires a $backend host; detected $actual_host"
@@ -84,17 +87,17 @@ case "$backend" in
     ;;
   linux)
     require_backend_host linux
-    if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+    if [[ "${WINDOW_RUNTIME_SMOKE_DRY_RUN:-0}" != "1" && -z "${WAYLAND_DISPLAY:-}" ]]; then
       printf 'Warning: WAYLAND_DISPLAY is not set; run inside a Wayland session or Weston.\n' >&2
     fi
     print_checklist linux
-    printf 'Automated Linux MoUI core smoke covers surface, Wayland handles, present, resize/redraw, and clean exit; set WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 when matching compositor/operator input evidence is available.\n'
-    run_or_print Linux scripts/check_moui_linux_smoke.sh --run
+    printf 'Automated Linux MoUI strict smoke covers surface, Wayland handles, present, monitor/current-monitor, IME state, resize/redraw, representative input text, and clean exit.\n'
+    run_or_print Linux env WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run
     ;;
   windows)
     require_backend_host windows
     print_checklist windows
-    printf 'Automated Windows MoUI smoke covers surface, HWND, resize/redraw, representative input/text, and clean exit.\n'
+    printf 'Automated Windows MoUI smoke covers surface, HWND/HINSTANCE/raw handles, monitor/current-monitor, resize/redraw, representative input/text, and clean exit.\n'
     run_or_print Windows scripts/check_moui_windows_smoke.sh --run
     ;;
   *)

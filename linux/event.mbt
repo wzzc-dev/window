@@ -68,11 +68,12 @@ fn linux_key_event(key_code : Int, pressed : Bool) -> @core.KeyEvent {
   let physical_key = linux_physical_key(key_code, native_code)
   let modifiers = app_state_modifiers()
   let logical_key = linux_logical_key(key_code, native_key, modifiers)
+  let location = linux_key_location(key_code)
   KeyEvent(
     physical_key,
     logical_key,
     linux_key_without_modifiers(key_code, native_key),
-    Standard,
+    location,
     linux_element_state(pressed),
     false,
     linux_key_text(key_code, modifiers, pressed),
@@ -88,6 +89,33 @@ fn linux_physical_key(
   match linux_key_code(key_code) {
     Some(code) => @core.PhysicalKey::from_key_code(code)
     None => @core.PhysicalKey::from_native_key_code(native_code)
+  }
+}
+
+///|
+fn linux_key_location(key_code : Int) -> @core.KeyLocation {
+  match linux_key_code(key_code) {
+    Some(ShiftLeft | ControlLeft | AltLeft | MetaLeft) => Left
+    Some(ShiftRight | ControlRight | AltRight | MetaRight) => Right
+    Some(
+      Numpad0
+      | Numpad1
+      | Numpad2
+      | Numpad3
+      | Numpad4
+      | Numpad5
+      | Numpad6
+      | Numpad7
+      | Numpad8
+      | Numpad9
+      | NumpadDecimal
+      | NumpadMultiply
+      | NumpadAdd
+      | NumpadSubtract
+      | NumpadDivide
+      | NumpadEnter
+    ) => Numpad
+    _ => Standard
   }
 }
 
@@ -470,20 +498,45 @@ fn dispatch_native_window_event(
   _arg2 : Int,
   argd : Double,
 ) -> Unit {
+  if kind == linux_event_proxy_wake {
+    app_state_queue_proxy_wake_up()
+    return
+  }
+  if raw_id <= 0 {
+    return
+  }
+  if app_state_window_handle(raw_id) is None {
+    return
+  }
   match kind {
     k if k == linux_event_close =>
       app_state_queue_window_event(raw_id, CloseRequested)
-    k if k == linux_event_destroyed =>
+    k if k == linux_event_destroyed => {
+      match app_state_clear_modifiers() {
+        Some(modifiers) =>
+          app_state_queue_window_event(raw_id, ModifiersChanged(modifiers))
+        None => ()
+      }
+      app_state_clear_window_runtime_state(raw_id)
       app_state_queue_window_event(raw_id, Destroyed)
+    }
     k if k == linux_event_configure => {
       let size = linux_nonzero_size(arg0, arg1)
       app_state_set_window_surface_size(raw_id, size)
       app_state_queue_window_event(raw_id, SurfaceResized(size))
     }
     k if k == linux_event_redraw => app_state_queue_redraw(raw_id)
-    k if k == linux_event_focus =>
-      app_state_queue_window_event(raw_id, Focused(arg0 != 0))
-    k if k == linux_event_proxy_wake => app_state_queue_proxy_wake_up()
+    k if k == linux_event_focus => {
+      let focused = arg0 != 0
+      app_state_queue_window_event(raw_id, Focused(focused))
+      if !focused {
+        match app_state_clear_modifiers() {
+          Some(modifiers) =>
+            app_state_queue_window_event(raw_id, ModifiersChanged(modifiers))
+          None => ()
+        }
+      }
+    }
     41 => {
       let theme = if argd > 0.0 { @core.Theme::Dark } else { Light }
       app_state_queue_window_event(raw_id, ThemeChanged(theme))
@@ -501,6 +554,9 @@ fn dispatch_native_input_event(
   arg2 : Int,
   argi : Int64,
 ) -> Unit {
+  if raw_id <= 0 || app_state_window_handle(raw_id) is None {
+    return
+  }
   match kind {
     k if k == linux_event_pointer_enter => {
       let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(

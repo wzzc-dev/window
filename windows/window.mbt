@@ -5,6 +5,8 @@ pub struct Window {
   priv mut cursor_state : @core.Cursor
   priv mut fullscreen_state : @core.Fullscreen?
   priv mut ime_capabilities_state : @core.ImeCapabilities?
+  priv mut ime_hints_state : @core.ImeHint
+  priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
   priv mut ime_cursor_area_position_state : @dpi.PhysicalPosition
   priv mut ime_cursor_area_size_state : @dpi.PhysicalSize
@@ -16,7 +18,6 @@ pub struct Window {
   priv mut is_cursor_hittest_state : Bool
   priv mut is_transparent_state : Bool
   priv mut is_blurred_state : Bool
-  priv scale_factor_state : Double
   priv mut saved_window_rect_left : Int
   priv mut saved_window_rect_top : Int
   priv mut saved_window_rect_right : Int
@@ -136,6 +137,15 @@ let htcaption : Int = 2
 let wheel_delta : Int = 120
 
 ///|
+fn windows_scale_factor_from_dpi(dpi : UInt) -> Double {
+  if dpi == 0 {
+    1.0
+  } else {
+    dpi.to_double() / 96.0
+  }
+}
+
+///|
 fn compute_window_style(attributes : @core.WindowAttributes) -> UInt64 {
   let mut style = ws_overlappedwindow
   if attributes.decorations() == false {
@@ -196,11 +206,12 @@ pub fn Window::new(
     None => (0 : Int).to_uint64()
   }
   let hwnd = native_create_window(
-    width, height, ex_style, style, x, y, parent_hwnd,
+    width, height, ex_style, style, x, y, parent_hwnd, raw_id,
   )
   if hwnd == (0 : Int).to_uint64() {
     raise @core.RequestError::os("CreateWindowExW returned a null HWND")
   }
+  app_state_register_window_handle(raw_id, hwnd)
   native_set_window_raw_id(hwnd, raw_id)
   match attributes.title() {
     "" => ()
@@ -212,13 +223,14 @@ pub fn Window::new(
   if attributes.visible() {
     ignore(native_show_window(hwnd, sw_shownormal))
   }
-  app_state_register_window_handle(raw_id, hwnd)
   {
     id: window_id,
     hwnd,
     cursor_state: Icon(Default),
     fullscreen_state: None,
     ime_capabilities_state: None,
+    ime_hints_state: attributes.ime_hints(),
+    ime_purpose_state: attributes.ime_purpose(),
     ime_surrounding_text_state: None,
     ime_cursor_area_position_state: PhysicalPosition(0, 0),
     ime_cursor_area_size_state: PhysicalSize(1, 1),
@@ -230,7 +242,6 @@ pub fn Window::new(
     is_cursor_hittest_state: attributes.cursor_hittest(),
     is_transparent_state: attributes.transparent(),
     is_blurred_state: attributes.blur(),
-    scale_factor_state: native_get_dpi_for_window(hwnd).to_double() / 96.0,
     saved_window_rect_left: 0,
     saved_window_rect_top: 0,
     saved_window_rect_right: 0,
@@ -251,7 +262,7 @@ pub fn Window::drop(self : Window) -> Unit {
     self.set_fullscreen(None)
   }
   native_destroy_window(self.hwnd)
-  app_state_unregister_window_handle(self.id.into_raw())
+  app_state_clear_window_runtime_state(self.id.into_raw())
 }
 
 ///|
@@ -484,7 +495,7 @@ pub fn Window::is_maximized(self : Window) -> Bool {
 
 ///|
 pub fn Window::scale_factor(self : Window) -> Double {
-  native_get_dpi_for_window(self.hwnd).to_double() / 96.0
+  windows_scale_factor_from_dpi(native_get_dpi_for_window(self.hwnd))
 }
 
 ///|
@@ -773,14 +784,12 @@ pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
 
 ///|
 pub fn Window::set_ime_hints(self : Window, hints : @core.ImeHint) -> Unit {
-  let _ = self
-  let _ = hints
+  self.ime_hints_state = hints
 }
 
 ///|
 pub fn Window::ime_hints(self : Window) -> @core.ImeHint {
-  let _ = self
-  @core.ImeHint::none()
+  self.ime_hints_state
 }
 
 ///|
@@ -788,14 +797,12 @@ pub fn Window::set_ime_purpose(
   self : Window,
   purpose : @core.ImePurpose,
 ) -> Unit {
-  let _ = self
-  let _ = purpose
+  self.ime_purpose_state = purpose
 }
 
 ///|
 pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
-  let _ = self
-  Normal
+  self.ime_purpose_state
 }
 
 ///|
@@ -844,6 +851,13 @@ fn Window::apply_ime_request_data(
   self : Window,
   request_data : @core.ImeRequestData,
 ) -> Unit {
+  match request_data.hint_and_purpose() {
+    Some((hint, purpose)) => {
+      self.ime_hints_state = hint
+      self.ime_purpose_state = purpose
+    }
+    None => ()
+  }
   match request_data.surrounding_text() {
     Some(text) => self.ime_surrounding_text_state = Some(text)
     None => ()
@@ -941,7 +955,7 @@ pub fn Window::reset_dead_keys(self : Window) -> Unit {
 ///|
 pub fn Window::display_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|
@@ -952,7 +966,7 @@ pub fn Window::window_handle(self : Window) -> UInt64 {
 ///|
 pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|
@@ -1181,8 +1195,10 @@ pub fn Window::is_document_edited(self : Window) -> Bool {
 
 ///|
 pub fn Window::current_monitor(self : Window) -> @core.MonitorHandle? {
-  let _ = self
-  None
+  match app_state_window_handle(self.id.into_raw()) {
+    Some(hwnd) => current_monitor_for_window(hwnd)
+    None => None
+  }
 }
 
 ///|

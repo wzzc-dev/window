@@ -148,7 +148,10 @@ pub fn EventLoop::window_target(self : EventLoop) -> ActiveEventLoop {
 
 ///|
 pub fn EventLoop::drop(self : EventLoop) -> Unit {
-  native_context_destroy(self.context)
+  if self.context != (0 : Int).to_uint64() {
+    native_context_destroy(self.context)
+    app_state_clear_context_windows(self.context)
+  }
 }
 
 ///|

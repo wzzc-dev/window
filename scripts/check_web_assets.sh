@@ -85,18 +85,18 @@ EOF
   printf 'Web runtime module import smoke passed\n'
 }
 
-moon build examples/window_web --target wasm-gc >/dev/null
+moon --target-dir "$ROOT/_build" build examples/window_web --target wasm-gc >/dev/null
 
 html="examples/window_web/index.html"
 runtime="web/runtime.js"
-wasm="_build/wasm-gc/debug/build/examples/window_web/window_web.wasm"
+wasm="_build/wasm-gc/debug/build/wzzc-dev/window/examples/window_web/window_web.wasm"
 
 require_file "$html"
 require_file "$runtime"
 require_nonempty_file "$wasm"
 
 require_text "$html" "../../web/runtime.js?window-web-dev=1"
-require_text "$html" "../../_build/wasm-gc/debug/build/examples/window_web/window_web.wasm?window-web-dev=1"
+require_text "$html" "../../_build/wasm-gc/debug/build/wzzc-dev/window/examples/window_web/window_web.wasm?window-web-dev=1"
 require_text "$html" "createWindowWebImports()"
 require_text "$html" "connectWindowWeb(instance, windowWeb)"
 require_text "$html" 'status.textContent = "Running"'

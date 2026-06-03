@@ -14,19 +14,28 @@ before a backend is treated as ready for MoUI integration.
   Linux/Windows evidence is not accidentally documented as passed.
 - `scripts/check_moui_evidence.sh` verifies the evidence helper's host-safety
   behavior and confirms it does not edit this tracker automatically.
+- `scripts/check_moui_runtime_log.sh <linux|windows> <captured-log>` verifies
+  captured matching-host Linux/Windows MoUI runtime transcripts before they are
+  used as remote evidence.
+- `bash scripts/capture_moui_runtime_evidence.sh <linux|windows> --log <path>` is
+  the matching-host capture helper for Linux/Windows runtime evidence: it runs
+  the host CI branch, writes the transcript, verifies it, and prints the
+  standard recorder entry without editing this tracker.
 - `scripts/check_moon_baseline.sh` runs the MoonBit interface, formatter, and
   bare test baseline that is safe on the current host.
-- `scripts/record_moui_evidence.sh <backend>` prints a standard evidence entry
+- `bash scripts/record_moui_evidence.sh <backend>` prints a standard evidence entry
   for matching-host smoke runs. It does not edit this file or change readiness
   status automatically; review the generated entry before pasting it below.
   `--status passed` requires explicit `yes` evidence for window creation,
   resize/redraw, representative input, and clean exit.
 - Warning 73 checks are expected to be clean for the default target and
   `moon check --target all`.
-- macOS native tests are build-only until framework-linked native test
-  execution works through the MoonBit runner. The macOS MoUI runtime smoke uses
-  the built AppKit executable directly and covers surface, handle,
-  resize/redraw, representative input, and clean-shutdown evidence.
+- `scripts/check_ffi_surface.sh` audits macOS, Linux, and Windows native FFI
+  export allowlists so preview-backend native symbols cannot drift silently.
+- macOS native tests are build-only because generic test execution can still
+  route through incompatible native runner paths. The macOS MoUI runtime smoke
+  uses `moon run examples/moui_macos_smoke --target native` and covers surface,
+  handle, resize/redraw, representative input, and clean-shutdown evidence.
 - Web is validated with `wasm-gc` build artifacts on every host; when Node is
   available, the asset smoke also imports `web/runtime.js` and verifies dispatch
   binding. The Web MoUI consumer-style smoke builds
@@ -37,11 +46,15 @@ before a backend is treated as ready for MoUI integration.
   Their MoUI smoke scripts now exist as matching-host gates:
   `scripts/check_moui_linux_smoke.sh` for Wayland core surface/handle/present
   evidence and `scripts/check_moui_windows_smoke.sh` for Win32
-  surface/handle/input evidence.
+  surface/HWND/HINSTANCE/raw-display/input evidence. Captured runtime logs can
+  be replay-checked with `scripts/check_moui_runtime_log.sh` before evidence is
+  recorded from another machine; the strict Linux input smoke and Windows
+  runtime smoke also replay their captured logs through that verifier before
+  accepting the runtime run.
 
 ## Latest Local Verification
 
-Last verified on macOS, 2026-06-02:
+Last verified on macOS, 2026-06-03:
 
 - `bash scripts/check_ci.sh` passed. This covered CI host detection,
   runtime smoke helper dry-run checks, documentation smoke checks, `moon check`,
@@ -50,6 +63,11 @@ Last verified on macOS, 2026-06-02:
   module import smoke, Web MoUI consumer-style smoke, macOS native build-only
   tests and build, macOS MoUI smoke build checks, example build checks, and FFI
   surface checks.
+- `moon check windows --target native --warn-list +73`,
+  `moon test windows --target native --warn-list +73`, `moon info`,
+  `moon fmt --check`, and `git diff --check` passed after adding Windows
+  event-loop lifecycle cleanup coverage for loop-owned app-state HWNDs,
+  pending redraw ids, mouse tracking, and pending UTF-16 surrogate input state.
 - `moon info`, `moon info web --target wasm-gc`, `moon fmt`, and bare
   `moon test` passed through `scripts/check_moon_baseline.sh`. Bare `moon test`
   now reaches the macOS whitebox coverage and the non-host Linux/Windows native
@@ -68,13 +86,15 @@ Last verified on macOS, 2026-06-02:
   macOS host detection.
 - On macOS, `WINDOW_CI_HOST=linux` and `WINDOW_CI_HOST=windows` fail fast
   before build steps because those overrides do not match the detected host.
-- `WINDOW_RUNTIME_SMOKE_DRY_RUN=1 scripts/smoke_runtime.sh macos` and
-  `WINDOW_RUNTIME_SMOKE_DRY_RUN=1 scripts/smoke_runtime.sh web` passed. The
-  same dry-run command for `linux` and `windows` failed fast on macOS because
-  the runtime smoke host did not match the requested backend.
+- `WINDOW_RUNTIME_SMOKE_DRY_RUN=1 scripts/smoke_runtime.sh <backend>` passed
+  for macOS, Web, Linux, and Windows on macOS. Dry-run mode audits the selected
+  command and checklist without launching a native runtime; non-dry-run Linux
+  and Windows runtime smoke still fails fast on macOS because the runtime smoke
+  host does not match the requested backend.
 - `scripts/check_runtime_smoke.sh` passed. This verifies the runtime smoke
-  helper's help text, dry-run command selection, matching-host path, Web path,
-  mismatched-host failures, and invalid-backend failure without opening windows.
+  helper's help text, dry-run command selection for every backend, Web path,
+  offline Linux/Windows runtime log verifier samples, mismatched-host
+  non-dry-run failures, and invalid-backend failure without opening windows.
 - `scripts/check_docs_smoke.sh` passed. This verifies the README, testing
   guide, platform-gap tracker, and gate script still agree on the default gate,
   warning gate, Web asset smoke, runtime smoke helper, and Linux/Windows host
@@ -84,8 +104,8 @@ Last verified on macOS, 2026-06-02:
   skip on macOS. Matching-host build/runtime evidence remains pending for both
   platforms.
 - `scripts/check_moui_macos_smoke.sh --run` passed. This built
-  `examples/moui_macos_smoke` and launched the generated AppKit executable
-  directly. Observed facts: a surface/scale probe was emitted, AppKit returned
+  `examples/moui_macos_smoke` and launched the AppKit smoke through `moon run`.
+  Observed facts: a surface/scale probe was emitted, AppKit returned
   nonzero `window_handle` and `content_view_handle` values, the
   monitor/current-monitor probe completed, cursor probe `Icon(Text)` was
   reported, resize was requested, resize events were delivered,
@@ -108,11 +128,9 @@ Last verified on macOS, 2026-06-02:
   reached `PASS` with `canvas_id=moui-web-smoke-canvas`, `640x360` surface
   size, redraw plus `pre_present_notify`, resize/scale reporting, pointer
   `24,32`, keyboard text `a`, and no browser warning or error logs.
-- `moon run examples/window --target native` did not complete a macOS runtime
-  smoke through the MoonBit runner. The current runner path printed
-  `tcc: error: file 'AppKit' not found`; use
-  `scripts/check_moui_macos_smoke.sh --run` or `scripts/smoke_runtime.sh macos`
-  for the current AppKit executable smoke.
+- Generic `moon run examples/window --target native` is not the MoUI runtime
+  evidence path. Use `scripts/check_moui_macos_smoke.sh --run` or
+  `scripts/smoke_runtime.sh macos` for the current AppKit consumer smoke.
 
 ## Readiness Status
 
@@ -120,8 +138,8 @@ Last verified on macOS, 2026-06-02:
 | --- | --- | --- | --- |
 | macOS | Passed on macOS through `bash scripts/check_ci.sh` and `scripts/check_moui_macos_smoke.sh` | Automated MoUI smoke passed with surface, handles, resize/redraw, representative input, and clean shutdown | AppKit lifecycle depth and callback ownership remain high risk |
 | Web | Passed through the default gate, `scripts/check_web_assets.sh`, and `scripts/check_moui_web_smoke.sh` | Passed in a browser with canvas creation, redraw, resize/scale, pointer, keyboard, and MoUI consumer evidence | Native-only APIs remain placeholders or unsupported |
-| Linux | Pending matching Linux host; script exists as `scripts/check_moui_linux_smoke.sh` | Pending Wayland or Weston runtime; automated core smoke covers handles/present, while `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run` requires pointer/keyboard evidence | Wayland dependencies, text/IME, decorations, monitor/raw-handle parity |
-| Windows | Pending matching Windows host; script exists as `scripts/check_moui_windows_smoke.sh` | Pending Win32 runtime through `scripts/check_moui_windows_smoke.sh --run` | Windows toolchain, preview API parity, cursor/raw-handle/monitor validation |
+| Linux | Pending matching Linux host; script exists as `scripts/check_moui_linux_smoke.sh` | Pending Wayland or Weston runtime; automated core smoke covers handles/present, `wl_output` monitor/current-monitor probes, and public IME state probes, while `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run` requires pointer/keyboard evidence | Wayland dependencies, text/IME delivery, decorations, precise monitor metadata, raw-handle parity |
+| Windows | Pending matching Windows host; script exists as `scripts/check_moui_windows_smoke.sh` | Pending Win32 runtime through `scripts/check_moui_windows_smoke.sh --run`; smoke requires HWND/HINSTANCE/raw-display handle fields and `current=true` monitor evidence | Windows toolchain, preview API parity, cursor/raw-handle validation |
 
 Treat `Pending` as missing evidence, not as a soft pass. A backend becomes
 MoUI-ready only after its build smoke and runtime smoke have both been observed
@@ -142,23 +160,51 @@ instead of only reporting "it works":
    matching hosts.
 3. Run the matching runtime smoke command listed below through
    `scripts/smoke_runtime.sh <backend>`.
-4. Record the date, command output summary, and observed runtime facts:
+4. For Linux/Windows matching-host evidence, prefer the capture helper:
+   `bash scripts/capture_moui_runtime_evidence.sh linux --log <captured-log>` or
+   `bash scripts/capture_moui_runtime_evidence.sh windows --log <captured-log>`.
+   The capture helper writes the transcript, validates it with the offline log
+   verifier, and prints the standard evidence entry for review.
+5. For external Linux/Windows logs, save the captured transcript and validate
+   it with `scripts/check_moui_runtime_log.sh linux <captured-log>` or
+   `scripts/check_moui_runtime_log.sh windows <captured-log>` before recording
+   evidence. The verifier requires the monitor/current-monitor, native id,
+   input/text/IME before `ready`, raw-handle identity, positive surface
+   size/scale, positive monitor count, delivered resize events after resize requests,
+   unique startup probes for surface/handles/monitor/cursor/IME, positive resize
+   request sizes, failure-free teardown, and `Destroyed` before `finished`
+   sentinel facts expected by the MoUI smoke.
+   The verifier phrases are positive surface size/scale, positive monitor count,
+   unique startup probes, positive resize request sizes, and delivered resize
+   events after resize requests.
+6. Record the date, command output summary, and observed runtime facts:
    window opened, resize/redraw event delivered, representative input delivered,
    and clean exit.
-   Use `scripts/record_moui_evidence.sh <backend>` to generate the standard
+   Use `bash scripts/record_moui_evidence.sh <backend>` to generate the standard
    entry shape, then review and paste the result into this document. For
    native backend evidence generated from external logs, pass `--host` with the
    matching host description so the entry cannot be confused with local smoke.
    Use `--status pending` or `--status failed`, not `--status passed`, when any
    required runtime fact is still missing.
+   For passed Linux/Windows evidence, also pass `--runtime-log yes` and
+   `--runtime-log-command "scripts/check_moui_runtime_log.sh <backend>
+   <captured-log>"`; the evidence helper rejects passed Linux/Windows entries
+   when runtime log verification is not explicit. The runtime log command must
+   be the verifier command itself, optionally prefixed by `bash`, so a wrapper
+   or note that only mentions `scripts/check_moui_runtime_log.sh` is not
+   accepted as verified evidence. Verified evidence must use exactly one
+   concrete captured-log path and cannot include shell chaining, redirection,
+   extra verifier arguments, or a `<captured-log>` placeholder.
    Use `--consumer-input` for the MoUI consumer input field; it is deliberately
    separate from backend runtime `--input`. Any non-pending MoUI consumer field
    requires `--consumer-command` with the exact downstream command that produced
-   the evidence.
-5. Run the matching MoUI consumer smoke described in
+   the evidence. The generated entry includes a computed MoUI consumer status;
+   keep it pending when a runtime pass has not also proven the consumer-side
+   surface, redraw, input, text/IME, handle, monitor/cursor, and shutdown facts.
+6. Run the matching MoUI consumer smoke described in
    `docs/moui-integration-smoke.md` when the downstream MoUI app or integration
    harness is available, then record the exact command and observed facts.
-6. If the smoke fails, keep the backend `Pending` and record the exact failing
+7. If the smoke fails, keep the backend `Pending` and record the exact failing
    command plus the first actionable error message.
 
 Use this shape for new entries under `Latest Local Verification`:
@@ -168,18 +214,20 @@ Use this shape for new entries under `Latest Local Verification`:
   Commands: `<command 1>`; `<command 2>`.
   Observed: window opened=<yes/no>, resize/redraw=<yes/no>,
   representative input=<yes/no>, clean exit=<yes/no>.
-  MoUI consumer: command=<command or pending>, surface=<yes/no>,
+  Runtime log: verified=<yes/no/pending>, command=<command or pending>.
+  MoUI consumer: status=<passed/failed/pending>, command=<command or pending>, surface=<yes/no>,
   redraw=<yes/no>, resize/scale=<yes/no>, input=<yes/no via --consumer-input>,
   text/IME=<yes/no/pending>, renderer handle=<yes/no>,
   monitor/cursor=<yes/no/pending>, clean shutdown=<yes/no>.
   Notes: <toolchain/compositor/runtime details, or first actionable error>.
 ```
 
-`docs/moui-integration-smoke.md` keeps copyable `record_moui_evidence.sh`
+`docs/moui-integration-smoke.md` keeps copyable `bash scripts/record_moui_evidence.sh`
 commands for the proven Web/macOS smoke facts and pending Linux/Windows
 matching-host templates. Use those templates instead of hand-writing option
 sets, then replace `pending` values only with facts observed on the matching
-host.
+host. For passed Linux/Windows entries, replace the runtime log fields only
+after `scripts/check_moui_runtime_log.sh` accepts the captured transcript.
 
 ## macOS
 
@@ -199,9 +247,9 @@ Runtime smoke:
 Known gaps:
 
 - Full runtime transcript parity remains optional and environment-dependent.
-- Framework-linked `moon run --target native` still fails on this host with
-  `tcc: error: file 'AppKit' not found`; the runtime smoke uses the built
-  executable directly until that runner path is fixed.
+- Generic framework-linked examples are not treated as MoUI runtime evidence;
+  keep using `scripts/check_moui_macos_smoke.sh --run`, which builds the smoke
+  package and runs its AppKit sentinel path through `moon run`.
 - AppKit lifecycle and callback ownership remain high-risk areas; keep using
   `docs/architecture-risks.md` as the ownership checklist when changing them.
 
@@ -251,9 +299,20 @@ Runtime smoke:
 - For full input evidence:
   `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run`
   or `scripts/check_moui_linux_smoke.sh --run --require-input`
+- Both Linux runtime paths replay their captured log through the offline
+  verifier before passing; core runs use
+  `scripts/check_moui_runtime_log.sh --linux-input pending-ok linux <captured-log>`,
+  while strict input runs use `scripts/check_moui_runtime_log.sh linux <captured-log>`.
+- For captured external logs:
+  `scripts/check_moui_runtime_log.sh linux <captured-log>`
+- For matching-host capture and evidence output:
+  `bash scripts/capture_moui_runtime_evidence.sh linux --log artifacts/moui-linux-runtime.log`
 - Verify window creation, public Wayland handles, `present_rgba_pixels(...)`
-  output, monitor/current-monitor probes, cursor state, resize/redraw delivery,
-  and clean exit. Representative pointer and keyboard events are logged when
+  output, Wayland `wl_output` monitor/current-monitor probes including
+  `primary=true`, `current=true` from surface enter/current-output tracking plus
+  nonzero `primary_id=0x...`/`current_id=0x...` native ids, cursor state,
+  public IME enable/update/disable state, resize/redraw delivery, and clean exit.
+  Representative pointer and keyboard text `a` events are logged when
   supplied, and remain required before marking Linux MoUI-ready.
 
 Known gaps:
@@ -261,10 +320,13 @@ Known gaps:
 - Wayland protocol generation requires Linux Wayland development dependencies:
   `wayland-client`, `wayland-protocols`, `wayland-scanner`, and `pkg-config`.
 - X11 is intentionally unsupported in this backend.
-- Text input and IME are future work.
+- Full layout-aware text input and Wayland IME/preedit delivery are future
+  work; the current strict smoke verifies representative keyboard text through
+  the fixed key-code mapping and probes public IME request state only.
 - Decorations, taskbar integration, system menus, native drag-window, exclusive
-  fullscreen, precise monitor metadata, custom cursors, and rich raw-handle
-  parity are currently unsupported, no-op, or placeholder behavior.
+  fullscreen, precise monitor metadata beyond `wl_output` geometry/scale,
+  custom cursors, and rich raw-handle parity are currently unsupported, no-op,
+  or placeholder behavior.
 
 ## Windows
 
@@ -279,9 +341,19 @@ Runtime smoke:
   `scripts/smoke_runtime.sh windows`
 - Or run the concrete MoUI smoke:
   `scripts/check_moui_windows_smoke.sh --run`
-- Verify window creation, monitor/current-monitor probes, cursor state,
-  resize/redraw delivery, keyboard/mouse events, IME enable/update/disable
-  behavior, and clean exit.
+- The runtime path replays its captured log through
+  `scripts/check_moui_runtime_log.sh windows <captured-log>` before passing.
+- For captured external logs:
+  `scripts/check_moui_runtime_log.sh windows <captured-log>`
+- For matching-host capture and evidence output:
+  `bash scripts/capture_moui_runtime_evidence.sh windows --log artifacts/moui-windows-runtime.log`
+- Verify window creation, HWND/HINSTANCE/raw-display handle fields with
+  raw display/window identity preserved,
+  monitor/current-monitor probes including `primary=true`,
+  `current=true` for the window monitor plus nonzero
+  `primary_id=0x...`/`current_id=0x...` native ids,
+  cursor state, resize/redraw delivery, keyboard/mouse events, IME
+  enable/update/disable behavior, and clean exit.
 
 Known gaps:
 
@@ -289,4 +361,6 @@ Known gaps:
 - Preview APIs may still be state-only, no-op, or `NotSupported` where the
   platform behavior has not been aligned yet.
 - Cursor mapping and richer raw-handle/monitor parity should be tested against
-  real Win32 runtime behavior before treating the backend as stable.
+  real Win32 runtime behavior before treating the backend as stable; the
+  current smoke only accepts nonzero HINSTANCE-backed display handles and raw
+  window handles that preserve HWND identity.

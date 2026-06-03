@@ -1,36 +1,32 @@
 ///|
-test "windows window ime request state supports enable update disable" {
+test "linux window ime request state supports enable update disable" {
   let window = Window::{
     id: @core.WindowId::from_raw(1),
-    hwnd: 1UL,
-    cursor_state: Icon(Default),
-    fullscreen_state: None,
+    handle: 1UL,
+    cursor_visible_state: true,
+    cursor_hittest_state: true,
+    transparent_state: false,
+    blur_state: false,
+    decorated_state: true,
+    minimized_state: false,
+    maximized_state: false,
+    enabled_buttons_state: @core.WindowButtons::all(),
+    window_level_state: Normal,
+    theme_state: None,
     ime_capabilities_state: None,
     ime_hints_state: @core.ImeHint::none(),
     ime_purpose_state: Normal,
     ime_surrounding_text_state: None,
     ime_cursor_area_position_state: PhysicalPosition(0, 0),
     ime_cursor_area_size_state: PhysicalSize(1, 1),
-    is_decorated_state: true,
-    is_maximized_state: false,
-    is_visible_state: true,
-    is_resizable_state: true,
-    is_cursor_visible_state: true,
-    is_cursor_hittest_state: true,
-    is_transparent_state: false,
-    is_blurred_state: false,
-    saved_window_rect_left: 0,
-    saved_window_rect_top: 0,
-    saved_window_rect_right: 0,
-    saved_window_rect_bottom: 0,
-    saved_window_style: 0,
-    saved_window_ex_style: 0,
   }
-  let surrounding = @core.ImeSurroundingText::ImeSurroundingText("你好", 6, 6) catch {
+  let surrounding = @core.ImeSurroundingText::ImeSurroundingText("moui", 4, 4) catch {
     _ => fail("expected surrounding text")
   }
-  let position = @dpi.LogicalPosition::LogicalPosition(12.0, 18.0).into_position()
-  let size = @dpi.LogicalSize::LogicalSize(2.0, 20.0).into_size()
+  let position : @dpi.Position = @dpi.LogicalPosition::LogicalPosition(
+    12.0, 18.0,
+  ).into_position()
+  let size : @dpi.Size = @dpi.LogicalSize::LogicalSize(2.0, 20.0).into_size()
   let data = @core.ImeRequestData::default()
     .with_hint_and_purpose(@core.ImeHint::completion(), Email)
     .with_surrounding_text(surrounding)
@@ -58,57 +54,68 @@ test "windows window ime request state supports enable update disable" {
   assert_true(window.ime_hints().contains(@core.ImeHint::completion()))
   assert_eq(window.ime_purpose(), Email)
   match window.ime_surrounding_text() {
-    Some(value) => inspect(value.text(), content="你好")
+    Some(value) => inspect(value.text(), content="moui")
     None => fail("expected surrounding text")
   }
   assert_true(window.ime_cursor_area_position() == PhysicalPosition(12, 18))
   assert_true(window.ime_cursor_area_size() == PhysicalSize(2, 20))
+  let updated_surrounding = @core.ImeSurroundingText::ImeSurroundingText(
+    "linux", 5, 5,
+  ) catch {
+    _ => fail("expected updated surrounding text")
+  }
+  let updated_position : @dpi.Position = @dpi.LogicalPosition::LogicalPosition(
+    20.0, 22.0,
+  ).into_position()
+  let updated_size : @dpi.Size = @dpi.LogicalSize::LogicalSize(3.0, 10.0).into_size()
   window.request_ime_update(
     Update(
-      @core.ImeRequestData::default().with_hint_and_purpose(
-        @core.ImeHint::spellcheck(),
-        Url,
-      ),
+      @core.ImeRequestData::default()
+      .with_hint_and_purpose(@core.ImeHint::spellcheck(), Url)
+      .with_surrounding_text(updated_surrounding)
+      .with_cursor_area(updated_position, updated_size),
     ),
   ) catch {
     _ => fail("expected update")
   }
   assert_true(window.ime_hints().contains(@core.ImeHint::spellcheck()))
   assert_eq(window.ime_purpose(), Url)
+  match window.ime_surrounding_text() {
+    Some(value) => inspect(value.text(), content="linux")
+    None => fail("expected updated surrounding text")
+  }
+  assert_true(window.ime_cursor_area_position() == PhysicalPosition(20, 22))
+  assert_true(window.ime_cursor_area_size() == PhysicalSize(3, 10))
   window.request_ime_update(Disable) catch {
     _ => fail("expected disable")
   }
   inspect(window.ime_allowed(), content="false")
+  assert_true(window.ime_capabilities() == None)
+  assert_true(window.ime_surrounding_text() == None)
   assert_true(window.ime_cursor_area_size() == PhysicalSize(1, 1))
 }
 
 ///|
-test "windows window ime request rejects invalid state transitions" {
+test "linux window ime request rejects invalid state transitions" {
   let window = Window::{
     id: @core.WindowId::from_raw(2),
-    hwnd: 1UL,
-    cursor_state: Icon(Default),
-    fullscreen_state: None,
+    handle: 1UL,
+    cursor_visible_state: true,
+    cursor_hittest_state: true,
+    transparent_state: false,
+    blur_state: false,
+    decorated_state: true,
+    minimized_state: false,
+    maximized_state: false,
+    enabled_buttons_state: @core.WindowButtons::all(),
+    window_level_state: Normal,
+    theme_state: None,
     ime_capabilities_state: None,
     ime_hints_state: @core.ImeHint::none(),
     ime_purpose_state: Normal,
     ime_surrounding_text_state: None,
     ime_cursor_area_position_state: PhysicalPosition(0, 0),
     ime_cursor_area_size_state: PhysicalSize(1, 1),
-    is_decorated_state: true,
-    is_maximized_state: false,
-    is_visible_state: true,
-    is_resizable_state: true,
-    is_cursor_visible_state: true,
-    is_cursor_hittest_state: true,
-    is_transparent_state: false,
-    is_blurred_state: false,
-    saved_window_rect_left: 0,
-    saved_window_rect_top: 0,
-    saved_window_rect_right: 0,
-    saved_window_rect_bottom: 0,
-    saved_window_style: 0,
-    saved_window_ex_style: 0,
   }
   try {
     window.request_ime_update(Update(@core.ImeRequestData::default()))
@@ -132,11 +139,4 @@ test "windows window ime request rejects invalid state transitions" {
     @core.ImeRequestError::AlreadyEnabled => ()
     _ => fail("expected AlreadyEnabled")
   }
-  window.request_ime_update(Disable) catch {
-    _ => fail("expected disable")
-  }
-  assert_true(window.ime_capabilities() == None)
-  assert_true(window.ime_surrounding_text() == None)
-  assert_true(window.ime_cursor_area_position() == PhysicalPosition(0, 0))
-  assert_true(window.ime_cursor_area_size() == PhysicalSize(1, 1))
 }
