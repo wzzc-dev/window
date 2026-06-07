@@ -41,6 +41,18 @@ let linux_event_key_down : Int = 20
 let linux_event_key_up : Int = 21
 
 ///|
+let linux_event_drag_enter : Int = 30
+
+///|
+let linux_event_drag_move : Int = 31
+
+///|
+let linux_event_drag_drop : Int = 32
+
+///|
+let linux_event_drag_leave : Int = 33
+
+///|
 fn linux_mouse_button(button : Int) -> @core.MouseButton {
   match button {
     0x110 => Left
@@ -58,6 +70,32 @@ fn linux_element_state(pressed : Bool) -> @core.ElementState {
     Pressed
   } else {
     Released
+  }
+}
+
+///|
+fn linux_decode_drag_paths(raw_id : Int) -> Array[String] {
+  match app_state_window_handle(raw_id) {
+    Some(handle) =>
+      if app_state_context() == 0UL {
+        []
+      } else {
+        let text = @utf8.decode_lossy(
+          native_window_take_drag_paths(handle)[:],
+          ignore_bom=false,
+        )
+        let paths : Array[String] = []
+        if text != "" {
+          for path_view in text.split("\n") {
+            let path = path_view.trim().to_owned()
+            if path != "" {
+              paths.push(path)
+            }
+          }
+        }
+        paths
+      }
+    None => []
   }
 }
 
@@ -601,7 +639,7 @@ fn dispatch_native_input_event(
         raw_id,
         MouseWheel(
           None,
-          PixelDelta(PhysicalPositionF64(arg0.to_double(), arg1.to_double())),
+          PixelDelta(PhysicalPositionF64(arg0.to_double(), -arg1.to_double())),
           Moved,
         ),
       )
@@ -621,6 +659,45 @@ fn dispatch_native_input_event(
         ),
       )
     }
+    k if k == linux_event_drag_enter => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        DragEntered(linux_decode_drag_paths(raw_id), position),
+      )
+    }
+    k if k == linux_event_drag_move => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(raw_id, DragMoved(position))
+    }
+    k if k == linux_event_drag_drop => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        DragDropped(linux_decode_drag_paths(raw_id), position),
+      )
+    }
+    k if k == linux_event_drag_leave =>
+      app_state_queue_window_event(
+        raw_id,
+        DragLeft(
+          Some(
+            @dpi.PhysicalPositionF64::PhysicalPositionF64(
+              arg0.to_double(),
+              arg1.to_double(),
+            ),
+          ),
+        ),
+      )
     _ => ()
   }
 }

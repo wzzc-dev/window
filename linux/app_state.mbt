@@ -454,7 +454,9 @@ fn app_state_queue_redraw(raw_id : Int) -> Unit {
       if found is None {
         app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
       }
-      native_window_request_redraw(handle)
+      if app_state_context() != 0UL {
+        native_window_request_redraw(handle)
+      }
     }
     None => ()
   }

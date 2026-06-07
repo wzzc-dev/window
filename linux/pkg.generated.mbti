@@ -8,7 +8,15 @@ import {
 }
 
 // Values
+pub fn clipboard_available() -> Bool
+
+pub fn drag_drop_available() -> Bool
+
 pub fn monitor_ns_screen(@core.MonitorHandle) -> UInt64?
+
+pub fn read_clipboard_text() -> String?
+
+pub fn write_clipboard_text(String) -> Bool
 
 // Errors
 

@@ -10,8 +10,10 @@ struct App {
   mut saw_pointer : Bool
   mut saw_keyboard : Bool
   mut saw_ime_probe : Bool
+  mut saw_data_device_probe : Bool
   mut saw_destroyed : Bool
   require_input : Bool
+  require_data_device : Bool
   mut core_ready_printed : Bool
   mut destroy_requested : Bool
   mut requested_resize : Bool
@@ -23,6 +25,9 @@ struct App {
 extern "C" fn native_require_input() -> Int = "mbw_moui_linux_smoke_require_input"
 
 ///|
+extern "C" fn native_require_data_device() -> Int = "mbw_moui_linux_smoke_require_data_device"
+
+///|
 fn App::maybe_ready(self : App, event_loop : @linux.ActiveEventLoop) -> Unit {
   let core_ready = self.saw_handle &&
     self.saw_redraw &&
@@ -30,7 +35,8 @@ fn App::maybe_ready(self : App, event_loop : @linux.ActiveEventLoop) -> Unit {
     self.saw_present &&
     self.saw_monitor &&
     self.saw_cursor &&
-    self.saw_ime_probe
+    self.saw_ime_probe &&
+    self.saw_data_device_probe
   let input_ready = self.saw_pointer && self.saw_keyboard
   if !self.ready_printed && core_ready {
     if self.require_input {
@@ -234,6 +240,33 @@ fn log_ime_probe(window : @linux.Window) -> Bool {
 }
 
 ///|
+fn log_data_device_probe(require_data_device : Bool) -> Bool {
+  let clipboard_available = @linux.clipboard_available()
+  let drag_drop_available = @linux.drag_drop_available()
+  let clipboard_roundtrip = if clipboard_available {
+    let text = "MoUI Linux clipboard smoke"
+    if @linux.write_clipboard_text(text) {
+      match @linux.read_clipboard_text() {
+        Some(read) => read == text
+        None => false
+      }
+    } else {
+      false
+    }
+  } else {
+    false
+  }
+  println(
+    "MOUILinuxSmoke: data-device clipboard=\{clipboard_available} clipboard_roundtrip=\{clipboard_roundtrip} drag_drop=\{drag_drop_available} require=\{require_data_device}",
+  )
+  if require_data_device {
+    clipboard_available && clipboard_roundtrip && drag_drop_available
+  } else {
+    true
+  }
+}
+
+///|
 pub impl @linux.ApplicationHandler for App with fn can_create_surfaces(
   self,
   event_loop,
@@ -266,6 +299,9 @@ pub impl @linux.ApplicationHandler for App with fn can_create_surfaces(
       self.saw_monitor = log_monitor_probe(window)
       self.saw_cursor = log_cursor_probe(window)
       self.saw_ime_probe = log_ime_probe(window)
+      self.saw_data_device_probe = log_data_device_probe(
+        self.require_data_device,
+      )
       let resized_size : @dpi.PhysicalSize = PhysicalSize(400, 240)
       ignore(window.request_surface_size(resized_size.into_size()))
       self.requested_resize = true
@@ -348,7 +384,7 @@ pub impl @linux.ApplicationHandler for App with fn about_to_wait(
   if self.wait_count > 240 &&
     (!self.ready_printed || (self.destroy_requested && !self.saw_destroyed)) {
     println(
-      "MOUILinuxSmoke: failed handles=\{self.saw_handle} monitor=\{self.saw_monitor} cursor=\{self.saw_cursor} redraw=\{self.saw_redraw} resize=\{self.saw_resize} present=\{self.saw_present} pointer=\{self.saw_pointer} keyboard=\{self.saw_keyboard} ime_probe=\{self.saw_ime_probe} requested_resize=\{self.requested_resize} destroy_requested=\{self.destroy_requested} destroyed=\{self.saw_destroyed}",
+      "MOUILinuxSmoke: failed handles=\{self.saw_handle} monitor=\{self.saw_monitor} cursor=\{self.saw_cursor} redraw=\{self.saw_redraw} resize=\{self.saw_resize} present=\{self.saw_present} pointer=\{self.saw_pointer} keyboard=\{self.saw_keyboard} ime_probe=\{self.saw_ime_probe} data_device_probe=\{self.saw_data_device_probe} requested_resize=\{self.requested_resize} destroy_requested=\{self.destroy_requested} destroyed=\{self.saw_destroyed}",
     )
     event_loop.exit()
   }
@@ -368,8 +404,10 @@ fn main {
     saw_pointer: false,
     saw_keyboard: false,
     saw_ime_probe: false,
+    saw_data_device_probe: false,
     saw_destroyed: false,
     require_input: native_require_input() != 0,
+    require_data_device: native_require_data_device() != 0,
     core_ready_printed: false,
     destroy_requested: false,
     requested_resize: false,

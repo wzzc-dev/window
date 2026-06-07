@@ -99,7 +99,9 @@ and keyboard lines are logged when supplied, but Linux input automation remains
 separate evidence. Set `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1` or pass
 `--require-input` with `--run` to require pointer and keyboard evidence on a
 matching host, including representative keyboard text `a` from the current
-fixed key mapping. Both Linux runtime paths replay the captured transcript
+fixed key mapping. Set `WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE=1` or pass
+`--require-data-device` with `--run` to require Wayland clipboard selection and
+drag/drop capability evidence. Both Linux runtime paths replay the captured transcript
 through `scripts/check_moui_runtime_log.sh`; the core path uses
 `--linux-input pending-ok`, while strict evidence uses the default input
 requirements before it is accepted. The Linux IME probe covers public request state only;

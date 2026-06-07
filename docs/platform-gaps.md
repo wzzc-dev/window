@@ -351,6 +351,9 @@ Runtime smoke:
 - For full input evidence:
   `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run`
   or `scripts/check_moui_linux_smoke.sh --run --require-input`
+- For full Wayland data-device evidence:
+  `WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE=1 scripts/check_moui_linux_smoke.sh --run`
+  or `scripts/check_moui_linux_smoke.sh --run --require-data-device`
 - Both Linux runtime paths replay their captured log through the offline
   verifier before passing; core runs use
   `scripts/check_moui_runtime_log.sh --linux-input pending-ok linux <captured-log>`,

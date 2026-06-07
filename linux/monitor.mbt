@@ -103,7 +103,11 @@ fn primary_monitor() -> @core.MonitorHandle? {
 
 ///|
 fn current_monitor_for_window(window : UInt64) -> @core.MonitorHandle? {
-  monitor_from_native_id(native_window_current_monitor_handle(window))
+  if monitor_context() == 0UL || window == 0UL {
+    None
+  } else {
+    monitor_from_native_id(native_window_current_monitor_handle(window))
+  }
 }
 
 ///|

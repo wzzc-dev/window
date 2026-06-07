@@ -47,6 +47,10 @@ enum {
   MBW_LINUX_INPUT_WHEEL = 15,
   MBW_LINUX_INPUT_KEY_DOWN = 20,
   MBW_LINUX_INPUT_KEY_UP = 21,
+  MBW_LINUX_INPUT_DRAG_ENTER = 30,
+  MBW_LINUX_INPUT_DRAG_MOVE = 31,
+  MBW_LINUX_INPUT_DRAG_DROP = 32,
+  MBW_LINUX_INPUT_DRAG_LEAVE = 33,
 };
 
 enum {
@@ -59,6 +63,12 @@ enum {
 };
 
 struct mbw_wayland_window;
+
+typedef struct mbw_wayland_data_offer {
+  struct wl_data_offer *offer;
+  int has_text;
+  int has_uri_list;
+} mbw_wayland_data_offer_t;
 
 typedef struct mbw_wayland_output {
   uint32_t registry_name;
@@ -88,6 +98,10 @@ typedef struct mbw_wayland_context {
   struct wl_seat *seat;
   struct wl_pointer *pointer;
   struct wl_keyboard *keyboard;
+  struct wl_data_device_manager *data_device_manager;
+  struct wl_data_device *data_device;
+  mbw_wayland_data_offer_t *selection_offer;
+  mbw_wayland_data_offer_t *drag_offer;
   struct xdg_wm_base *wm_base;
   struct zxdg_decoration_manager_v1 *decoration_manager;
   mbw_wayland_output_t *outputs;
@@ -99,6 +113,11 @@ typedef struct mbw_wayland_context {
   int wake_fd;
   struct mbw_wayland_window *pointer_window;
   struct mbw_wayland_window *keyboard_window;
+  struct mbw_wayland_window *drag_window;
+  struct wl_data_source *selection_source;
+  char *selection_text;
+  size_t selection_text_len;
+  uint32_t last_serial;
 } mbw_wayland_context_t;
 
 typedef struct mbw_wayland_window {
@@ -129,9 +148,17 @@ typedef struct mbw_wayland_window {
   size_t placeholder_size;
   int placeholder_width;
   int placeholder_height;
+  char *pending_drag_paths;
   mbw_wayland_present_buffer_t *present_buffers;
   struct mbw_wayland_window *next;
 } mbw_wayland_window_t;
+
+static mbw_wayland_window_t *window_from_raw(uint64_t raw_window) {
+  if (raw_window < 4096) {
+    return NULL;
+  }
+  return (mbw_wayland_window_t *)(uintptr_t)raw_window;
+}
 
 enum {
   MBW_WAYLAND_PRESENT_OK = 0,
@@ -191,6 +218,254 @@ static char *copy_bytes(const uint8_t *bytes, int32_t len,
   memcpy(out, bytes, (size_t)len);
   out[len] = '\0';
   return out;
+}
+
+static moonbit_bytes_t bytes_from_string(const char *text) {
+  if (!text || !text[0]) {
+    return moonbit_make_bytes(0, 0);
+  }
+  int32_t len = (int32_t)strlen(text);
+  moonbit_bytes_t bytes = moonbit_make_bytes(len, 0);
+  memcpy(bytes, text, (size_t)len);
+  return bytes;
+}
+
+static int mime_is_text(const char *mime_type) {
+  return mime_type &&
+         (strcmp(mime_type, "text/plain;charset=utf-8") == 0 ||
+          strcmp(mime_type, "text/plain") == 0 ||
+          strcmp(mime_type, "UTF8_STRING") == 0);
+}
+
+static int mime_is_uri_list(const char *mime_type) {
+  return mime_type && strcmp(mime_type, "text/uri-list") == 0;
+}
+
+static void free_data_offer(mbw_wayland_data_offer_t *offer) {
+  if (!offer) {
+    return;
+  }
+  if (offer->offer) {
+    wl_data_offer_destroy(offer->offer);
+    offer->offer = NULL;
+  }
+  free(offer);
+}
+
+static char *read_fd_to_string(int fd, int timeout_ms) {
+  if (fd < 0) {
+    return NULL;
+  }
+  size_t capacity = 4096;
+  size_t length = 0;
+  char *buffer = (char *)malloc(capacity);
+  if (!buffer) {
+    close(fd);
+    return NULL;
+  }
+  int elapsed = 0;
+  while (1) {
+    struct pollfd pfd = {.fd = fd, .events = POLLIN | POLLHUP, .revents = 0};
+    int wait_ms = timeout_ms < 0 ? -1 : timeout_ms - elapsed;
+    if (wait_ms < 0) {
+      wait_ms = 0;
+    }
+    int ret = poll(&pfd, 1, wait_ms);
+    if (ret < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      break;
+    }
+    if (ret == 0) {
+      break;
+    }
+    if (pfd.revents & POLLIN) {
+      char chunk[2048];
+      ssize_t count = read(fd, chunk, sizeof(chunk));
+      if (count > 0) {
+        if (length + (size_t)count + 1 > capacity) {
+          size_t next_capacity = capacity * 2;
+          while (length + (size_t)count + 1 > next_capacity) {
+            next_capacity *= 2;
+          }
+          char *next = (char *)realloc(buffer, next_capacity);
+          if (!next) {
+            free(buffer);
+            close(fd);
+            return NULL;
+          }
+          buffer = next;
+          capacity = next_capacity;
+        }
+        memcpy(buffer + length, chunk, (size_t)count);
+        length += (size_t)count;
+        continue;
+      }
+      if (count == 0) {
+        break;
+      }
+      if (errno == EINTR || errno == EAGAIN) {
+        continue;
+      }
+      break;
+    }
+    if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+      char chunk[2048];
+      ssize_t count = read(fd, chunk, sizeof(chunk));
+      if (count > 0) {
+        if (length + (size_t)count + 1 > capacity) {
+          char *next = (char *)realloc(buffer, length + (size_t)count + 1);
+          if (!next) {
+            free(buffer);
+            close(fd);
+            return NULL;
+          }
+          buffer = next;
+          capacity = length + (size_t)count + 1;
+        }
+        memcpy(buffer + length, chunk, (size_t)count);
+        length += (size_t)count;
+      }
+      break;
+    }
+    if (timeout_ms >= 0) {
+      elapsed += wait_ms;
+      if (elapsed >= timeout_ms) {
+        break;
+      }
+    }
+  }
+  close(fd);
+  buffer[length] = '\0';
+  return buffer;
+}
+
+static char *read_data_offer_text(mbw_wayland_context_t *context,
+                                  mbw_wayland_data_offer_t *offer,
+                                  const char *mime_type) {
+  if (!context || !context->display || !offer || !offer->offer || !mime_type) {
+    return NULL;
+  }
+  int fds[2];
+  if (pipe(fds) != 0) {
+    return NULL;
+  }
+  wl_data_offer_receive(offer->offer, mime_type, fds[1]);
+  close(fds[1]);
+  (void)flush_wayland_display(context->display, "data offer receive");
+  return read_fd_to_string(fds[0], 750);
+}
+
+static int hex_digit(char c) {
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'a' && c <= 'f') {
+    return 10 + c - 'a';
+  }
+  if (c >= 'A' && c <= 'F') {
+    return 10 + c - 'A';
+  }
+  return -1;
+}
+
+static char *decode_file_uri_line(const char *line, size_t len) {
+  const char *prefix = "file://";
+  size_t prefix_len = strlen(prefix);
+  if (!line || len < prefix_len || strncmp(line, prefix, prefix_len) != 0) {
+    return NULL;
+  }
+  const char *cursor = line + prefix_len;
+  size_t remaining = len - prefix_len;
+  if (remaining >= 10 && strncmp(cursor, "localhost/", 10) == 0) {
+    cursor += 9;
+    remaining -= 9;
+  } else if (remaining > 0 && cursor[0] != '/') {
+    const char *slash = memchr(cursor, '/', remaining);
+    if (!slash) {
+      return NULL;
+    }
+    remaining -= (size_t)(slash - cursor);
+    cursor = slash;
+  }
+  char *out = (char *)malloc(remaining + 1);
+  if (!out) {
+    return NULL;
+  }
+  size_t out_len = 0;
+  for (size_t i = 0; i < remaining; ++i) {
+    if (cursor[i] == '%' && i + 2 < remaining) {
+      int hi = hex_digit(cursor[i + 1]);
+      int lo = hex_digit(cursor[i + 2]);
+      if (hi >= 0 && lo >= 0) {
+        out[out_len++] = (char)((hi << 4) | lo);
+        i += 2;
+        continue;
+      }
+    }
+    out[out_len++] = cursor[i];
+  }
+  out[out_len] = '\0';
+  return out;
+}
+
+static char *uri_list_to_paths(const char *uri_list) {
+  if (!uri_list || !uri_list[0]) {
+    return strdup("");
+  }
+  size_t capacity = strlen(uri_list) + 1;
+  char *paths = (char *)malloc(capacity);
+  if (!paths) {
+    return NULL;
+  }
+  size_t paths_len = 0;
+  const char *line = uri_list;
+  while (*line) {
+    const char *end = strpbrk(line, "\r\n");
+    size_t len = end ? (size_t)(end - line) : strlen(line);
+    if (len > 0 && line[0] != '#') {
+      char *path = decode_file_uri_line(line, len);
+      if (path && path[0]) {
+        size_t path_len = strlen(path);
+        if (paths_len + path_len + 2 > capacity) {
+          size_t next_capacity = capacity * 2 + path_len + 2;
+          char *next = (char *)realloc(paths, next_capacity);
+          if (!next) {
+            free(path);
+            free(paths);
+            return NULL;
+          }
+          paths = next;
+          capacity = next_capacity;
+        }
+        if (paths_len > 0) {
+          paths[paths_len++] = '\n';
+        }
+        memcpy(paths + paths_len, path, path_len);
+        paths_len += path_len;
+      }
+      free(path);
+    }
+    if (!end) {
+      break;
+    }
+    line = end + 1;
+    if (*end == '\r' && *line == '\n') {
+      line++;
+    }
+  }
+  paths[paths_len] = '\0';
+  return paths;
+}
+
+static void window_store_drag_paths(mbw_wayland_window_t *window,
+                                    const char *paths) {
+  if (!window) {
+    return;
+  }
+  free(window->pending_drag_paths);
+  window->pending_drag_paths = paths ? strdup(paths) : strdup("");
 }
 
 static int create_tmpfile(size_t size) {
@@ -314,6 +589,8 @@ static void destroy_window_resources(mbw_wayland_window_t *window) {
     wl_surface_destroy(window->surface);
     window->surface = NULL;
   }
+  free(window->pending_drag_paths);
+  window->pending_drag_paths = NULL;
   free(window);
 }
 
@@ -822,6 +1099,250 @@ static const struct zxdg_toplevel_decoration_v1_listener decoration_listener = {
     .configure = decoration_configure,
 };
 
+static void data_offer_offer(void *data, struct wl_data_offer *offer,
+                             const char *mime_type) {
+  (void)offer;
+  mbw_wayland_data_offer_t *wrapped = (mbw_wayland_data_offer_t *)data;
+  if (!wrapped || !mime_type) {
+    return;
+  }
+  if (mime_is_text(mime_type)) {
+    wrapped->has_text = 1;
+  } else if (mime_is_uri_list(mime_type)) {
+    wrapped->has_uri_list = 1;
+  }
+}
+
+static void data_offer_source_actions(void *data,
+                                      struct wl_data_offer *offer,
+                                      uint32_t source_actions) {
+  (void)data;
+  (void)offer;
+  (void)source_actions;
+}
+
+static void data_offer_action(void *data, struct wl_data_offer *offer,
+                              uint32_t dnd_action) {
+  (void)data;
+  (void)offer;
+  (void)dnd_action;
+}
+
+static const struct wl_data_offer_listener data_offer_listener = {
+    .offer = data_offer_offer,
+    .source_actions = data_offer_source_actions,
+    .action = data_offer_action,
+};
+
+static void data_source_target(void *data, struct wl_data_source *source,
+                               const char *mime_type) {
+  (void)data;
+  (void)source;
+  (void)mime_type;
+}
+
+static void data_source_send(void *data, struct wl_data_source *source,
+                             const char *mime_type, int32_t fd) {
+  (void)source;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context || !mime_is_text(mime_type) || fd < 0) {
+    if (fd >= 0) {
+      close(fd);
+    }
+    return;
+  }
+  size_t written = 0;
+  while (written < context->selection_text_len) {
+    ssize_t result = write(fd, context->selection_text + written,
+                           context->selection_text_len - written);
+    if (result > 0) {
+      written += (size_t)result;
+    } else if (result < 0 && errno == EINTR) {
+      continue;
+    } else {
+      break;
+    }
+  }
+  close(fd);
+}
+
+static void data_source_cancelled(void *data, struct wl_data_source *source) {
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (context && context->selection_source == source) {
+    context->selection_source = NULL;
+  }
+  if (source) {
+    wl_data_source_destroy(source);
+  }
+}
+
+static void data_source_dnd_drop_performed(void *data,
+                                           struct wl_data_source *source) {
+  (void)data;
+  (void)source;
+}
+
+static void data_source_dnd_finished(void *data,
+                                     struct wl_data_source *source) {
+  (void)data;
+  (void)source;
+}
+
+static void data_source_action(void *data, struct wl_data_source *source,
+                               uint32_t dnd_action) {
+  (void)data;
+  (void)source;
+  (void)dnd_action;
+}
+
+static const struct wl_data_source_listener data_source_listener = {
+    .target = data_source_target,
+    .send = data_source_send,
+    .cancelled = data_source_cancelled,
+    .dnd_drop_performed = data_source_dnd_drop_performed,
+    .dnd_finished = data_source_dnd_finished,
+    .action = data_source_action,
+};
+
+static char *read_drag_paths(mbw_wayland_context_t *context,
+                             mbw_wayland_data_offer_t *offer) {
+  if (!offer || !offer->has_uri_list) {
+    return strdup("");
+  }
+  char *uri_list = read_data_offer_text(context, offer, "text/uri-list");
+  if (!uri_list) {
+    return strdup("");
+  }
+  char *paths = uri_list_to_paths(uri_list);
+  free(uri_list);
+  return paths ? paths : strdup("");
+}
+
+static void data_device_data_offer(void *data,
+                                   struct wl_data_device *data_device,
+                                   struct wl_data_offer *offer) {
+  (void)data_device;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context || !offer) {
+    return;
+  }
+  mbw_wayland_data_offer_t *wrapped =
+      (mbw_wayland_data_offer_t *)calloc(1, sizeof(*wrapped));
+  if (!wrapped) {
+    wl_data_offer_destroy(offer);
+    return;
+  }
+  wrapped->offer = offer;
+  wl_data_offer_add_listener(offer, &data_offer_listener, wrapped);
+}
+
+static void data_device_enter(void *data, struct wl_data_device *data_device,
+                              uint32_t serial, struct wl_surface *surface,
+                              wl_fixed_t x, wl_fixed_t y,
+                              struct wl_data_offer *offer) {
+  (void)data_device;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context) {
+    return;
+  }
+  context->last_serial = serial;
+  context->drag_window =
+      surface ? (mbw_wayland_window_t *)wl_surface_get_user_data(surface)
+              : NULL;
+  context->drag_offer =
+      offer ? (mbw_wayland_data_offer_t *)wl_data_offer_get_user_data(offer)
+            : NULL;
+  if (context->drag_window) {
+    char *paths = read_drag_paths(context, context->drag_offer);
+    window_store_drag_paths(context->drag_window, paths);
+    free(paths);
+    emit_input(context->drag_window->raw_id, MBW_LINUX_INPUT_DRAG_ENTER,
+               wl_fixed_to_int(x), wl_fixed_to_int(y), 0, 0);
+  }
+}
+
+static void data_device_leave(void *data, struct wl_data_device *data_device) {
+  (void)data_device;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context) {
+    return;
+  }
+  if (context->drag_window) {
+    emit_input(context->drag_window->raw_id, MBW_LINUX_INPUT_DRAG_LEAVE,
+               context->drag_window->pointer_x, context->drag_window->pointer_y,
+               0, 0);
+  }
+  context->drag_window = NULL;
+  context->drag_offer = NULL;
+}
+
+static void data_device_motion(void *data, struct wl_data_device *data_device,
+                               uint32_t time, wl_fixed_t x, wl_fixed_t y) {
+  (void)data_device;
+  (void)time;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (context && context->drag_window) {
+    context->drag_window->pointer_x = wl_fixed_to_int(x);
+    context->drag_window->pointer_y = wl_fixed_to_int(y);
+    emit_input(context->drag_window->raw_id, MBW_LINUX_INPUT_DRAG_MOVE,
+               wl_fixed_to_int(x), wl_fixed_to_int(y), 0, 0);
+  }
+}
+
+static void data_device_drop(void *data, struct wl_data_device *data_device) {
+  (void)data_device;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context || !context->drag_window) {
+    return;
+  }
+  char *paths = read_drag_paths(context, context->drag_offer);
+  window_store_drag_paths(context->drag_window, paths);
+  free(paths);
+  emit_input(context->drag_window->raw_id, MBW_LINUX_INPUT_DRAG_DROP,
+             context->drag_window->pointer_x, context->drag_window->pointer_y,
+             0, 0);
+}
+
+static void data_device_selection(void *data,
+                                  struct wl_data_device *data_device,
+                                  struct wl_data_offer *offer) {
+  (void)data_device;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (!context) {
+    return;
+  }
+  if (context->selection_offer &&
+      (!offer || context->selection_offer->offer != offer)) {
+    free_data_offer(context->selection_offer);
+  }
+  context->selection_offer =
+      offer ? (mbw_wayland_data_offer_t *)wl_data_offer_get_user_data(offer)
+            : NULL;
+}
+
+static const struct wl_data_device_listener data_device_listener = {
+    .data_offer = data_device_data_offer,
+    .enter = data_device_enter,
+    .leave = data_device_leave,
+    .motion = data_device_motion,
+    .drop = data_device_drop,
+    .selection = data_device_selection,
+};
+
+static void ensure_data_device(mbw_wayland_context_t *context) {
+  if (!context || context->data_device || !context->data_device_manager ||
+      !context->seat) {
+    return;
+  }
+  context->data_device =
+      wl_data_device_manager_get_data_device(context->data_device_manager,
+                                             context->seat);
+  if (context->data_device) {
+    wl_data_device_add_listener(context->data_device, &data_device_listener,
+                                context);
+  }
+}
+
 static void pointer_enter(void *data, struct wl_pointer *pointer,
                           uint32_t serial, struct wl_surface *surface,
                           wl_fixed_t sx, wl_fixed_t sy) {
@@ -829,6 +1350,7 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
   if (!context) {
     return;
   }
+  context->last_serial = serial;
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)wl_surface_get_user_data(surface);
   context->pointer_window = window;
@@ -880,6 +1402,9 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
   (void)pointer;
   (void)time;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (context) {
+    context->last_serial = serial;
+  }
   mbw_wayland_window_t *window = context ? context->pointer_window : NULL;
   if (window) {
     if (button == MBW_WAYLAND_POINTER_LEFT_BUTTON) {
@@ -997,12 +1522,12 @@ static void keyboard_enter(void *data, struct wl_keyboard *keyboard,
                            uint32_t serial, struct wl_surface *surface,
                            struct wl_array *keys) {
   (void)keyboard;
-  (void)serial;
   (void)keys;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)wl_surface_get_user_data(surface);
   if (context) {
+    context->last_serial = serial;
     context->keyboard_window = window;
   }
   if (window) {
@@ -1030,9 +1555,11 @@ static void keyboard_key(void *data, struct wl_keyboard *keyboard,
                          uint32_t serial, uint32_t time, uint32_t key,
                          uint32_t state) {
   (void)keyboard;
-  (void)serial;
   (void)time;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  if (context) {
+    context->last_serial = serial;
+  }
   mbw_wayland_window_t *window = context ? context->keyboard_window : NULL;
   if (window) {
     emit_input(window->raw_id,
@@ -1101,6 +1628,7 @@ static void seat_capabilities(void *data, struct wl_seat *seat,
     context->keyboard = NULL;
     context->keyboard_window = NULL;
   }
+  ensure_data_device(context);
 }
 
 static void seat_name(void *data, struct wl_seat *seat, const char *name) {
@@ -1163,6 +1691,11 @@ static void registry_global(void *data, struct wl_registry *registry,
     wl_output_add_listener(output->output, &output_listener, output);
     output->next = context->outputs;
     context->outputs = output;
+  } else if (strcmp(interface, wl_data_device_manager_interface.name) == 0) {
+    context->data_device_manager =
+        wl_registry_bind(registry, name, &wl_data_device_manager_interface,
+                         version < 3 ? version : 3);
+    ensure_data_device(context);
   }
 }
 
@@ -1257,6 +1790,30 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   if (context->pointer) {
     wl_pointer_destroy(context->pointer);
   }
+  if (context->selection_source) {
+    wl_data_source_destroy(context->selection_source);
+    context->selection_source = NULL;
+  }
+  mbw_wayland_data_offer_t *destroyed_selection_offer = context->selection_offer;
+  if (destroyed_selection_offer) {
+    free_data_offer(destroyed_selection_offer);
+    context->selection_offer = NULL;
+  }
+  if (context->drag_offer && context->drag_offer != destroyed_selection_offer) {
+    free_data_offer(context->drag_offer);
+    context->drag_offer = NULL;
+  }
+  if (context->data_device) {
+    wl_data_device_destroy(context->data_device);
+    context->data_device = NULL;
+  }
+  if (context->data_device_manager) {
+    wl_data_device_manager_destroy(context->data_device_manager);
+    context->data_device_manager = NULL;
+  }
+  free(context->selection_text);
+  context->selection_text = NULL;
+  context->selection_text_len = 0;
   if (context->cursor_buffer) {
     wl_buffer_destroy(context->cursor_buffer);
   }
@@ -1410,8 +1967,7 @@ moonbit_bytes_t mbw_wayland_monitor_name_bytes_at(uint64_t raw_context,
 
 MOONBIT_FFI_EXPORT
 uint64_t mbw_wayland_window_current_monitor_handle(uint64_t raw_window) {
-  mbw_wayland_window_t *window =
-      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  mbw_wayland_window_t *window = window_from_raw(raw_window);
   return window && window->current_output
              ? (uint64_t)(uintptr_t)window->current_output
              : 0;
@@ -1762,8 +2318,7 @@ void mbw_wayland_window_request_surface_size(uint64_t raw_window, int32_t width,
 
 MOONBIT_FFI_EXPORT
 void mbw_wayland_window_request_redraw(uint64_t raw_window) {
-  mbw_wayland_window_t *window =
-      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  mbw_wayland_window_t *window = window_from_raw(raw_window);
   if (window && window->context) {
     mbw_wayland_context_wake((uint64_t)(uintptr_t)window->context);
   }
@@ -1859,6 +2414,99 @@ int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
     }
   }
   return MBW_WAYLAND_PRESENT_OK;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_clipboard_available(uint64_t raw_context) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  return context && context->data_device_manager && context->data_device ? 1 : 0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_context_clipboard_read_text(uint64_t raw_context) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  if (!context) {
+    return moonbit_make_bytes(0, 0);
+  }
+  if (context->selection_offer && context->selection_offer->has_text) {
+    char *text = read_data_offer_text(context, context->selection_offer,
+                                      "text/plain;charset=utf-8");
+    if (!text) {
+      text = read_data_offer_text(context, context->selection_offer,
+                                  "text/plain");
+    }
+    if (text) {
+      moonbit_bytes_t bytes = bytes_from_string(text);
+      free(text);
+      return bytes;
+    }
+  }
+  if (context->selection_text && context->selection_text_len > 0) {
+    moonbit_bytes_t bytes =
+        moonbit_make_bytes((int32_t)context->selection_text_len, 0);
+    memcpy(bytes, context->selection_text, context->selection_text_len);
+    return bytes;
+  }
+  return moonbit_make_bytes(0, 0);
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_clipboard_write_text(uint64_t raw_context,
+                                                 const uint8_t *text,
+                                                 int32_t text_len) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  if (!context || !context->data_device_manager || !context->data_device) {
+    return 0;
+  }
+  char *copy = copy_bytes(text, text_len, "");
+  if (!copy) {
+    return 0;
+  }
+  struct wl_data_source *source =
+      wl_data_device_manager_create_data_source(context->data_device_manager);
+  if (!source) {
+    free(copy);
+    return 0;
+  }
+  if (context->selection_source) {
+    wl_data_source_destroy(context->selection_source);
+    context->selection_source = NULL;
+  }
+  free(context->selection_text);
+  context->selection_text = copy;
+  context->selection_text_len = strlen(copy);
+  context->selection_source = source;
+  wl_data_source_add_listener(source, &data_source_listener, context);
+  wl_data_source_offer(source, "text/plain;charset=utf-8");
+  wl_data_source_offer(source, "text/plain");
+  wl_data_device_set_selection(context->data_device, source,
+                               context->last_serial);
+  if (context->display) {
+    (void)flush_wayland_display(context->display, "clipboard set selection");
+  }
+  return 1;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_drag_drop_available(uint64_t raw_context) {
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  return context && context->data_device_manager && context->data_device ? 1 : 0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_window_take_drag_paths(uint64_t raw_window) {
+  mbw_wayland_window_t *window = window_from_raw(raw_window);
+  if (!window || !window->pending_drag_paths) {
+    return moonbit_make_bytes(0, 0);
+  }
+  moonbit_bytes_t bytes = bytes_from_string(window->pending_drag_paths);
+  free(window->pending_drag_paths);
+  window->pending_drag_paths = NULL;
+  return bytes;
 }
 
 MOONBIT_FFI_EXPORT
@@ -2079,6 +2727,35 @@ int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
   (void)pixels;
   (void)pixels_len;
   return 1;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_clipboard_available(uint64_t raw_context) {
+  (void)raw_context;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_context_clipboard_read_text(uint64_t raw_context) {
+  (void)raw_context;
+  return moonbit_make_bytes(0, 0);
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_clipboard_write_text(uint64_t raw_context,
+                                                 const uint8_t *text,
+                                                 int32_t text_len) {
+  (void)raw_context;
+  (void)text;
+  (void)text_len;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_context_drag_drop_available(uint64_t raw_context) {
+  (void)raw_context;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_wayland_window_take_drag_paths(uint64_t raw_window) {
+  (void)raw_window;
+  return moonbit_make_bytes(0, 0);
 }
 MOONBIT_FFI_EXPORT
 void mbw_wayland_install_window_event_callback(

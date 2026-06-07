@@ -247,7 +247,7 @@ test "linux dispatch maps pointer enter leave button release and wheel" {
   match app.events[3] {
     MouseWheel(_, PixelDelta(delta), Moved) => {
       assert_eq(delta.x(), -5.0)
-      assert_eq(delta.y(), 9.0)
+      assert_eq(delta.y(), -9.0)
     }
     _ => fail("expected pixel wheel delta")
   }

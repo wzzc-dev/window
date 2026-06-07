@@ -63,7 +63,10 @@ observed on a matching host. For full Linux input evidence, run
 requires pointer evidence and representative keyboard text `a` from the current
 fixed key mapping, then replays its captured transcript through
 `scripts/check_moui_runtime_log.sh linux <captured-log>` before accepting the
-runtime smoke. The core Linux runtime path also replays its transcript with
+runtime smoke. For Wayland data-device evidence, run
+`WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE=1 scripts/check_moui_linux_smoke.sh --run`
+or `scripts/check_moui_linux_smoke.sh --run --require-data-device` to require
+clipboard selection and drag/drop capability markers. The core Linux runtime path also replays its transcript with
 `scripts/check_moui_runtime_log.sh --linux-input pending-ok linux <captured-log>`
 so core handle/present/monitor/teardown checks share the same verifier while
 input evidence remains pending. If the transcript is collected on another

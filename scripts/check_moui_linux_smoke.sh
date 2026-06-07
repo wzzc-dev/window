@@ -12,7 +12,7 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: scripts/check_moui_linux_smoke.sh [--run] [--require-input]
+Usage: scripts/check_moui_linux_smoke.sh [--run] [--require-input] [--require-data-device]
 
 Without --run, build and statically verify the Linux MoUI smoke artifact on a
 Linux host. With --run, launch the built Wayland executable and require it to
@@ -20,6 +20,8 @@ Linux host. With --run, launch the built Wayland executable and require it to
   destroyed, and finished sentinel lines. Representative Wayland input is
   logged when supplied by the compositor or operator. Use --require-input, or set
 WINDOW_MOUI_LINUX_REQUIRE_INPUT=1, to require pointer and keyboard evidence.
+Use --require-data-device, or set WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE=1, to
+require Wayland clipboard selection and drag/drop capability evidence.
 EOF
 }
 
@@ -53,6 +55,7 @@ run_runtime_smoke() {
   trap 'rm -f "${output_file:-}"' EXIT
   set +e
   env WINDOW_MOUI_LINUX_REQUIRE_INPUT="$require_input" \
+    WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE="$require_data_device" \
     "$exe" >"$output_file" 2>&1 &
   pid=$!
   status=0
@@ -75,12 +78,16 @@ run_runtime_smoke() {
   cat "$output_file"
   [[ "$status" -eq 0 ]] || fail "runtime exited with status $status"
   run_runtime_verifier "$output_file"
+  if [[ "$require_data_device" == "1" ]]; then
+    require_text "$output_file" "MOUILinuxSmoke: data-device clipboard=true clipboard_roundtrip=true drag_drop=true require=true"
+  fi
   rm -f "$output_file"
   trap - EXIT
 }
 
 run_mode=0
 require_input="${WINDOW_MOUI_LINUX_REQUIRE_INPUT:-0}"
+require_data_device="${WINDOW_MOUI_LINUX_REQUIRE_DATA_DEVICE:-0}"
 for arg in "$@"; do
   case "$arg" in
     --run)
@@ -89,6 +96,10 @@ for arg in "$@"; do
     --require-input)
       run_mode=1
       require_input=1
+      ;;
+    --require-data-device)
+      run_mode=1
+      require_data_device=1
       ;;
     -h|--help)
       usage
@@ -104,6 +115,11 @@ if [[ -n "$require_input" && "$require_input" != "0" ]]; then
   require_input=1
 else
   require_input=0
+fi
+if [[ -n "$require_data_device" && "$require_data_device" != "0" ]]; then
+  require_data_device=1
+else
+  require_data_device=0
 fi
 
 actual_host="$(detect_window_actual_host)"
@@ -124,14 +140,20 @@ pkg="examples/moui_linux_smoke"
 main="$pkg/main.mbt"
 manifest="$pkg/moon.pkg"
 exe="_build/native/debug/build/examples/moui_linux_smoke/moui_linux_smoke.exe"
+workspace_exe="../../_build/native/debug/build/wzzc-dev/window/examples/moui_linux_smoke/moui_linux_smoke.exe"
 
 moon build "$pkg" --target native >/dev/null
+
+if [[ ! -f "$exe" && -f "$workspace_exe" ]]; then
+  exe="$workspace_exe"
+fi
 
 require_file "$main"
 require_file "$manifest"
 require_file "$exe"
 require_text "$manifest" '"native-stub": [ "config_native.c" ]'
 require_text "$main" "native_require_input"
+require_text "$main" "native_require_data_device"
 require_text "$main" "event_loop.set_control_flow(Wait)"
 require_text "$main" "try_create_window_with_linux_attributes"
 require_text "$main" "WindowAttributesLinux::default().with_app_id"
@@ -165,6 +187,12 @@ require_text "$main" "window.ime_cursor_area_position()"
 require_text "$main" "window.ime_cursor_area_size()"
 require_text "$main" "MOUILinuxSmoke: ime probe enabled=\{enabled} hint="
 require_text "$main" "updated_hint=\{updated_hint_ok}"
+require_text "$main" "@linux.clipboard_available()"
+require_text "$main" "@linux.write_clipboard_text"
+require_text "$main" "@linux.read_clipboard_text()"
+require_text "$main" "@linux.drag_drop_available()"
+require_text "$main" "MOUILinuxSmoke: data-device clipboard="
+require_text "$main" "self.saw_data_device_probe = log_data_device_probe"
 require_text "$main" "window.pre_present_notify()"
 require_text "$main" "PointerMoved"
 require_text "$main" "KeyboardInput"

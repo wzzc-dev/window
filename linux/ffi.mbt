@@ -14,6 +14,23 @@ extern "C" fn native_context_wake_fd(context : UInt64) -> Int = "mbw_wayland_con
 extern "C" fn native_context_system_theme(context : UInt64) -> Int = "mbw_wayland_context_system_theme"
 
 ///|
+extern "C" fn native_context_clipboard_available(context : UInt64) -> Int = "mbw_wayland_context_clipboard_available"
+
+///|
+extern "C" fn native_context_clipboard_read_text(context : UInt64) -> Bytes = "mbw_wayland_context_clipboard_read_text"
+
+///|
+#borrow(text)
+extern "C" fn native_context_clipboard_write_text(
+  context : UInt64,
+  text : Bytes,
+  text_len : Int,
+) -> Int = "mbw_wayland_context_clipboard_write_text"
+
+///|
+extern "C" fn native_context_drag_drop_available(context : UInt64) -> Int = "mbw_wayland_context_drag_drop_available"
+
+///|
 extern "C" fn native_monitor_count(context : UInt64) -> Int = "mbw_wayland_monitor_count"
 
 ///|
@@ -102,6 +119,9 @@ extern "C" fn native_window_current_monitor_handle(window : UInt64) -> UInt64 = 
 
 ///|
 extern "C" fn native_window_client_decorated(window : UInt64) -> Bool = "mbw_wayland_window_client_decorated"
+
+///|
+extern "C" fn native_window_take_drag_paths(window : UInt64) -> Bytes = "mbw_wayland_window_take_drag_paths"
 
 ///|
 #borrow(title)

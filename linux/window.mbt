@@ -643,6 +643,44 @@ pub fn Window::theme(self : Window) -> @core.Theme? {
 }
 
 ///|
+pub fn clipboard_available() -> Bool {
+  let context = app_state_context()
+  context != 0UL && native_context_clipboard_available(context) != 0
+}
+
+///|
+pub fn read_clipboard_text() -> String? {
+  let context = app_state_context()
+  if context == 0UL || native_context_clipboard_available(context) == 0 {
+    None
+  } else {
+    let bytes = native_context_clipboard_read_text(context)
+    if bytes.length() == 0 {
+      None
+    } else {
+      Some(@utf8.decode_lossy(bytes[:], ignore_bom=false))
+    }
+  }
+}
+
+///|
+pub fn write_clipboard_text(text : String) -> Bool {
+  let context = app_state_context()
+  if context == 0UL || native_context_clipboard_available(context) == 0 {
+    false
+  } else {
+    let bytes = text_bytes(text)
+    native_context_clipboard_write_text(context, bytes, bytes.length()) != 0
+  }
+}
+
+///|
+pub fn drag_drop_available() -> Bool {
+  let context = app_state_context()
+  context != 0UL && native_context_drag_drop_available(context) != 0
+}
+
+///|
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
   let _ = self
   raise @core.RequestError::not_supported(
