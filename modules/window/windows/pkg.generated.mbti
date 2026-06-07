@@ -40,6 +40,7 @@ pub impl Show for ActiveEventLoop
 pub struct EventLoop {
   // private fields
 } derive(@debug.Debug)
+pub fn EventLoop::EventLoop() -> Self
 pub fn EventLoop::allows_automatic_window_tabbing(Self) -> Bool
 pub fn EventLoop::available_monitors(Self) -> Array[@core.MonitorHandle]
 pub fn EventLoop::builder() -> EventLoopBuilder
@@ -77,6 +78,7 @@ pub impl Show for EventLoop
 pub struct EventLoopBuilder {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn EventLoopBuilder::EventLoopBuilder() -> Self
 pub fn EventLoopBuilder::build(Self) -> EventLoop
 pub fn EventLoopBuilder::default() -> Self
 pub fn EventLoopBuilder::new() -> Self
@@ -98,6 +100,7 @@ pub impl Show for EventLoopProxy
 pub struct Window {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Window::Window(EventLoop, @core.WindowAttributes) -> Self raise @core.RequestError
 pub fn Window::available_monitors(Self) -> Array[@core.MonitorHandle]
 pub fn Window::current_monitor(Self) -> @core.MonitorHandle?
 pub fn Window::cursor(Self) -> @core.Cursor
