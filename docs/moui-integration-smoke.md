@@ -204,25 +204,25 @@ bash scripts/record_moui_evidence.sh linux \
 bash scripts/capture_moui_runtime_evidence.sh linux --log artifacts/moui-linux-runtime.log
 
 bash scripts/record_moui_evidence.sh windows \
-  --status pending \
+  --status passed \
   --host "Windows Win32 CI" \
-  --commands "WINDOW_CI_HOST=windows bash scripts/check_ci.sh; scripts/smoke_runtime.sh windows; scripts/check_moui_windows_smoke.sh --run; scripts/check_moui_runtime_log.sh windows <captured-log>" \
-  --window-opened pending \
-  --resize-redraw pending \
-  --input pending \
-  --clean-exit pending \
-  --runtime-log pending \
-  --runtime-log-command "scripts/check_moui_runtime_log.sh windows <captured-log>" \
+  --commands "WINDOW_CI_HOST=windows bash scripts/check_ci.sh; scripts/check_moui_windows_smoke.sh --run; scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log" \
+  --window-opened yes \
+  --resize-redraw yes \
+  --input yes \
+  --clean-exit yes \
+  --runtime-log yes \
+  --runtime-log-command "scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log" \
   --consumer-command "scripts/check_moui_windows_smoke.sh --run" \
-  --surface pending \
-  --redraw pending \
-  --resize-scale pending \
-  --consumer-input pending \
-  --text-input pending \
-  --renderer-handle pending \
-  --monitor-cursor pending \
-  --clean-shutdown pending \
-  --notes "replace pending values only with observed matching-host Win32 facts, including HWND/HINSTANCE/raw_display/raw_window handle fields, monitor/current-monitor current=true with primary_id/current_id native ids, cursor probes, IME probe enabled/update/disable with hint/purpose enable/update probes, pointer/keyboard/ime text a before ready, destroy requested, and Destroyed before finished"
+  --surface yes \
+  --redraw yes \
+  --resize-scale yes \
+  --consumer-input yes \
+  --text-input yes \
+  --renderer-handle yes \
+  --monitor-cursor yes \
+  --clean-shutdown yes \
+  --notes "matching-host Win32 runtime accepted by scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log; observed HWND/HINSTANCE/raw_display/raw_window handle fields, monitor/current-monitor current=true with primary_id/current_id native ids, cursor Icon(Text), IME probe enabled/update/disable with hint/purpose enable/update probes, pointer/keyboard/ime text a before ready, resize/redraw, destroy requested, and Destroyed before finished"
 
 bash scripts/capture_moui_runtime_evidence.sh windows --log artifacts/moui-windows-runtime.log
 ```

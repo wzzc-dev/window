@@ -14,11 +14,13 @@ before a backend is treated as ready for MoUI integration.
   `moui-support`, writes GitHub Actions job summaries, and uploads reviewed
   evidence artifacts: `moui-ready-evidence-macos-web`,
   `moui-ready-evidence-linux`, and `moui-ready-evidence-windows`. The macOS/Web
-  job records passed evidence through the existing smoke helpers; Linux and
-  Windows jobs record pending strict-runtime capture plans until matching-host
-  transcripts are captured and verified.
+  job records passed evidence through the existing smoke helpers. The Linux job
+  records a pending strict-runtime capture plan; the noninteractive Windows CI
+  artifact still records a pending capture plan, while the matching-host Windows
+  transcript recorded below is now the reviewed Win32 runtime evidence.
 - `scripts/check_moui_readiness.sh` audits the MoUI smoke matrix so pending
-  Linux/Windows evidence is not accidentally documented as passed.
+  Linux evidence is not accidentally documented as passed and Windows passed
+  evidence stays tied to verified matching-host runtime logs.
 - `scripts/check_moui_evidence.sh` verifies the evidence helper's host-safety
   behavior and confirms it does not edit this tracker automatically.
 - `scripts/check_moui_runtime_log.sh <linux|windows> <captured-log>` verifies
@@ -61,7 +63,33 @@ before a backend is treated as ready for MoUI integration.
 
 ## Latest Local Verification
 
-Last verified on macOS, 2026-06-03:
+Last verified on Windows, 2026-06-07:
+
+- Windows build/runtime smoke on Windows (Windows_NT), 2026-06-07: passed.
+  Commands: `env WINDOW_CI_HOST=windows bash scripts/check_ci.sh`;
+  `scripts/check_moui_windows_smoke.sh --run > artifacts/moui-windows-runtime.log 2>&1`;
+  `scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log`.
+  Observed: window opened=yes, resize/redraw=yes, representative input=yes,
+  clean exit=yes.
+  Runtime log: verified=yes, command=`scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log`.
+  MoUI consumer: status=passed, command=`scripts/check_moui_windows_smoke.sh --run`,
+  surface=yes, redraw=yes, resize/scale=yes, input=yes, text/IME=yes,
+  renderer handle=yes, monitor/cursor=yes, clean shutdown=yes.
+  Notes: matching-host Win32 capture observed `surface size=298x124 scale=1.5`,
+  nonzero HWND/HINSTANCE with raw display/window identity preserved,
+  monitor/current-monitor `primary=true current=true` with native ids, cursor
+  `Icon(Text)`, public IME enable/update/disable state, resize delivery,
+  pointer `48,64`, keyboard key `a`, IME text `a`, redraw
+  `pre_present_notify`, `destroy requested`, `destroyed`, and `finished`.
+- `moon fmt`, `moon fmt --check`, `moon check`,
+  `moon test windows --target native --warn-list +73`,
+  `scripts/check_moui_windows_smoke.sh`, `bash scripts/check_ffi_surface.sh`,
+  `bash scripts/check_moui_readiness.sh`, and
+  `bash scripts/check_ci.sh` passed during the Windows matching-host capture
+  path. `scripts/check_moui_linux_smoke.sh` skipped on the Windows host, so
+  strict Linux Wayland runtime evidence remains pending.
+
+Previous macOS/Web verification on macOS, 2026-06-03:
 
 - `bash scripts/check_ci.sh` passed. This covered CI host detection,
   runtime smoke helper dry-run checks, documentation smoke checks, `moon check`,
@@ -108,8 +136,8 @@ Last verified on macOS, 2026-06-03:
   smoke commands.
 - `scripts/check_moui_linux_smoke.sh` and
   `scripts/check_moui_windows_smoke.sh` are wired into the default gate and
-  skip on macOS. Matching-host build/runtime evidence remains pending for both
-  platforms.
+  skip on macOS. Matching-host Linux build/runtime evidence remains pending;
+  Windows build/runtime evidence is now recorded above from a Windows host.
 - `scripts/check_moui_macos_smoke.sh --run` passed. This built
   `examples/moui_macos_smoke` and launched the AppKit smoke through `moon run`.
   Observed facts: a surface/scale probe was emitted, AppKit returned
@@ -146,11 +174,28 @@ Last verified on macOS, 2026-06-03:
 | macOS | Passed on macOS through `bash scripts/check_ci.sh` and `scripts/check_moui_macos_smoke.sh` | Automated MoUI smoke passed with surface, handles, resize/redraw, representative input, and clean shutdown | AppKit lifecycle depth and callback ownership remain high risk |
 | Web | Passed through the default gate, `scripts/check_web_assets.sh`, and `scripts/check_moui_web_smoke.sh` | Passed in a browser with canvas creation, redraw, resize/scale, pointer, keyboard, and MoUI consumer evidence | Native-only APIs remain placeholders or unsupported |
 | Linux | Pending matching Linux host; script exists as `scripts/check_moui_linux_smoke.sh` | Pending Wayland or Weston runtime; automated core smoke covers handles/present, `wl_output` monitor/current-monitor probes, and public IME state probes, while `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run` requires pointer/keyboard evidence | Wayland dependencies, text/IME delivery, decorations, precise monitor metadata, raw-handle parity |
-| Windows | Pending matching Windows host; script exists as `scripts/check_moui_windows_smoke.sh` | Pending Win32 runtime through `scripts/check_moui_windows_smoke.sh --run`; smoke requires HWND/HINSTANCE/raw-display handle fields and `current=true` monitor evidence | Windows toolchain, preview API parity, cursor/raw-handle validation |
+| Windows | Passed on Windows through `WINDOW_CI_HOST=windows bash scripts/check_ci.sh` and `scripts/check_moui_windows_smoke.sh` | Passed through `scripts/check_moui_windows_smoke.sh --run`; `artifacts/moui-windows-runtime.log` was accepted by `scripts/check_moui_runtime_log.sh windows` with HWND/HINSTANCE/raw-display identity, monitor/current-monitor, cursor, IME, pointer, keyboard, resize/redraw, and teardown evidence | Preview API parity and broader Win32 cursor/monitor/raw-handle coverage still need contract-backed follow-up |
 
 Treat `Pending` as missing evidence, not as a soft pass. A backend becomes
 MoUI-ready only after its build smoke and runtime smoke have both been observed
 on the matching platform, with remaining gaps either closed or accepted by MoUI.
+
+## Platform Difference Contracts
+
+Platform gaps should converge on one of these explicit contracts instead of
+silent ad-hoc behavior:
+
+| Contract | Meaning | Current use |
+| --- | --- | --- |
+| `NotSupported` | The caller requested a native effect that this backend cannot provide; the API must fail explicitly with the documented error. | macOS confined cursor grab, macOS drag-resize, macOS URL/animation custom cursors, and future Linux/Windows preview APIs that cannot provide the requested native behavior. |
+| State-only | The setter/getter stores public state for consumers but does not claim native OS integration yet. | macOS mobile-style preference setters, Linux/Windows public IME request state probes for hints, purpose, surrounding text, and cursor area. |
+| No-op | The command is intentionally inert because the platform has no useful equivalent or the effect is not required for MoUI readiness. | Web native-only window affordances, currently unsupported system menu/taskbar/decorations-style operations where the API contract allows no observable native effect. |
+| Placeholder | A stable fallback or identity value is exposed so cross-platform code can keep running, but it is not native parity evidence. | Web raw handles, Linux SHM mapping placeholder, and incomplete monitor/raw-handle metadata called out in backend caveats. |
+
+When changing platform-specific behavior, update the relevant caveat or gap
+entry at the same time as the code. A placeholder or no-op must not be counted
+as renderer-handle, monitor/cursor, input, or native lifecycle evidence unless a
+matching-host smoke explicitly observes the public behavior MoUI depends on.
 
 ## External Host Validation
 
@@ -230,8 +275,8 @@ Use this shape for new entries under `Latest Local Verification`:
 ```
 
 `docs/moui-integration-smoke.md` keeps copyable `bash scripts/record_moui_evidence.sh`
-commands for the proven Web/macOS smoke facts and pending Linux/Windows
-matching-host templates. Use those templates instead of hand-writing option
+commands for the proven Web/macOS/Windows smoke facts and the pending Linux
+matching-host template. Use those templates instead of hand-writing option
 sets, then replace `pending` values only with facts observed on the matching
 host. For passed Linux/Windows entries, replace the runtime log fields only
 after `scripts/check_moui_runtime_log.sh` accepts the captured transcript.

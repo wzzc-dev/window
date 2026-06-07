@@ -7,3 +7,4 @@ winit-reference/
 linux/generated/*
 !linux/generated/xdg-shell-protocol.c
 !linux/generated/xdg-decoration-protocol.c
+artifacts/

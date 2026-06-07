@@ -476,58 +476,62 @@ require_text "documented Linux pending recorder template" "$last_output" \
 require_text "documented Linux pending recorder template" "$last_output" \
   "Destroyed before finished"
 
-expect_success "documented Windows pending recorder template" \
+expect_success "documented Windows passed recorder template" \
   record_evidence windows \
-    --status pending \
+    --status passed \
     --host "Windows Win32 CI" \
-    --commands "WINDOW_CI_HOST=windows bash scripts/check_ci.sh; scripts/smoke_runtime.sh windows; scripts/check_moui_windows_smoke.sh --run; scripts/check_moui_runtime_log.sh windows <captured-log>" \
-    --window-opened pending \
-    --resize-redraw pending \
-    --input pending \
-    --clean-exit pending \
-    --runtime-log pending \
-    --runtime-log-command "scripts/check_moui_runtime_log.sh windows <captured-log>" \
+    --commands "WINDOW_CI_HOST=windows bash scripts/check_ci.sh; scripts/check_moui_windows_smoke.sh --run; scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log" \
+    --window-opened yes \
+    --resize-redraw yes \
+    --input yes \
+    --clean-exit yes \
+    --runtime-log yes \
+    --runtime-log-command "scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log" \
     --consumer-command "scripts/check_moui_windows_smoke.sh --run" \
-    --surface pending \
-    --redraw pending \
-    --resize-scale pending \
-    --consumer-input pending \
-    --text-input pending \
-    --renderer-handle pending \
-    --monitor-cursor pending \
-    --clean-shutdown pending \
-    --notes "replace pending values only with observed matching-host Win32 facts, including HWND/HINSTANCE/raw_display/raw_window handle fields, monitor/current-monitor current=true with primary_id/current_id native ids, cursor probes, IME probe enabled/update/disable with hint/purpose enable/update probes, pointer/keyboard/ime text a before ready, destroy requested, and Destroyed before finished"
-require_text "documented Windows pending recorder template" "$last_output" \
+    --surface yes \
+    --redraw yes \
+    --resize-scale yes \
+    --consumer-input yes \
+    --text-input yes \
+    --renderer-handle yes \
+    --monitor-cursor yes \
+    --clean-shutdown yes \
+    --notes "matching-host Win32 runtime accepted by scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log; observed HWND/HINSTANCE/raw_display/raw_window handle fields, monitor/current-monitor current=true with primary_id/current_id native ids, cursor Icon(Text), IME probe enabled/update/disable with hint/purpose enable/update probes, pointer/keyboard/ime text a before ready, resize/redraw, destroy requested, and Destroyed before finished"
+require_text "documented Windows passed recorder template" "$last_output" \
   "windows build/runtime smoke"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
   "on Windows Win32 CI"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "MoUI consumer: status=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "renderer handle=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "text/IME=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "monitor/cursor=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "clean shutdown=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "Runtime log: verified=pending"
-require_text "documented Windows pending recorder template" "$last_output" \
-  "scripts/check_moui_runtime_log.sh windows <captured-log>"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
+  "MoUI consumer: status=passed"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "renderer handle=yes"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "text/IME=yes"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "monitor/cursor=yes"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "clean shutdown=yes"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "Runtime log: verified=yes"
+require_text "documented Windows passed recorder template" "$last_output" \
+  "scripts/check_moui_runtime_log.sh windows artifacts/moui-windows-runtime.log"
+require_text "documented Windows passed recorder template" "$last_output" \
   "HWND/HINSTANCE/raw_display/raw_window handle fields"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
   "primary_id/current_id native ids"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
+  "cursor Icon(Text)"
+require_text "documented Windows passed recorder template" "$last_output" \
   "IME probe enabled/update/disable with hint/purpose enable/update probes"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
   "ime text a"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
   "pointer/keyboard/ime text a before ready"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
+  "resize/redraw"
+require_text "documented Windows passed recorder template" "$last_output" \
   "destroy requested"
-require_text "documented Windows pending recorder template" "$last_output" \
+require_text "documented Windows passed recorder template" "$last_output" \
   "Destroyed before finished"
 
 expect_failure "consumer evidence requires command" \

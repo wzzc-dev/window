@@ -43,7 +43,7 @@ run_runtime_smoke() {
   local output_file timeout_sec pid status
   timeout_sec="${WINDOW_MOUI_WINDOWS_SMOKE_TIMEOUT_SEC:-15}"
   output_file="$(mktemp "${TMPDIR:-/tmp}/moui-windows-smoke.XXXXXX")"
-  trap 'rm -f "$output_file"' EXIT
+  trap 'rm -f "${output_file:-}"' EXIT
   set +e
   "$exe" >"$output_file" 2>&1 &
   pid=$!

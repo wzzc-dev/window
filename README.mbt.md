@@ -59,6 +59,11 @@ verifier before accepting `scripts/check_moui_windows_smoke.sh --run`.
 On a matching Windows host, `bash scripts/capture_moui_runtime_evidence.sh windows
 --log <path>` runs the host CI branch, saves the transcript, verifies it, and
 prints the standard evidence entry for review.
+The current reviewed Windows matching-host transcript is
+`artifacts/moui-windows-runtime.log` from 2026-06-07; it passed
+`scripts/check_moui_runtime_log.sh windows` with HWND/HINSTANCE/raw handle
+identity, monitor/current-monitor, cursor, IME, resize/redraw,
+pointer/keyboard/text input, and clean teardown evidence.
 
 #### MSVC
 
@@ -283,6 +288,21 @@ This library follows MoonBit `raise`-based error handling (typed errors), not
 - `Window::set_cursor_position(...)` may raise `@core.RequestError`
 - `Window::request_ime_update(...)` may raise `@core.ImeRequestError`
 
+## Platform Difference Contracts
+
+Cross-platform gaps should use one of four documented contracts. Use
+`NotSupported` when a caller requested a native effect the backend cannot
+provide. Use state-only behavior when setters/getters intentionally preserve
+consumer-visible state without claiming native OS integration yet. Use no-op
+only when an inert command is the documented platform behavior. Use
+placeholder values only as stable fallbacks that keep portable code running;
+placeholders are not native parity evidence.
+
+The current preview contracts are tracked in `docs/platform-gaps.md`. Examples
+include Web placeholder raw handles, Linux SHM placeholder mapping, Linux and
+Windows public IME request state probes, and unsupported native-only Web or
+preview-backend affordances.
+
 ## macOS Caveats
 
 - `EventLoop::pump_app_events(...)` is for host-loop integration, not frame-by-frame rendering.
@@ -370,8 +390,9 @@ Import only the subpackages you need:
   MoonBit `native` backend.
 - Use a working C toolchain before building examples. MSVC users should run
   `vcvarsall.bat`; Mingw users should ensure `gcc` is on `PATH`.
-- Some APIs that are meaningful on macOS or Web may be state-only, no-op, or
-  `NotSupported` on Windows while parity work continues.
+- The 2026-06-07 matching-host Win32 MoUI smoke passed with verified runtime
+  log evidence, but APIs outside that smoke may still be state-only, no-op, or
+  `NotSupported` while parity work continues.
 
 ## Linux Caveats
 

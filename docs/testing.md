@@ -57,9 +57,10 @@ on a generic green build:
   and uploads the `moui-ready-evidence-windows` artifact.
 
 Those artifacts are copyable `bash scripts/record_moui_evidence.sh` outputs for
-review. They do not edit `docs/platform-gaps.md` automatically; Linux/Windows
-remain pending until a matching runtime transcript is captured, verified, and
-reviewed.
+review. They do not edit `docs/platform-gaps.md` automatically. Linux remains
+pending until a matching Wayland runtime transcript is captured, verified, and
+reviewed. Windows may be documented as passed only when the entry is backed by
+a matching-host Win32 transcript accepted by `scripts/check_moui_runtime_log.sh`.
 
 The gate is host-aware because native stubs are platform-specific. macOS
 should not try to compile Win32 headers or Wayland generated C files; Linux
@@ -239,8 +240,9 @@ prefixed smoke failure-line rejection, pointer coordinate-field failures,
 duplicate startup-probe failures, invalid resize-request failures,
 duplicate-ready sentinel failures, plus duplicate-teardown sentinel failures,
 post-finished smoke-line failures, and teardown-order failures where `finished`
-appears before `Destroyed`; real Linux/Windows runtime evidence still must be
-collected on matching hosts. Evidence lines must begin with the exact
+appears before `Destroyed`; real Linux runtime evidence still must be collected
+on a matching host, and Windows passed evidence must keep the verified
+matching-host transcript attached. Evidence lines must begin with the exact
 `MOUILinuxSmoke:` or `MOUIWindowsSmoke:` prefix, so ordinary logs that merely
 mention a smoke sentinel cannot satisfy runtime evidence. Ready and teardown
 sentinels must match their expected line exactly, so near-miss lines like
@@ -282,7 +284,8 @@ It also runs `scripts/check_docs_smoke.sh` so the documented gate and smoke
 entry points stay in sync with the scripts on disk.
 `scripts/check_moui_readiness.sh` adds a noninteractive readiness audit over
 the MoUI smoke matrix: macOS/Web may only be documented as passed with recorded
-evidence, while Linux/Windows must remain pending until matching-host runtime
+evidence, Windows passed evidence must keep explicit matching-host runtime-log
+verification, and Linux must remain pending until strict matching-host runtime
 evidence is recorded.
 `scripts/check_moui_evidence.sh` verifies the evidence helper itself: passed
 native evidence must be produced on the matching host or explicitly name the
@@ -388,7 +391,7 @@ Full MoUI consumer evidence records also include
 `--consumer-command`, `--surface yes`, `--redraw yes`,
 `--resize-scale yes`, `--consumer-input yes`, `--renderer-handle yes`,
 `--text-input yes`, `--monitor-cursor yes`, and `--clean-shutdown yes`. The
-copyable Web/macOS passed templates and Linux/Windows pending templates live in
+copyable Web/macOS/Windows passed templates and the Linux pending template live in
 `docs/moui-integration-smoke.md`.
 
 See `docs/platform-gaps.md` for backend-specific gaps that remain after these

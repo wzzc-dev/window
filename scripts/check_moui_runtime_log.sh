@@ -550,7 +550,7 @@ if [[ -z "$logfile" ]]; then
 fi
 
 require_file "$logfile"
-output="$(cat "$logfile")"
+output="$(sed 's/\r$//' "$logfile")"
 case "$backend" in
   linux)
     check_linux_log "$output"

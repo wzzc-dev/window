@@ -184,6 +184,9 @@ fn log_ime_probe(window : @linux.Window) -> Bool {
       return false
     }
   }
+  let scale = window.scale_factor()
+  let expected_position = position.to_physical(scale)
+  let expected_size = size.to_physical(scale)
   let enabled = window.ime_capabilities() is Some(_)
   let hint_ok = window.ime_hints().contains(@core.ImeHint::completion()) &&
     window.ime_purpose() == Email
@@ -191,14 +194,16 @@ fn log_ime_probe(window : @linux.Window) -> Bool {
     Some(text) => text.text() == "moui"
     None => false
   }
-  let cursor_ok = window.ime_cursor_area_position() == PhysicalPosition(12, 18) &&
-    window.ime_cursor_area_size() == PhysicalSize(2, 20)
+  let cursor_ok = window.ime_cursor_area_position() == expected_position &&
+    window.ime_cursor_area_size() == expected_size
   window.request_ime_update(Update(update_data)) catch {
     err => {
       println("MOUILinuxSmoke: ime probe update failed \{err}")
       return false
     }
   }
+  let expected_updated_position = updated_position.to_physical(scale)
+  let expected_updated_size = updated_size.to_physical(scale)
   let updated_hint_ok = window.ime_hints().contains(@core.ImeHint::spellcheck()) &&
     window.ime_purpose() == Url
   let updated_ok = match window.ime_surrounding_text() {
@@ -206,8 +211,8 @@ fn log_ime_probe(window : @linux.Window) -> Bool {
     None => false
   }
   let updated_cursor_ok = window.ime_cursor_area_position() ==
-    PhysicalPosition(14, 20) &&
-    window.ime_cursor_area_size() == PhysicalSize(3, 21)
+    expected_updated_position &&
+    window.ime_cursor_area_size() == expected_updated_size
   window.request_ime_update(Disable) catch {
     err => {
       println("MOUILinuxSmoke: ime probe disable failed \{err}")

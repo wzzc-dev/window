@@ -182,7 +182,11 @@ check_export_allowlist() {
   local current_exports="$3"
   local new_exports removed_exports
 
-  new_exports="$(comm -13 "$allowlist" <(printf '%s\n' "$current_exports") || true)"
+  new_exports="$(
+    comm -13 \
+      <(sed 's/\r$//' "$allowlist" | sort -u) \
+      <(printf '%s\n' "$current_exports" | sed 's/\r$//' | sort -u) || true
+  )"
   if [[ -n "$new_exports" ]]; then
     echo "found newly introduced $label native export symbol(s):" >&2
     printf '%s\n' "$new_exports" >&2
@@ -190,7 +194,11 @@ check_export_allowlist() {
     exit 1
   fi
 
-  removed_exports="$(comm -23 "$allowlist" <(printf '%s\n' "$current_exports") || true)"
+  removed_exports="$(
+    comm -23 \
+      <(sed 's/\r$//' "$allowlist" | sort -u) \
+      <(printf '%s\n' "$current_exports" | sed 's/\r$//' | sort -u) || true
+  )"
   if [[ -n "$removed_exports" ]]; then
     echo "$label allowlist contains missing export symbol(s):" >&2
     printf '%s\n' "$removed_exports" >&2
@@ -314,7 +322,11 @@ current_wrappers="$(
     "$ROOT/macos/ffi.mbt" | sort -u
 )"
 
-new_wrappers="$(comm -13 "$WRAPPER_ALLOWLIST" <(printf '%s\n' "$current_wrappers") || true)"
+new_wrappers="$(
+  comm -13 \
+    <(sed 's/\r$//' "$WRAPPER_ALLOWLIST" | sort -u) \
+    <(printf '%s\n' "$current_wrappers" | sed 's/\r$//' | sort -u) || true
+)"
 if [[ -n "$new_wrappers" ]]; then
   echo "found newly introduced native wrapper function(s) in macos/ffi.mbt:" >&2
   printf '%s\n' "$new_wrappers" >&2

@@ -30,7 +30,6 @@ int32_t mbw_moui_windows_smoke_send_input(uint64_t raw_hwnd) {
   PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, point);
   PostMessageW(hwnd, WM_LBUTTONUP, 0, point);
   PostMessageW(hwnd, WM_KEYDOWN, (WPARAM)'A', (LPARAM)0x001E0001);
-  PostMessageW(hwnd, WM_CHAR, (WPARAM)'a', (LPARAM)0x00000001);
   PostMessageW(hwnd, WM_KEYUP, (WPARAM)'A', (LPARAM)0xC01E0001);
   InvalidateRect(hwnd, NULL, FALSE);
   return 1;
