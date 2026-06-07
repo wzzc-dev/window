@@ -133,10 +133,14 @@ ownership and lifetime contracts ambiguous.
 
 Current control:
 
-- Public renderer integration uses explicit `Window::content_view_handle()`
-  documentation.
-- `Window::window_handle()` and `Window::content_view_handle()` both expose the
-  AppKit content view, matching raw-window-handle AppKit semantics.
+- Public renderer integration is documented around the raw-window-handle-style
+  `Window::display_handle()` and `Window::window_handle()` pair.
+- On macOS, `Window::window_handle()` and the macOS-only
+  `Window::content_view_handle()` both expose the AppKit content view, matching
+  raw-window-handle AppKit semantics.
+- On Windows/Linux/Web, `Window::content_view_handle()` is not a compatibility
+  target; use the shared handle pair plus platform extension APIs such as
+  Linux Wayland handles or Web `Window::canvas_id()`.
 
 Required direction:
 

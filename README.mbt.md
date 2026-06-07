@@ -309,6 +309,16 @@ packages such as `wgpu_mbt` should own Metal or `wgpu` surface setup on top of
 that handle. In particular, downstream code should not scan
 `NSApplication.windows` or use the internal `rawId` selector to find a window.
 
+For cross-platform renderer integrations, follow the raw-window-handle shape:
+use `Window::display_handle()` plus `Window::window_handle()` as the common
+boundary, then use platform extensions only when the renderer needs details
+beyond that pair. On Windows, the display/window pair is HINSTANCE/HWND. On
+Linux Wayland, it is `wl_display`/`wl_surface`, with `xdg_surface` and
+`xdg_toplevel` available through the Linux extension APIs. On Web, raw handles
+are placeholder identity values; use `Window::canvas_id()` and `web/runtime.js`
+for the actual browser canvas binding. `Window::content_view_handle()` is an
+AppKit convenience API for macOS, not a Windows/Linux/Web compatibility target.
+
 For `CAMetalLayer` integration, create/attach/sync the layer in the renderer
 layer using the content-view handle. Keep the layer synchronized with:
 

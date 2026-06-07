@@ -248,16 +248,19 @@ on. Record the exact downstream command and these observed facts:
 
 Backend-specific handle expectations:
 
-- macOS: renderer setup uses `Window::content_view_handle()` or
-  `Window::window_handle()` content-view semantics, not private AppKit lookup
+- Shared native renderer setup uses `Window::display_handle()` and
+  `Window::window_handle()` in the raw-window-handle style.
+- macOS: `Window::window_handle()` has AppKit content-view semantics;
+  `Window::content_view_handle()` is the macOS-only explicit convenience API.
 - Web: renderer setup uses `Window::canvas_id()` plus `web/runtime.js`
-  imports and exported `web_dispatch_event`
-- Linux: renderer setup uses Wayland handles (`wl_display`, `wl_surface`,
-  `xdg_surface`, `xdg_toplevel`) or `present_rgba_pixels(...)` for CPU frames
-- Windows: renderer setup uses public HWND plus HINSTANCE-backed raw display
-  handles from `Window::display_handle()`, `Window::rwh_06_display_handle()`,
-  and `Window::rwh_06_window_handle()`, preserves raw display/window identity,
-  and covers Win32 keyboard, mouse, and IME delivery
+  imports and exported `web_dispatch_event`; raw handles are placeholders.
+- Linux: renderer setup uses `wl_display`/`wl_surface` from the shared handle
+  pair, with `xdg_surface`/`xdg_toplevel` extension APIs or
+  `present_rgba_pixels(...)` for CPU frames.
+- Windows: renderer setup uses public HINSTANCE/HWND identity from
+  `Window::display_handle()`, `Window::window_handle()`,
+  `Window::rwh_06_display_handle()`, and `Window::rwh_06_window_handle()`,
+  and covers Win32 keyboard, mouse, and IME delivery.
 
 If the MoUI consumer smoke fails, keep the backend status pending in
 `docs/platform-gaps.md` and record the first actionable failure.
