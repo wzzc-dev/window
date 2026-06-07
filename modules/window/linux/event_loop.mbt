@@ -37,6 +37,11 @@ pub fn EventLoopBuilder::new() -> EventLoopBuilder {
 }
 
 ///|
+pub fn EventLoopBuilder::EventLoopBuilder() -> EventLoopBuilder {
+  EventLoopBuilder::new()
+}
+
+///|
 pub fn EventLoopBuilder::default() -> EventLoopBuilder {
   EventLoopBuilder::new()
 }
@@ -104,6 +109,11 @@ pub fn EventLoopBuilder::try_build(
 ///|
 pub fn EventLoop::new() -> EventLoop {
   try! EventLoop::try_new()
+}
+
+///|
+pub fn EventLoop::EventLoop() -> EventLoop {
+  EventLoop::new()
 }
 
 ///|

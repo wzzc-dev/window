@@ -54,6 +54,14 @@ pub fn Window::new(
 }
 
 ///|
+pub fn Window::Window(
+  event_loop : EventLoop,
+  attributes : @core.WindowAttributes,
+) -> Window raise @core.RequestError {
+  Window::new(event_loop, attributes)
+}
+
+///|
 pub fn Window::new_with_linux_attributes(
   event_loop : EventLoop,
   attributes : @core.WindowAttributes,
