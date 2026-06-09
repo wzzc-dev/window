@@ -14,6 +14,10 @@ keywords = [ "windowing", "winit", "macos", "appkit", "gui" ]
 
 description = "The wzzc-dev fork of moonbit-community/window, adding MoUI-oriented Web, Windows, and Linux support while tracking upstream window 0.5.1."
 
+import {
+  "moonbitlang/x@0.4.43",
+}
+
 options(
   "--moonbit-unstable-prebuild": "build.js",
 )

@@ -501,6 +501,25 @@ fn Window::apply_ime_request_data(
   if self.ime_capabilities_state is None {
     raise NotEnabled
   }
+  if request_data.has_hint_and_purpose() {
+    if self.ime_supports_hint_and_purpose() {
+      match request_data.hint_and_purpose() {
+        Some((hint, purpose)) => {
+          self.set_ime_hints(hint)
+          set_ime_purpose(
+            self.raw_window_handle,
+            normalize_ime_purpose_native(ime_purpose_to_native(purpose)),
+          )
+        }
+        None => ()
+      }
+    }
+  }
+  if request_data.has_surrounding_text() {
+    if self.ime_supports_surrounding_text() {
+      self.set_ime_surrounding_text(request_data.surrounding_text())
+    }
+  }
   if request_data.has_cursor_area() {
     if self.ime_supports_cursor_area() {
       match request_data.cursor_area() {
@@ -546,9 +565,25 @@ pub fn Window::ime_capabilities(self : Window) -> @core.ImeCapabilities? {
 }
 
 ///|
+fn Window::ime_supports_hint_and_purpose(self : Window) -> Bool {
+  match self.ime_capabilities_state {
+    Some(capabilities) => capabilities.hint_and_purpose()
+    None => false
+  }
+}
+
+///|
 fn Window::ime_supports_cursor_area(self : Window) -> Bool {
   match self.ime_capabilities_state {
     Some(capabilities) => capabilities.cursor_area()
+    None => false
+  }
+}
+
+///|
+fn Window::ime_supports_surrounding_text(self : Window) -> Bool {
+  match self.ime_capabilities_state {
+    Some(capabilities) => capabilities.surrounding_text()
     None => false
   }
 }

@@ -1,4 +1,7 @@
 import {
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
   "wzzc-dev/window/examples/util",

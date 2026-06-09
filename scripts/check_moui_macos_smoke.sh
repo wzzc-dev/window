@@ -15,9 +15,12 @@ usage() {
 Usage: scripts/check_moui_macos_smoke.sh [--run]
 
 Without --run, build and statically verify the macOS MoUI smoke artifact on a
-macOS host. With --run, execute the AppKit smoke through moon run and require it to
-  print the surface, handle, resize, redraw, pointer, keyboard, ready,
-  destroyed, and finished sentinel lines.
+macOS host. With --run, execute the AppKit smoke through moon run and require
+it to print the surface, handle, resize, redraw, pointer, keyboard, IME probe,
+ready, destroyed, and finished sentinel lines.
+
+Set WINDOW_MOUI_MACOS_SMOKE_LOG_PATH to have the smoke app also write the same
+runtime marker transcript to a file for matching-host evidence capture.
 EOF
 }
 
@@ -82,11 +85,14 @@ run_runtime_smoke() {
   require_output "$output" "MOUIMacSmoke: surface"
   require_output "$output" "MOUIMacSmoke: handles"
   require_output "$output" "MOUIMacSmoke: monitors"
+  require_output "$output" "primary=true current=true"
   require_output "$output" "MOUIMacSmoke: cursor"
   require_output "$output" "MOUIMacSmoke: resize"
   require_output "$output" "MOUIMacSmoke: redraw pre_present_notify"
   require_output "$output" "MOUIMacSmoke: pointer"
   require_output "$output" "MOUIMacSmoke: keyboard"
+  require_output "$output" "MOUIMacSmoke: ime probe"
+  require_output "$output" "disabled=true"
   require_output "$output" "MOUIMacSmoke: ready"
   require_output "$output" "MOUIMacSmoke: destroyed"
   require_output "$output" "MOUIMacSmoke: finished"
@@ -146,6 +152,10 @@ require_text "$main" "window.primary_monitor()"
 require_text "$main" "window.current_monitor()"
 require_text "$main" "window.set_cursor_icon(Text)"
 require_text "$main" "window.cursor()"
+require_text "$main" "window.request_ime_update(Enable(enable))"
+require_text "$main" "window.ime_surrounding_text()"
+require_text "$main" "window.ime_cursor_area_position()"
+require_text "$main" "window.ime_cursor_area_size()"
 require_text "$main" "window.pre_present_notify()"
 require_text "$main" "PointerMoved"
 require_text "$main" "KeyboardInput"
@@ -156,6 +166,10 @@ require_text "$main" "RedrawRequested"
 
 if [[ "$run_mode" == "1" ]]; then
   run_runtime_smoke "${run_command[@]}"
+  if [[ -n "${WINDOW_MOUI_MACOS_SMOKE_LOG_PATH:-}" ]]; then
+    printf 'MoUI macOS runtime smoke passed: %s\n' "${run_command[*]}" >> \
+      "$WINDOW_MOUI_MACOS_SMOKE_LOG_PATH"
+  fi
   printf 'MoUI macOS runtime smoke passed: %s\n' "${run_command[*]}"
 else
   printf 'MoUI macOS smoke build check passed: %s\n' "$pkg"
