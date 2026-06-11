@@ -1,6 +1,6 @@
 name = "wzzc-dev/window"
 
-version = "0.5.1-fork.3"
+version = "0.5.1-fork.4"
 
 preferred_target = "native"
 
