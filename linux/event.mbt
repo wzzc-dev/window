@@ -689,14 +689,7 @@ fn dispatch_native_input_event(
     k if k == linux_event_drag_leave =>
       app_state_queue_window_event(
         raw_id,
-        DragLeft(
-          Some(
-            @dpi.PhysicalPositionF64::PhysicalPositionF64(
-              arg0.to_double(),
-              arg1.to_double(),
-            ),
-          ),
-        ),
+        DragLeft(Some(PhysicalPositionF64(arg0.to_double(), arg1.to_double()))),
       )
     _ => ()
   }

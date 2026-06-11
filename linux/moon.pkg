@@ -9,8 +9,8 @@ supported_targets = "native"
 options(
   "native-stub": [
     "native_wayland.c",
-    "generated/xdg-shell-protocol.c",
-    "generated/xdg-decoration-protocol.c",
+    "xdg_shell_protocol_native.c",
+    "xdg_decoration_protocol_native.c",
   ],
   targets: { "ffi.mbt": [ "native" ] },
 )
