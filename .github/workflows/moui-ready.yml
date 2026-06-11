@@ -34,6 +34,13 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Install macOS native dependencies
+        shell: bash
+        run: |
+          if ! command -v rg >/dev/null 2>&1; then
+            brew install ripgrep
+          fi
+
       - name: Install MoonBit
         shell: bash
         run: |
@@ -41,6 +48,7 @@ jobs:
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.moon/bin:$PATH"
           moon version
+          moon update
 
       - name: Run host-aware repository gate
         shell: bash
@@ -148,6 +156,7 @@ jobs:
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.moon/bin:$PATH"
           moon version
+          moon update
 
       - name: Run Linux host-aware repository gate
         shell: bash
@@ -232,6 +241,7 @@ jobs:
           irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
           "$HOME\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           & "$HOME\.moon\bin\moon.exe" version
+          & "$HOME\.moon\bin\moon.exe" update
 
       - name: Run Windows host-aware repository gate
         shell: msys2 {0}
