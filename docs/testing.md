@@ -306,10 +306,11 @@ exports the same symbols with matching ABI signatures as its non-host stub
 branch, so stale, unexported, or signature-drifted backend bindings cannot
 drift silently.
 `scripts/check_moon_baseline.sh` runs `moon info`, verifies tracked
-`pkg.generated.mbti` files did not drift, runs `moon info web --target wasm-gc`,
-runs `moon fmt --check`, and runs bare moon test on macOS where the current
-cross-package native test graph is executable. On Linux/Windows, keep using the
-matching host CI branch and backend smoke for native runtime evidence.
+`pkg.generated.mbti` files did not drift after normalizing CRLF/LF line endings,
+runs `moon info web --target wasm-gc`, runs `moon fmt --check`, and runs the
+bare moon test on macOS where the current cross-package native test graph is
+executable. On Linux/Windows, keep using the matching host CI branch and backend
+smoke for native runtime evidence.
 Use `bash scripts/record_moui_evidence.sh <backend>` after a matching-host runtime
 run to print the standard `docs/platform-gaps.md` evidence entry. The helper is
 write-free by design: it does not upgrade backend status or edit documentation

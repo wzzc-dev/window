@@ -13,7 +13,7 @@ fail() {
 snapshot_tracked_interfaces() {
   git ls-files '*pkg.generated.mbti' | while IFS= read -r path; do
     if [[ -f "$path" ]]; then
-      cksum "$path"
+      printf '%s  %s\n' "$(sed 's/\r$//' "$path" | cksum)" "$path"
     else
       printf 'missing %s\n' "$path"
     fi
