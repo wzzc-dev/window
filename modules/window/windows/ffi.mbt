@@ -147,7 +147,10 @@ extern "C" fn native_consume_utf8_text(ptr : UInt64, len : Int) -> Bytes = "mbw_
 extern "C" fn native_invalidate_rect(hwnd : UInt64, erase : Bool) -> Int = "mbw_invalidate_rect"
 
 ///|
-extern "C" fn native_set_cursor(cursor : UInt64) -> UInt64 = "mbw_set_cursor"
+extern "C" fn native_set_window_cursor(
+  hwnd : UInt64,
+  cursor : UInt64,
+) -> UInt64 = "mbw_set_window_cursor"
 
 ///|
 extern "C" fn native_load_cursor(

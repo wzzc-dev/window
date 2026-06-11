@@ -77,7 +77,19 @@ static mbw_imm_get_composition_string_t g_imm_get_composition_string = NULL;
 
 typedef struct {
   int32_t raw_id;
+  HCURSOR cursor;
 } MBWWindowState;
+
+static HCURSOR mbw_default_cursor(void) {
+  return LoadCursorW(NULL, MAKEINTRESOURCEW(32512));
+}
+
+static MBWWindowState *mbw_window_state(HWND hwnd) {
+  if (!hwnd) {
+    return NULL;
+  }
+  return (MBWWindowState *)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+}
 
 static int32_t mbw_load_imm32(void) {
   if (g_imm32 && g_imm_get_context && g_imm_release_context &&
@@ -184,6 +196,7 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
     MBWWindowState *new_state = (MBWWindowState *)calloc(1, sizeof(MBWWindowState));
     if (new_state) {
       new_state->raw_id = 0;
+      new_state->cursor = mbw_default_cursor();
       SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)new_state);
     }
     return DefWindowProcW(hwnd, msg, wparam, lparam);
@@ -301,6 +314,10 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
 
     case WM_SETCURSOR: {
       if (LOWORD(lparam) == HTCLIENT) {
+        HCURSOR cursor = state->cursor ? state->cursor : mbw_default_cursor();
+        if (cursor) {
+          SetCursor(cursor);
+        }
         if (g_sync_query_trampoline && g_sync_query_closure) {
           g_sync_query_trampoline(g_sync_query_closure, state->raw_id, 10, 0);
         }
@@ -742,6 +759,23 @@ int32_t mbw_invalidate_rect(uint64_t hwnd, int32_t erase) {
 MOONBIT_FFI_EXPORT
 uint64_t mbw_set_cursor(uint64_t cursor) {
   return (uint64_t)SetCursor((HCURSOR)cursor);
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_set_window_cursor(uint64_t hwnd, uint64_t cursor) {
+  HWND window = (HWND)hwnd;
+  HCURSOR next_cursor = (HCURSOR)cursor;
+  if (!next_cursor) {
+    next_cursor = mbw_default_cursor();
+  }
+  MBWWindowState *state = mbw_window_state(window);
+  if (state) {
+    state->cursor = next_cursor;
+  }
+  if (next_cursor) {
+    SetCursor(next_cursor);
+  }
+  return (uint64_t)next_cursor;
 }
 
 MOONBIT_FFI_EXPORT

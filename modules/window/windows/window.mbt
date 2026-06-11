@@ -503,7 +503,7 @@ pub fn Window::set_cursor_icon(
   cursor : @core.CursorIcon,
 ) -> Unit {
   let cursor_handle = cursor_icon_to_native(cursor)
-  ignore(native_set_cursor(cursor_handle))
+  ignore(native_set_window_cursor(self.hwnd, cursor_handle))
   self.cursor_state = @core.Cursor::Icon(cursor)
 }
 
