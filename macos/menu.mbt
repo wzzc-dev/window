@@ -374,3 +374,215 @@ fn initialize_default_menu(enabled : Bool) -> Unit {
   }
   native_application_initialize_default_menu(enabled)
 }
+
+// =========================================================================
+// Public system menu bar API
+// =========================================================================
+
+///|
+/// A single item in a system menu. Set `separator = true` for separator items;
+/// `title`, `action_id`, `key_equivalent`, and `key_modifier_mask` are ignored
+/// for separators.
+pub struct SystemMenuItemDescriptor {
+  title : String
+  action_id : Int
+  key_equivalent : String
+  key_modifier_mask : Int
+  separator : Bool
+} derive(Debug)
+
+///|
+pub fn SystemMenuItemDescriptor::new(
+  title~ : String,
+  action_id~ : Int,
+  key_equivalent~ : String,
+  key_modifier_mask~ : Int,
+  separator~ : Bool,
+) -> SystemMenuItemDescriptor {
+  { title, action_id, key_equivalent, key_modifier_mask, separator }
+}
+
+///|
+/// A top-level system menu (e.g., File, Edit, View) with its items.
+pub struct SystemMenuDescriptor {
+  title : String
+  items : Array[SystemMenuItemDescriptor]
+} derive(Debug)
+
+///|
+pub fn SystemMenuDescriptor::new(
+  title~ : String,
+  items~ : Array[SystemMenuItemDescriptor],
+) -> SystemMenuDescriptor {
+  { title, items }
+}
+
+///|
+/// Global callback reference to prevent garbage collection.
+let menu_action_callback_ref : Ref[((Int) -> Unit)?] = Ref(None)
+
+///|
+/// Register a callback that is invoked when a system menu item is selected.
+/// The callback receives the `action_id` of the selected item.
+pub fn set_system_menu_action_handler(handler : (Int) -> Unit) -> Unit {
+  menu_action_callback_ref.val = Some(handler)
+  native_install_menu_action_callback(
+    fn(callback, action_id) { callback(action_id) },
+    handler,
+  )
+}
+
+///|
+/// Build and install a native macOS system menu bar from descriptors.
+///
+/// The app menu (About / Services / Hide / Quit) is preserved from the default
+/// menu. Custom menus are inserted after it.
+///
+/// Menu item clicks are dispatched through the callback registered with
+/// `set_system_menu_action_handler`.
+pub fn set_system_menus(menus : Array[SystemMenuDescriptor]) -> Unit {
+  let app = native_application_shared_handle()
+  if app == (0 : Int).to_uint64() {
+    return ()
+  }
+
+  // Build the app menu (About, Services, Hide, Quit) — same as default.
+  let main_menu = native_appkit_new_menu("")
+  if native_objc_owned_valid(main_menu) == false {
+    return ()
+  }
+  let app_menu_item = native_appkit_new_menu_item("", "", "", (0 : Int).to_uint64(), -1)
+  let app_menu = native_appkit_new_menu("")
+  if native_objc_owned_valid(app_menu_item) {
+    native_appkit_add_menu_item(main_menu, app_menu_item)
+    if native_objc_owned_valid(app_menu) {
+      appkit_objc_msg_send_void_u64(
+        native_objc_owned_handle(app_menu_item),
+        objc_runtime_selector_handle("setSubmenu:"),
+        native_objc_owned_handle(app_menu),
+      )
+    }
+  }
+  if native_objc_owned_valid(app_menu) {
+    let about_item = native_appkit_new_menu_item(
+      "About", "orderFrontStandardAboutPanel:", "", app, -1,
+    )
+    if native_objc_owned_valid(about_item) {
+      native_appkit_add_menu_item(app_menu, about_item)
+      appkit_objc_release_object(about_item)
+    }
+    native_appkit_add_separator_item(app_menu)
+    let services_item = native_appkit_new_menu_item("Services", "", "", (0 : Int).to_uint64(), -1)
+    let services_menu = native_appkit_new_menu("Services")
+    if native_objc_owned_valid(services_menu) {
+      appkit_objc_msg_send_void_u64(
+        app, objc_runtime_selector_handle("setServicesMenu:"), native_objc_owned_handle(services_menu),
+      )
+      if native_objc_owned_valid(services_item) {
+        appkit_objc_msg_send_void_u64(
+          native_objc_owned_handle(services_item),
+          objc_runtime_selector_handle("setSubmenu:"),
+          native_objc_owned_handle(services_menu),
+        )
+      }
+      appkit_objc_release_object(services_menu)
+    }
+    if native_objc_owned_valid(services_item) {
+      native_appkit_add_menu_item(app_menu, services_item)
+      appkit_objc_release_object(services_item)
+    }
+    let hide_item = native_appkit_new_menu_item("Hide", "hide:", "h", app, -1)
+    if native_objc_owned_valid(hide_item) {
+      native_appkit_add_menu_item(app_menu, hide_item)
+      appkit_objc_release_object(hide_item)
+    }
+    let option_cmd = 524288 + 1_048_576
+    let hide_others = native_appkit_new_menu_item(
+      "Hide Others", "hideOtherApplications:", "h", app, option_cmd,
+    )
+    if native_objc_owned_valid(hide_others) {
+      native_appkit_add_menu_item(app_menu, hide_others)
+      appkit_objc_release_object(hide_others)
+    }
+    let show_all = native_appkit_new_menu_item("Show All", "unhideAllApplications:", "", app, -1)
+    if native_objc_owned_valid(show_all) {
+      native_appkit_add_menu_item(app_menu, show_all)
+      appkit_objc_release_object(show_all)
+    }
+    native_appkit_add_separator_item(app_menu)
+    let quit_item = native_appkit_new_menu_item("Quit", "terminate:", "q", app, -1)
+    if native_objc_owned_valid(quit_item) {
+      native_appkit_add_menu_item(app_menu, quit_item)
+      appkit_objc_release_object(quit_item)
+    }
+  }
+
+  // Create the action target for custom menu items.
+  let target = native_create_menu_action_target()
+
+  // Build custom menus from descriptors.
+  for menu_desc in menus {
+    let menu_item_obj = native_appkit_new_menu_item(
+      "", "", "", (0 : Int).to_uint64(), -1,
+    )
+    let submenu = native_appkit_new_menu(menu_desc.title)
+    if native_objc_owned_valid(menu_item_obj) {
+      native_appkit_add_menu_item(main_menu, menu_item_obj)
+      if native_objc_owned_valid(submenu) {
+        appkit_objc_msg_send_void_u64(
+          native_objc_owned_handle(menu_item_obj),
+          objc_runtime_selector_handle("setSubmenu:"),
+          native_objc_owned_handle(submenu),
+        )
+      }
+    }
+    if native_objc_owned_valid(submenu) {
+      for item_desc in menu_desc.items {
+        if item_desc.separator {
+          native_appkit_add_separator_item(submenu)
+        } else {
+          let key_mod = if item_desc.key_modifier_mask >= 0 {
+            item_desc.key_modifier_mask
+          } else {
+            -1
+          }
+          let ns_item = native_appkit_new_menu_item(
+            item_desc.title,
+            "handleMenuAction:",
+            item_desc.key_equivalent,
+            target,
+            key_mod,
+          )
+          if native_objc_owned_valid(ns_item) {
+            native_set_menu_item_action_id(
+              native_objc_owned_handle(ns_item),
+              item_desc.action_id,
+            )
+            native_appkit_add_menu_item(submenu, ns_item)
+            appkit_objc_release_object(ns_item)
+          }
+        }
+      }
+    }
+    if native_objc_owned_valid(submenu) {
+      appkit_objc_release_object(submenu)
+    }
+    if native_objc_owned_valid(menu_item_obj) {
+      appkit_objc_release_object(menu_item_obj)
+    }
+  }
+
+  // Install the menu bar.
+  appkit_objc_msg_send_void_u64(
+    app,
+    objc_runtime_selector_handle("setMainMenu:"),
+    native_objc_owned_handle(main_menu),
+  )
+  if native_objc_owned_valid(app_menu) {
+    appkit_objc_release_object(app_menu)
+  }
+  if native_objc_owned_valid(app_menu_item) {
+    appkit_objc_release_object(app_menu_item)
+  }
+  appkit_objc_release_object(main_menu)
+}
