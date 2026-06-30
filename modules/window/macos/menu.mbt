@@ -451,7 +451,13 @@ pub fn set_system_menus(menus : Array[SystemMenuDescriptor]) -> Unit {
   if native_objc_owned_valid(main_menu) == false {
     return ()
   }
-  let app_menu_item = native_appkit_new_menu_item("", "", "", (0 : Int).to_uint64(), -1)
+  let app_menu_item = native_appkit_new_menu_item(
+    "",
+    "",
+    "",
+    (0 : Int).to_uint64(),
+    -1,
+  )
   let app_menu = native_appkit_new_menu("")
   if native_objc_owned_valid(app_menu_item) {
     native_appkit_add_menu_item(main_menu, app_menu_item)
@@ -472,11 +478,19 @@ pub fn set_system_menus(menus : Array[SystemMenuDescriptor]) -> Unit {
       appkit_objc_release_object(about_item)
     }
     native_appkit_add_separator_item(app_menu)
-    let services_item = native_appkit_new_menu_item("Services", "", "", (0 : Int).to_uint64(), -1)
+    let services_item = native_appkit_new_menu_item(
+      "Services",
+      "",
+      "",
+      (0 : Int).to_uint64(),
+      -1,
+    )
     let services_menu = native_appkit_new_menu("Services")
     if native_objc_owned_valid(services_menu) {
       appkit_objc_msg_send_void_u64(
-        app, objc_runtime_selector_handle("setServicesMenu:"), native_objc_owned_handle(services_menu),
+        app,
+        objc_runtime_selector_handle("setServicesMenu:"),
+        native_objc_owned_handle(services_menu),
       )
       if native_objc_owned_valid(services_item) {
         appkit_objc_msg_send_void_u64(
@@ -504,13 +518,17 @@ pub fn set_system_menus(menus : Array[SystemMenuDescriptor]) -> Unit {
       native_appkit_add_menu_item(app_menu, hide_others)
       appkit_objc_release_object(hide_others)
     }
-    let show_all = native_appkit_new_menu_item("Show All", "unhideAllApplications:", "", app, -1)
+    let show_all = native_appkit_new_menu_item(
+      "Show All", "unhideAllApplications:", "", app, -1,
+    )
     if native_objc_owned_valid(show_all) {
       native_appkit_add_menu_item(app_menu, show_all)
       appkit_objc_release_object(show_all)
     }
     native_appkit_add_separator_item(app_menu)
-    let quit_item = native_appkit_new_menu_item("Quit", "terminate:", "q", app, -1)
+    let quit_item = native_appkit_new_menu_item(
+      "Quit", "terminate:", "q", app, -1,
+    )
     if native_objc_owned_valid(quit_item) {
       native_appkit_add_menu_item(app_menu, quit_item)
       appkit_objc_release_object(quit_item)
@@ -523,7 +541,11 @@ pub fn set_system_menus(menus : Array[SystemMenuDescriptor]) -> Unit {
   // Build custom menus from descriptors.
   for menu_desc in menus {
     let menu_item_obj = native_appkit_new_menu_item(
-      "", "", "", (0 : Int).to_uint64(), -1,
+      "",
+      "",
+      "",
+      (0 : Int).to_uint64(),
+      -1,
     )
     let submenu = native_appkit_new_menu(menu_desc.title)
     if native_objc_owned_valid(menu_item_obj) {
