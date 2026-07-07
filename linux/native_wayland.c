@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <moonbit.h>
 #include <wayland-client.h>
+#include <wayland-cursor.h>
 #include "generated/xdg-decoration-client-protocol.h"
 #include "generated/xdg-shell-client-protocol.h"
 
@@ -60,6 +61,7 @@ enum {
   MBW_WAYLAND_TITLEBAR_BUTTON_GAP = 8,
   MBW_WAYLAND_TITLEBAR_BUTTON_TOP = 7,
   MBW_WAYLAND_POINTER_LEFT_BUTTON = 0x110,
+  MBW_WAYLAND_RESIZE_MARGIN = 6,
 };
 
 struct mbw_wayland_window;
@@ -110,6 +112,15 @@ typedef struct mbw_wayland_context {
   struct wl_buffer *cursor_buffer;
   void *cursor_data;
   size_t cursor_size;
+  struct wl_cursor_theme *cursor_theme;
+  struct {
+    const char *name;
+    struct wl_buffer *buffer;
+    int hot_x;
+    int hot_y;
+  } cursor_cache[8];
+  int cursor_cache_count;
+  const char *cursor_current;
   int wake_fd;
   struct mbw_wayland_window *pointer_window;
   struct mbw_wayland_window *keyboard_window;
@@ -138,6 +149,7 @@ typedef struct mbw_wayland_window {
   int pointer_x;
   int pointer_y;
   int active_titlebar_button;
+  int resizing;
   struct wl_output *current_output;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
@@ -675,6 +687,47 @@ static int titlebar_hit_drag(mbw_wayland_window_t *window, int x, int y) {
          titlebar_hit_button(window, x, y) == 0;
 }
 
+static uint32_t window_resize_edge(mbw_wayland_window_t *window, int x, int y) {
+  if (!window || !window->client_decorated) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+  }
+  int width = window->width > 0 ? window->width : 1;
+  int height = window->height > 0 ? window->height : 1;
+  int margin = MBW_WAYLAND_RESIZE_MARGIN;
+  // Edges are computed independently for x and y. The top `margin` pixels of
+  // the window form a top resize strip (so the top edge is resizable too);
+  // the band between that strip and the titlebar bottom stays draggable for
+  // moving the window, and the side/bottom edges work as before below the
+  // titlebar.
+  int on_left = x < margin;
+  int on_right = x >= width - margin;
+  int on_top = y < margin;
+  int on_bottom = y >= height - margin;
+  // Suppress side/bottom resize inside the titlebar's move band.
+  if (y >= MBW_WAYLAND_RESIZE_MARGIN && y < MBW_WAYLAND_TITLEBAR_HEIGHT) {
+    on_left = on_right = on_bottom = 0;
+  }
+  // Never start a resize where a titlebar button lives (e.g. the close button
+  // at the top-right corner would otherwise swallow the top-right resize).
+  if (titlebar_hit_button(window, x, y)) {
+    on_left = on_right = on_top = on_bottom = 0;
+  }
+  uint32_t edge = XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+  if (on_left) {
+    edge |= XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+  }
+  if (on_right) {
+    edge |= XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+  }
+  if (on_top) {
+    edge |= XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+  }
+  if (on_bottom) {
+    edge |= XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+  }
+  return edge;
+}
+
 static void draw_client_titlebar(mbw_wayland_window_t *window,
                                  uint32_t *pixels) {
   if (!window || !window->client_decorated || !pixels) {
@@ -718,7 +771,16 @@ static void attach_placeholder_buffer(mbw_wayland_window_t *window) {
   int width = window->width > 0 ? window->width : 1;
   int height = window->height > 0 ? window->height : 1;
   if (window->placeholder_buffer) {
-    if (window->placeholder_width == width && window->placeholder_height == height) {
+    if (window->placeholder_width == width &&
+        window->placeholder_height == height) {
+      // Size is unchanged: still (re)commit the surface so that an acked
+      // xdg_surface.configure is actually applied. Skipping the commit here
+      // (e.g. at the start of an interactive resize, when the first resize
+      // configure reports the same size) leaves the configure unapplied and
+      // desyncs the compositor, making the window jump on the first drag.
+      wl_surface_attach(window->surface, window->placeholder_buffer, 0, 0);
+      wl_surface_damage_buffer(window->surface, 0, 0, width, height);
+      wl_surface_commit(window->surface);
       return;
     }
     destroy_placeholder_buffer(window);
@@ -956,13 +1018,149 @@ static int ensure_default_cursor(mbw_wayland_context_t *context) {
   return 1;
 }
 
-static void set_default_cursor(mbw_wayland_context_t *context,
-                               struct wl_pointer *pointer, uint32_t serial) {
-  if (!context || !pointer || !ensure_default_cursor(context)) {
+static struct wl_cursor_theme *ensure_cursor_theme(
+    mbw_wayland_context_t *context) {
+  if (!context || !context->shm) {
+    return NULL;
+  }
+  if (context->cursor_theme) {
+    return context->cursor_theme;
+  }
+  const char *theme_name = getenv("XCURSOR_THEME");
+  int size = 24;
+  const char *size_env = getenv("XCURSOR_SIZE");
+  if (size_env) {
+    int s = atoi(size_env);
+    if (s > 0) {
+      size = s;
+    }
+  }
+  context->cursor_theme = wl_cursor_theme_load(theme_name, size, context->shm);
+  return context->cursor_theme;
+}
+
+// Loads (and caches) a named XCursor, falling back to "left_ptr". Returns 1
+// and fills out_* when a usable buffer is available.
+static int ensure_cursor(mbw_wayland_context_t *context, const char *name,
+                         struct wl_buffer **out_buffer, int *out_hot_x,
+                         int *out_hot_y) {
+  if (!context || !name) {
+    return 0;
+  }
+  for (int i = 0; i < context->cursor_cache_count; ++i) {
+    if (context->cursor_cache[i].name == name) {
+      *out_buffer = context->cursor_cache[i].buffer;
+      *out_hot_x = context->cursor_cache[i].hot_x;
+      *out_hot_y = context->cursor_cache[i].hot_y;
+      return context->cursor_cache[i].buffer != NULL;
+    }
+  }
+  if (context->cursor_cache_count >= 8) {
+    return 0;
+  }
+  struct wl_buffer *buffer = NULL;
+  int hot_x = 0;
+  int hot_y = 0;
+  struct wl_cursor_theme *theme = ensure_cursor_theme(context);
+  if (theme) {
+    struct wl_cursor *cursor = wl_cursor_theme_get_cursor(theme, name);
+    if (!cursor && strcmp(name, "left_ptr") != 0) {
+      cursor = wl_cursor_theme_get_cursor(theme, "left_ptr");
+    }
+    if (cursor && cursor->image_count > 0) {
+      struct wl_cursor_image *image = cursor->images[0];
+      buffer = wl_cursor_image_get_buffer(image);
+      hot_x = (int)image->hotspot_x;
+      hot_y = (int)image->hotspot_y;
+    }
+  }
+  int idx = context->cursor_cache_count++;
+  context->cursor_cache[idx].name = name;
+  context->cursor_cache[idx].buffer = buffer;
+  context->cursor_cache[idx].hot_x = hot_x;
+  context->cursor_cache[idx].hot_y = hot_y;
+  *out_buffer = buffer;
+  *out_hot_x = hot_x;
+  *out_hot_y = hot_y;
+  return buffer != NULL;
+}
+
+static void set_cursor_name(mbw_wayland_context_t *context,
+                            struct wl_pointer *pointer, uint32_t serial,
+                            const char *name) {
+  if (!context || !pointer || !name || !ensure_default_cursor(context)) {
     return;
   }
-  wl_pointer_set_cursor(pointer, serial, context->cursor_surface, 1, 1);
+  // Re-setting the same cursor is a no-op (e.g. repeated pointer motion over
+  // the same hit zone); pointer_leave clears cursor_current so a later
+  // pointer_enter always re-arms the cursor.
+  if (name == context->cursor_current) {
+    return;
+  }
+  struct wl_buffer *buffer = context->cursor_buffer;
+  int hot_x = 1;
+  int hot_y = 1;
+  struct wl_buffer *theme_buffer = NULL;
+  int th_x = 0;
+  int th_y = 0;
+  if (ensure_cursor(context, name, &theme_buffer, &th_x, &th_y) &&
+      theme_buffer) {
+    buffer = theme_buffer;
+    hot_x = th_x;
+    hot_y = th_y;
+  }
+  wl_pointer_set_cursor(pointer, serial, context->cursor_surface, hot_x, hot_y);
+  wl_surface_attach(context->cursor_surface, buffer, 0, 0);
+  wl_surface_damage_buffer(context->cursor_surface, 0, 0, 10000, 10000);
   wl_surface_commit(context->cursor_surface);
+  context->cursor_current = name;
+}
+
+static void set_default_cursor(mbw_wayland_context_t *context,
+                               struct wl_pointer *pointer, uint32_t serial) {
+  set_cursor_name(context, pointer, serial, "left_ptr");
+}
+
+// Maps a hover position over a client-decorated window to the XCursor name for
+// the interactive resize edge, or NULL when not on a resize zone.
+static const char *resize_cursor_name(mbw_wayland_window_t *window, int x,
+                                      int y) {
+  uint32_t edge = window_resize_edge(window, x, y);
+  switch (edge) {
+    case XDG_TOPLEVEL_RESIZE_EDGE_LEFT:
+      return "left_side";
+    case XDG_TOPLEVEL_RESIZE_EDGE_RIGHT:
+      return "right_side";
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP:
+      return "top_side";
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM:
+      return "bottom_side";
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT:
+      return "top_left_corner";
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT:
+      return "bottom_left_corner";
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT:
+      return "top_right_corner";
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT:
+      return "bottom_right_corner";
+    default:
+      return NULL;
+  }
+}
+
+static void update_pointer_cursor(mbw_wayland_context_t *context,
+                                  struct wl_pointer *pointer, uint32_t serial,
+                                  mbw_wayland_window_t *window, int x, int y) {
+  const char *name = "left_ptr";
+  if (window && window->client_decorated) {
+    const char *resize = resize_cursor_name(window, x, y);
+    if (resize) {
+      name = resize;
+    } else if (titlebar_hit_drag(window, x, y)) {
+      name = "move";
+    }
+  }
+  set_cursor_name(context, pointer, serial, name);
 }
 
 static void xdg_wm_base_ping(void *data, struct xdg_wm_base *wm_base,
@@ -1354,13 +1552,15 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)wl_surface_get_user_data(surface);
   context->pointer_window = window;
-  set_default_cursor(context, pointer, serial);
+  int enter_x = wl_fixed_to_int(sx);
+  int enter_y = wl_fixed_to_int(sy);
   if (window) {
-    window->pointer_x = wl_fixed_to_int(sx);
-    window->pointer_y = wl_fixed_to_int(sy);
-    emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_ENTER,
-               wl_fixed_to_int(sx), wl_fixed_to_int(sy), 0, 0);
+    window->pointer_x = enter_x;
+    window->pointer_y = enter_y;
+    emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_ENTER, enter_x, enter_y,
+               0, 0);
   }
+  update_pointer_cursor(context, pointer, serial, window, enter_x, enter_y);
 }
 
 static void pointer_leave(void *data, struct wl_pointer *pointer,
@@ -1375,10 +1575,12 @@ static void pointer_leave(void *data, struct wl_pointer *pointer,
       surface ? (mbw_wayland_window_t *)wl_surface_get_user_data(surface)
               : context->pointer_window;
   if (window) {
+    window->resizing = 0;
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_LEAVE, 0, 0, 0, 0);
   }
   if (context) {
     context->pointer_window = NULL;
+    context->cursor_current = NULL;
   }
 }
 
@@ -1393,6 +1595,8 @@ static void pointer_motion(void *data, struct wl_pointer *pointer,
     window->pointer_y = wl_fixed_to_int(sy);
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE, wl_fixed_to_int(sx),
                wl_fixed_to_int(sy), 0, 0);
+    update_pointer_cursor(context, pointer, context->last_serial, window,
+                          window->pointer_x, window->pointer_y);
   }
 }
 
@@ -1409,6 +1613,7 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
   if (window) {
     if (button == MBW_WAYLAND_POINTER_LEFT_BUTTON) {
       if (state != WL_POINTER_BUTTON_STATE_PRESSED) {
+        window->resizing = 0;
         if (window->active_titlebar_button != 0) {
           window->active_titlebar_button = 0;
           return;
@@ -1416,30 +1621,46 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
       } else {
         window->active_titlebar_button =
             titlebar_hit_button(window, window->pointer_x, window->pointer_y);
-      }
-      int titlebar_button = window->active_titlebar_button;
-      if (titlebar_button == 1) {
-        emit_window(MBW_LINUX_EVENT_CLOSE, window->raw_id, 0, 0, 0, 0.0);
-        return;
-      } else if (titlebar_button == 2 && window->xdg_toplevel) {
-        request_maximized(window, !(window->requested_maximized || window->maximized));
-        wl_surface_commit(window->surface);
-        if (context && context->display) {
-          (void)flush_wayland_display(context->display, "titlebar maximize");
+        int titlebar_button = window->active_titlebar_button;
+        if (titlebar_button == 1) {
+          emit_window(MBW_LINUX_EVENT_CLOSE, window->raw_id, 0, 0, 0, 0.0);
+          return;
+        } else if (titlebar_button == 2 && window->xdg_toplevel) {
+          request_maximized(window,
+                            !(window->requested_maximized || window->maximized));
+          wl_surface_commit(window->surface);
+          if (context && context->display) {
+            (void)flush_wayland_display(context->display, "titlebar maximize");
+          }
+          return;
+        } else if (titlebar_button == 3 && window->xdg_toplevel) {
+          xdg_toplevel_set_minimized(window->xdg_toplevel);
+          wl_surface_commit(window->surface);
+          if (context && context->display) {
+            (void)flush_wayland_display(context->display, "titlebar minimize");
+          }
+          return;
         }
-        return;
-      } else if (titlebar_button == 3 && window->xdg_toplevel) {
-        xdg_toplevel_set_minimized(window->xdg_toplevel);
-        wl_surface_commit(window->surface);
-        if (context && context->display) {
-          (void)flush_wayland_display(context->display, "titlebar minimize");
+        if (window->client_decorated && window->xdg_toplevel &&
+            context && context->seat) {
+          uint32_t edge =
+              window_resize_edge(window, window->pointer_x, window->pointer_y);
+          if (edge != XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
+            xdg_toplevel_resize(window->xdg_toplevel, context->seat, serial,
+                                edge);
+            window->resizing = 1;
+            wl_surface_commit(window->surface);
+            if (context->display) {
+              (void)flush_wayland_display(context->display, "titlebar resize");
+            }
+            return;
+          }
         }
-        return;
-      } else if (titlebar_hit_drag(window, window->pointer_x,
-                                   window->pointer_y) &&
-                 window->xdg_toplevel && context && context->seat) {
-        xdg_toplevel_move(window->xdg_toplevel, context->seat, serial);
-        return;
+        if (titlebar_hit_drag(window, window->pointer_x, window->pointer_y) &&
+            window->xdg_toplevel && context && context->seat) {
+          xdg_toplevel_move(window->xdg_toplevel, context->seat, serial);
+          return;
+        }
       }
     }
     emit_input(window->raw_id,
@@ -1823,6 +2044,10 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   if (context->cursor_surface) {
     wl_surface_destroy(context->cursor_surface);
   }
+  if (context->cursor_theme) {
+    wl_cursor_theme_destroy(context->cursor_theme);
+    context->cursor_theme = NULL;
+  }
   if (context->seat) {
     wl_seat_destroy(context->seat);
   }
@@ -2088,9 +2313,13 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
   window->restore_width = window->width;
   window->restore_height = window->height;
   window->use_shm_placeholder = use_shm_placeholder ? 1 : 0;
+  // Prefer client-side decoration whenever the app relies on our placeholder
+  // surface: that keeps the (client-drawn) titlebar and edge-resize working
+  // consistently across compositors (e.g. WSLg, which otherwise answers with a
+  // server-side frame that does not always offer interactive resizing).
   window->client_decorated =
-      decorations && !context->decoration_manager && use_shm_placeholder ? 1
-                                                                         : 0;
+      decorations && use_shm_placeholder ? 1 : 0;
+  window->resizing = 0;
   window->surface = wl_compositor_create_surface(context->compositor);
   if (!window->surface) {
     destroy_window_resources(window);
@@ -2129,9 +2358,13 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
     if (window->decoration) {
       zxdg_toplevel_decoration_v1_add_listener(window->decoration,
                                                &decoration_listener, window);
-      zxdg_toplevel_decoration_v1_set_mode(
-          window->decoration,
-          ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+      // When the app draws into our placeholder surface we want a
+      // client-drawn titlebar (with working edge-resize), so ask the
+      // compositor for client-side decoration instead of its own frame.
+      uint32_t mode = use_shm_placeholder
+                          ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE
+                          : ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
+      zxdg_toplevel_decoration_v1_set_mode(window->decoration, mode);
     }
   }
   wl_surface_commit(window->surface);
@@ -2260,10 +2493,10 @@ void mbw_wayland_window_set_decorations(uint64_t raw_window, int decorations) {
     zxdg_toplevel_decoration_v1_add_listener(window->decoration,
                                              &decoration_listener, window);
   }
-  zxdg_toplevel_decoration_v1_set_mode(
-      window->decoration,
-      decorations ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
-                  : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+  uint32_t mode = (decorations && !window->use_shm_placeholder)
+                      ? ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE
+                      : ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE;
+  zxdg_toplevel_decoration_v1_set_mode(window->decoration, mode);
   wl_surface_commit(window->surface);
 }
 
@@ -2313,7 +2546,9 @@ void mbw_wayland_window_request_surface_size(uint64_t raw_window, int32_t width,
   }
   window->width = width > 0 ? width : 1;
   window->height = height > 0 ? height : 1;
-  attach_placeholder_buffer(window);
+  if (window->use_shm_placeholder) {
+    attach_placeholder_buffer(window);
+  }
 }
 
 MOONBIT_FFI_EXPORT

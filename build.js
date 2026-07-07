@@ -161,9 +161,12 @@ if (isLinux) {
   const waylandFlags =
     commandOutput("pkg-config", [ "--libs", "wayland-client" ]) ||
     "-lwayland-client";
+  const waylandCursorFlags =
+    commandOutput("pkg-config", [ "--libs", "wayland-cursor" ]) ||
+    "-lwayland-cursor";
   linkConfigs.push({
     package: linuxPackageName,
-    link_flags: waylandFlags,
+    link_flags: `${waylandFlags} ${waylandCursorFlags}`,
   });
 }
 
