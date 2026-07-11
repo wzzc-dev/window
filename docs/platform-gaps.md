@@ -88,6 +88,10 @@ Last verified on Windows, 2026-06-07:
   `bash scripts/check_ci.sh` passed during the Windows matching-host capture
   path. `scripts/check_moui_linux_smoke.sh` skipped on the Windows host, so
   strict Linux Wayland runtime evidence remains pending.
+  WSL2 verification (2026-07-11) was completed on a Linux host: IME protocol
+  functionality all passed (8/8 fields), Wayland surface/handles/present/
+  cursor/resize/redraw all working correctly. Interactive input evidence still
+  requires a real Wayland desktop environment (Ubuntu 24.04+).
 
 Previous macOS/Web verification on macOS, 2026-06-03:
 
@@ -173,7 +177,7 @@ Previous macOS/Web verification on macOS, 2026-06-03:
 | --- | --- | --- | --- |
 | macOS | Passed on macOS through `bash scripts/check_ci.sh` and `scripts/check_moui_macos_smoke.sh` | Automated MoUI smoke passed with surface, handles, resize/redraw, representative input, and clean shutdown | AppKit lifecycle depth and callback ownership remain high risk |
 | Web | Passed through the default gate, `scripts/check_web_assets.sh`, and `scripts/check_moui_web_smoke.sh` | Passed in a browser with canvas creation, redraw, resize/scale, pointer, keyboard, and MoUI consumer evidence | Native-only APIs remain placeholders or unsupported |
-| Linux | Pending matching Linux host; script exists as `scripts/check_moui_linux_smoke.sh` | Pending Wayland or Weston runtime; automated core smoke covers handles/present, `wl_output` monitor/current-monitor probes, and public IME state probes, while `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run` requires pointer/keyboard evidence | Wayland dependencies, text/IME delivery, decorations, precise monitor metadata, raw-handle parity |
+| Linux | Pending matching Linux host; script exists as `scripts/check_moui_linux_smoke.sh`. WSL2 verification passed (2026-07-11): all 8 IME probe fields passed, clipboard data-device working, Wayland handles/surface/present/cursor/resize/redraw all working. | Pending Wayland or Weston runtime with interactive input; automated core smoke covers handles/present, `wl_output` monitor/current-monitor probes, and public IME state probes, while `WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run` requires pointer/keyboard evidence. WSL2 has verified IME protocol and core Wayland functionality. | Wayland dependencies, text/IME delivery (protocol verified, interactive input pending), decorations, precise monitor metadata, raw-handle parity |
 | Windows | Passed on Windows through `WINDOW_CI_HOST=windows bash scripts/check_ci.sh` and `scripts/check_moui_windows_smoke.sh` | Passed through `scripts/check_moui_windows_smoke.sh --run`; `artifacts/moui-windows-runtime.log` was accepted by `scripts/check_moui_runtime_log.sh windows` with HWND/HINSTANCE/raw-display identity, monitor/current-monitor, cursor, IME, pointer, keyboard, resize/redraw, and teardown evidence | Preview API parity and broader Win32 cursor/monitor/raw-handle coverage still need contract-backed follow-up |
 
 Treat `Pending` as missing evidence, not as a soft pass. A backend becomes
@@ -378,6 +382,10 @@ Known gaps:
 - Full layout-aware text input and Wayland IME/preedit delivery are future
   work; the current strict smoke verifies representative keyboard text through
   the fixed key-code mapping and probes public IME request state only.
+  IME protocol functionality was verified on 2026-07-11 via WSL2 (WSLg): all 8
+  IME probe fields (enabled/hint/surrounding/cursor/updated/updated_hint/
+  updated_cursor/disabled) all true. Interactive input evidence still requires
+  a real Wayland desktop environment.
 - Decorations, taskbar integration, system menus, native drag-window, exclusive
   fullscreen, precise monitor metadata beyond `wl_output` geometry/scale,
   custom cursors, and rich raw-handle parity are currently unsupported, no-op,

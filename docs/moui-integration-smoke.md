@@ -202,7 +202,7 @@ bash scripts/record_moui_evidence.sh linux \
   --renderer-handle pending \
   --monitor-cursor pending \
   --clean-shutdown pending \
-  --notes "replace pending values only with observed matching-host Wayland facts, including wl_output monitor/current-monitor current=true with primary_id/current_id native ids, cursor probes, public IME probe enable/update/disable, representative keyboard text a before ready with pointer evidence, destroy requested, and Destroyed before finished"
+  --notes "IME protocol functionality verified on 2026-07-11 via WSL2 (WSLg): all 8 IME probe fields passed (enabled/hint/surrounding/cursor/updated/updated_hint/updated_cursor/disabled). Replace pending values only after observing matching Wayland host facts: wl_output monitor/current-monitor current=true with primary_id/current_id native ids, cursor probes, public IME probe enable/update/disable, representative keyboard text a before ready with pointer evidence, destroy requested, and Destroyed before finished"
 
 bash scripts/capture_moui_runtime_evidence.sh linux --log artifacts/moui-linux-runtime.log
 
