@@ -52,6 +52,15 @@ pub(open) trait ActiveEventLoopExtLinux {
 }
 
 ///|
+/// Linux-specific window extension. The `wl_display` and `wl_surface`
+/// handles are the raw Wayland object pointers cast to `UInt64`. They are
+/// intended for use by an external renderer (e.g. Skia GL via EGL):
+///   - `wl_display` → `eglGetDisplay(...)`
+///   - `wl_surface` → `wl_egl_window_create(...)` then `eglCreateWindowSurface(...)`
+///
+/// The CPU render path (`Window::present_rgba_pixels`) remains the
+/// fallback when no GL renderer is plugged in via the host layer's
+/// `LinuxRendererProvider`.
 pub(open) trait WindowExtLinux {
   fn wl_display(Self) -> UInt64
   fn wl_surface(Self) -> UInt64

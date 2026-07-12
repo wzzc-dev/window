@@ -53,6 +53,30 @@ let linux_event_drag_drop : Int = 32
 let linux_event_drag_leave : Int = 33
 
 ///|
+let linux_event_tablet_proximity_in : Int = 50
+
+///|
+let linux_event_tablet_proximity_out : Int = 51
+
+///|
+let linux_event_tablet_motion : Int = 52
+
+///|
+let linux_event_tablet_down : Int = 53
+
+///|
+let linux_event_tablet_up : Int = 54
+
+///|
+let linux_event_tablet_button : Int = 55
+
+///|
+let linux_event_tablet_frame : Int = 56
+
+///|
+let linux_event_fractional_scale : Int = 60
+
+///|
 fn linux_mouse_button(button : Int) -> @core.MouseButton {
   match button {
     0x110 => Left
@@ -578,6 +602,62 @@ fn dispatch_native_window_event(
     41 => {
       let theme = if argd > 0.0 { @core.Theme::Dark } else { Light }
       app_state_queue_window_event(raw_id, ThemeChanged(theme))
+    }
+    k if k == linux_event_tablet_proximity_in => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      app_state_queue_window_event(
+        raw_id,
+        PointerEntered(None, position, true, TabletTool(Pen)),
+      )
+    }
+    k if k == linux_event_tablet_proximity_out => {
+      app_state_queue_window_event(
+        raw_id,
+        PointerLeft(None, None, true, TabletTool(Pen)),
+      )
+    }
+    k if k == linux_event_tablet_motion => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      let data = @core.TabletToolData::TabletToolData(None, None, None, None, None)
+      app_state_queue_window_event(
+        raw_id,
+        PointerMoved(None, position, true, TabletTool(Pen, data)),
+      )
+    }
+    k if k == linux_event_tablet_down => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      let data = @core.TabletToolData::TabletToolData(None, None, None, None, None)
+      app_state_queue_window_event(
+        raw_id,
+        PointerButton(None, Pressed, position, true, TabletTool(Pen, Contact, data)),
+      )
+    }
+    k if k == linux_event_tablet_up => {
+      let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
+        arg0.to_double(),
+        arg1.to_double(),
+      )
+      let data = @core.TabletToolData::TabletToolData(None, None, None, None, None)
+      app_state_queue_window_event(
+        raw_id,
+        PointerButton(None, Released, position, true, TabletTool(Pen, Contact, data)),
+      )
+    }
+    k if k == linux_event_fractional_scale => {
+      // arg0 is the preferred scale in 120ths
+      let scale_factor = arg0.to_double() / 120.0
+      let physical_size = app_state_window_surface_size(raw_id)
+      let writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(physical_size)
+      app_state_queue_window_event(raw_id, ScaleFactorChanged(scale_factor, writer))
     }
     _ => ()
   }

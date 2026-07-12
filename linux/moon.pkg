@@ -11,6 +11,9 @@ options(
     "native_wayland.c",
     "xdg_shell_protocol_native.c",
     "xdg_decoration_protocol_native.c",
+    "layer_shell_protocol_native.c",
+    "tablet_protocol_native.c",
+    "fractional_scale_protocol_native.c",
   ],
   targets: { "ffi.mbt": [ "native" ] },
 )

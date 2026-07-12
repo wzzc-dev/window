@@ -195,3 +195,31 @@ extern "C" fn native_install_input_event_callback(
   ],
   callback : (Int, Int, Int, Int, Int, Int64) -> Unit,
 ) -> Unit = "mbw_wayland_install_input_event_callback"
+
+///|
+#borrow(title, app_id, namespace)
+extern "C" fn native_window_create_layer_window(
+  context : UInt64,
+  raw_id : Int,
+  width : Int,
+  height : Int,
+  title : Bytes,
+  title_len : Int,
+  app_id : Bytes,
+  app_id_len : Int,
+  use_shm_placeholder : Int,
+  output_handle : UInt64,
+  layer : Int,
+  namespace : Bytes,
+  namespace_len : Int,
+) -> UInt64 = "mbw_wayland_window_create_layer_window"
+
+///|
+extern "C" fn native_window_fractional_scale_available(
+  handle : UInt64,
+) -> Int = "mbw_wayland_window_fractional_scale_available"
+
+///|
+extern "C" fn native_window_fractional_scale_preferred(
+  handle : UInt64,
+) -> Int = "mbw_wayland_window_fractional_scale_preferred"

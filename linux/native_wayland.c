@@ -16,6 +16,9 @@
 #include <wayland-cursor.h>
 #include "generated/xdg-decoration-client-protocol.h"
 #include "generated/xdg-shell-client-protocol.h"
+#include "generated/wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "generated/tablet-unstable-v2-client-protocol.h"
+#include "generated/fractional-scale-unstable-v1-client-protocol.h"
 
 typedef void (*mbw_window_event_trampoline_t)(void *closure,
                                               int32_t kind, int32_t raw_id,
@@ -52,6 +55,16 @@ enum {
   MBW_LINUX_INPUT_DRAG_MOVE = 31,
   MBW_LINUX_INPUT_DRAG_DROP = 32,
   MBW_LINUX_INPUT_DRAG_LEAVE = 33,
+  // Tablet events (50-56)
+  MBW_LINUX_EVENT_TABLET_PROXIMITY_IN = 50,
+  MBW_LINUX_EVENT_TABLET_PROXIMITY_OUT = 51,
+  MBW_LINUX_EVENT_TABLET_MOTION = 52,
+  MBW_LINUX_EVENT_TABLET_DOWN = 53,
+  MBW_LINUX_EVENT_TABLET_UP = 54,
+  MBW_LINUX_EVENT_TABLET_BUTTON = 55,
+  MBW_LINUX_EVENT_TABLET_FRAME = 56,
+  // Fractional scale event
+  MBW_LINUX_EVENT_FRACTIONAL_SCALE = 60,
 };
 
 enum {
@@ -102,6 +115,13 @@ typedef struct mbw_wayland_context {
   struct wl_keyboard *keyboard;
   struct wl_data_device_manager *data_device_manager;
   struct wl_data_device *data_device;
+  struct zwlr_layer_shell_v1 *layer_shell;
+  struct zwp_tablet_manager_v2 *tablet_manager;
+  struct zwp_tablet_seat_v2 *tablet_seat;
+  struct zwp_tablet_tool_v2 *tablet_tool;  // 当前活跃工具
+  struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
+  int tablet_x;
+  int tablet_y;
   mbw_wayland_data_offer_t *selection_offer;
   mbw_wayland_data_offer_t *drag_offer;
   struct xdg_wm_base *wm_base;
@@ -162,6 +182,12 @@ typedef struct mbw_wayland_window {
   int placeholder_height;
   char *pending_drag_paths;
   mbw_wayland_present_buffer_t *present_buffers;
+  struct zwlr_layer_surface_v1 *layer_surface;
+  int layer_surface_configured;
+  int is_layer_surface;
+  uint32_t layer_surface_layer;
+  struct wp_fractional_scale_v1 *fractional_scale;
+  int fractional_scale_preferred;  // 120 = 1.0x
   struct mbw_wayland_window *next;
 } mbw_wayland_window_t;
 
@@ -596,6 +622,14 @@ static void destroy_window_resources(mbw_wayland_window_t *window) {
   if (window->xdg_surface) {
     xdg_surface_destroy(window->xdg_surface);
     window->xdg_surface = NULL;
+  }
+  if (window->fractional_scale != NULL) {
+    wp_fractional_scale_v1_destroy(window->fractional_scale);
+    window->fractional_scale = NULL;
+  }
+  if (window->layer_surface != NULL) {
+    zwlr_layer_surface_v1_destroy(window->layer_surface);
+    window->layer_surface = NULL;
   }
   if (window->surface) {
     wl_surface_destroy(window->surface);
@@ -1863,6 +1897,297 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_name,
 };
 
+// ============================================================================
+// Tablet (zwp_tablet_manager_v2) event listeners
+// ============================================================================
+
+// Tablet tool handlers. wl_fixed_t is a typedef for int32_t, so the motion
+// coordinates are received as fixed-point values and stored raw in
+// tablet_x/tablet_y.
+static void tablet_tool_proximity_in(void *data,
+                                     struct zwp_tablet_tool_v2 *tool,
+                                     uint32_t serial,
+                                     struct zwp_tablet_v2 *tablet,
+                                     struct wl_surface *surface) {
+  (void)tool;
+  (void)serial;
+  (void)tablet;
+  (void)surface;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  struct mbw_wayland_window *win = ctx ? ctx->pointer_window : NULL;
+  if (win != NULL) {
+    emit_window(MBW_LINUX_EVENT_TABLET_PROXIMITY_IN, win->raw_id,
+                ctx->tablet_x, ctx->tablet_y, 0, 0.0);
+  }
+}
+
+static void tablet_tool_proximity_out(void *data,
+                                      struct zwp_tablet_tool_v2 *tool) {
+  (void)tool;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  struct mbw_wayland_window *win = ctx ? ctx->pointer_window : NULL;
+  if (win != NULL) {
+    emit_window(MBW_LINUX_EVENT_TABLET_PROXIMITY_OUT, win->raw_id, 0, 0, 0, 0.0);
+  }
+}
+
+static void tablet_tool_down(void *data, struct zwp_tablet_tool_v2 *tool,
+                             uint32_t serial) {
+  (void)tool;
+  (void)serial;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  struct mbw_wayland_window *win = ctx ? ctx->pointer_window : NULL;
+  if (win != NULL) {
+    emit_window(MBW_LINUX_EVENT_TABLET_DOWN, win->raw_id,
+                ctx->tablet_x, ctx->tablet_y, 0, 0.0);
+  }
+}
+
+static void tablet_tool_up(void *data, struct zwp_tablet_tool_v2 *tool) {
+  (void)tool;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  struct mbw_wayland_window *win = ctx ? ctx->pointer_window : NULL;
+  if (win != NULL) {
+    emit_window(MBW_LINUX_EVENT_TABLET_UP, win->raw_id,
+                ctx->tablet_x, ctx->tablet_y, 0, 0.0);
+  }
+}
+
+static void tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
+                               int32_t x, int32_t y) {
+  (void)tool;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  if (ctx != NULL) {
+    ctx->tablet_x = x;
+    ctx->tablet_y = y;
+    struct mbw_wayland_window *win = ctx->pointer_window;
+    if (win != NULL) {
+      emit_window(MBW_LINUX_EVENT_TABLET_MOTION, win->raw_id, x, y, 0, 0.0);
+    }
+  }
+}
+
+static void tablet_tool_button(void *data, struct zwp_tablet_tool_v2 *tool,
+                               uint32_t serial, uint32_t button,
+                               uint32_t state) {
+  (void)tool;
+  (void)serial;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  struct mbw_wayland_window *win = ctx ? ctx->pointer_window : NULL;
+  if (win != NULL) {
+    emit_window(MBW_LINUX_EVENT_TABLET_BUTTON, win->raw_id,
+                (int32_t)button, (int32_t)state, 0, 0.0);
+  }
+}
+
+static void tablet_tool_frame(void *data, struct zwp_tablet_tool_v2 *tool,
+                              uint32_t time) {
+  (void)data;
+  (void)tool;
+  (void)time;
+  // frame 事件标记一组事件结束,暂时不需要单独处理
+}
+
+static void tablet_tool_removed(void *data, struct zwp_tablet_tool_v2 *tool) {
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  if (ctx != NULL && ctx->tablet_tool == tool) {
+    ctx->tablet_tool = NULL;
+  }
+}
+
+// 以下事件暂不处理但需要存根以填充 listener 结构体
+static void tablet_tool_type(void *data, struct zwp_tablet_tool_v2 *tool,
+                             uint32_t tool_type) {
+  (void)data;
+  (void)tool;
+  (void)tool_type;
+}
+static void tablet_tool_hardware_serial(void *data,
+                                        struct zwp_tablet_tool_v2 *tool,
+                                        uint32_t hardware_serial_hi,
+                                        uint32_t hardware_serial_lo) {
+  (void)data;
+  (void)tool;
+  (void)hardware_serial_hi;
+  (void)hardware_serial_lo;
+}
+static void tablet_tool_hardware_id_wacom(void *data,
+                                          struct zwp_tablet_tool_v2 *tool,
+                                          uint32_t hardware_id_hi,
+                                          uint32_t hardware_id_lo) {
+  (void)data;
+  (void)tool;
+  (void)hardware_id_hi;
+  (void)hardware_id_lo;
+}
+static void tablet_tool_capability(void *data,
+                                   struct zwp_tablet_tool_v2 *tool,
+                                   uint32_t capability) {
+  (void)data;
+  (void)tool;
+  (void)capability;
+}
+static void tablet_tool_done(void *data, struct zwp_tablet_tool_v2 *tool) {
+  (void)data;
+  (void)tool;
+}
+static void tablet_tool_pressure(void *data,
+                                 struct zwp_tablet_tool_v2 *tool,
+                                 uint32_t pressure) {
+  (void)data;
+  (void)tool;
+  (void)pressure;
+}
+static void tablet_tool_distance(void *data,
+                                 struct zwp_tablet_tool_v2 *tool,
+                                 uint32_t distance) {
+  (void)data;
+  (void)tool;
+  (void)distance;
+}
+static void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *tool,
+                             int32_t tilt_x, int32_t tilt_y) {
+  (void)data;
+  (void)tool;
+  (void)tilt_x;
+  (void)tilt_y;
+}
+static void tablet_tool_rotation(void *data,
+                                 struct zwp_tablet_tool_v2 *tool,
+                                 int32_t degrees) {
+  (void)data;
+  (void)tool;
+  (void)degrees;
+}
+static void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *tool,
+                               int32_t position) {
+  (void)data;
+  (void)tool;
+  (void)position;
+}
+static void tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *tool,
+                              int32_t degrees, int32_t clicks) {
+  (void)data;
+  (void)tool;
+  (void)degrees;
+  (void)clicks;
+}
+
+static const struct zwp_tablet_tool_v2_listener tablet_tool_listener = {
+    .type = tablet_tool_type,
+    .hardware_serial = tablet_tool_hardware_serial,
+    .hardware_id_wacom = tablet_tool_hardware_id_wacom,
+    .capability = tablet_tool_capability,
+    .done = tablet_tool_done,
+    .removed = tablet_tool_removed,
+    .proximity_in = tablet_tool_proximity_in,
+    .proximity_out = tablet_tool_proximity_out,
+    .down = tablet_tool_down,
+    .up = tablet_tool_up,
+    .motion = tablet_tool_motion,
+    .pressure = tablet_tool_pressure,
+    .distance = tablet_tool_distance,
+    .tilt = tablet_tool_tilt,
+    .rotation = tablet_tool_rotation,
+    .slider = tablet_tool_slider,
+    .wheel = tablet_tool_wheel,
+    .button = tablet_tool_button,
+    .frame = tablet_tool_frame,
+};
+
+// Tablet seat listener: 当 tablet/seat 被添加时
+static void tablet_seat_handle_tablet_added(void *data,
+                                            struct zwp_tablet_seat_v2 *seat,
+                                            struct zwp_tablet_v2 *tablet) {
+  (void)data;
+  (void)seat;
+  (void)tablet;
+  // 我们不需要 tablet 硬件信息,只需要工具事件
+}
+
+static void tablet_seat_handle_tool_added(void *data,
+                                          struct zwp_tablet_seat_v2 *seat,
+                                          struct zwp_tablet_tool_v2 *tool) {
+  (void)seat;
+  mbw_wayland_context_t *ctx = (mbw_wayland_context_t *)data;
+  if (ctx == NULL) {
+    return;
+  }
+  ctx->tablet_tool = tool;
+  zwp_tablet_tool_v2_add_listener(tool, &tablet_tool_listener, ctx);
+}
+
+static void tablet_seat_handle_pad_added(void *data,
+                                         struct zwp_tablet_seat_v2 *seat,
+                                         struct zwp_tablet_pad_v2 *pad) {
+  (void)data;
+  (void)seat;
+  (void)pad;
+  // 我们不处理 pad 事件
+}
+
+static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
+    .tablet_added = tablet_seat_handle_tablet_added,
+    .tool_added = tablet_seat_handle_tool_added,
+    .pad_added = tablet_seat_handle_pad_added,
+};
+
+// ============================================================================
+// Fractional scale (wp_fractional_scale_v1) event listener
+// ============================================================================
+
+static void fractional_scale_preferred_scale(void *data,
+                                             struct wp_fractional_scale_v1 *fs,
+                                             uint32_t scale) {
+  (void)fs;
+  struct mbw_wayland_window *win = (struct mbw_wayland_window *)data;
+  if (win == NULL) {
+    return;
+  }
+  win->fractional_scale_preferred = (int)scale;
+  emit_window(MBW_LINUX_EVENT_FRACTIONAL_SCALE, win->raw_id,
+              (int32_t)scale, 0, 0, 0.0);
+}
+
+static const struct wp_fractional_scale_v1_listener fractional_scale_listener = {
+    .preferred_scale = fractional_scale_preferred_scale,
+};
+
+// ============================================================================
+// Layer surface (zwlr_layer_surface_v1) event listener
+// ============================================================================
+
+static void layer_surface_handle_configure(void *data,
+                                           struct zwlr_layer_surface_v1 *surface,
+                                           uint32_t serial,
+                                           uint32_t width,
+                                           uint32_t height) {
+  struct mbw_wayland_window *win = (struct mbw_wayland_window *)data;
+  if (win == NULL) {
+    return;
+  }
+  win->width = (int32_t)width;
+  win->height = (int32_t)height;
+  win->layer_surface_configured = 1;
+  zwlr_layer_surface_v1_ack_configure(surface, serial);
+}
+
+static void layer_surface_handle_closed(void *data,
+                                        struct zwlr_layer_surface_v1 *surface) {
+  (void)surface;
+  struct mbw_wayland_window *win = (struct mbw_wayland_window *)data;
+  if (win == NULL) {
+    return;
+  }
+  // 发送关闭事件,MoonBit 侧会处理清理
+  emit_window(MBW_LINUX_EVENT_CLOSE, win->raw_id, 0, 0, 0, 0.0);
+}
+
+static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
+    .configure = layer_surface_handle_configure,
+    .closed = layer_surface_handle_closed,
+};
+
 static void registry_global(void *data, struct wl_registry *registry,
                             uint32_t name, const char *interface,
                             uint32_t version) {
@@ -1883,6 +2208,14 @@ static void registry_global(void *data, struct wl_registry *registry,
       return;
     }
     wl_seat_add_listener(context->seat, &seat_listener, context);
+    if (context->tablet_manager != NULL && context->tablet_seat == NULL) {
+      context->tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(
+          context->tablet_manager, context->seat);
+      if (context->tablet_seat != NULL) {
+        zwp_tablet_seat_v2_add_listener(context->tablet_seat,
+                                        &tablet_seat_listener, context);
+      }
+    }
   } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
     context->wm_base =
         wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
@@ -1917,6 +2250,26 @@ static void registry_global(void *data, struct wl_registry *registry,
         wl_registry_bind(registry, name, &wl_data_device_manager_interface,
                          version < 3 ? version : 3);
     ensure_data_device(context);
+  } else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
+    context->layer_shell = (struct zwlr_layer_shell_v1 *)wl_registry_bind(
+        registry, name, &zwlr_layer_shell_v1_interface,
+        version < 4 ? version : 4);
+  } else if (strcmp(interface, "zwp_tablet_manager_v2") == 0) {
+    context->tablet_manager = (struct zwp_tablet_manager_v2 *)wl_registry_bind(
+        registry, name, &zwp_tablet_manager_v2_interface, 1);
+    if (context->tablet_manager != NULL && context->seat != NULL &&
+        context->tablet_seat == NULL) {
+      context->tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(
+          context->tablet_manager, context->seat);
+      if (context->tablet_seat != NULL) {
+        zwp_tablet_seat_v2_add_listener(context->tablet_seat,
+                                        &tablet_seat_listener, context);
+      }
+    }
+  } else if (strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
+    context->fractional_scale_manager =
+        (struct wp_fractional_scale_manager_v1 *)wl_registry_bind(
+            registry, name, &wp_fractional_scale_manager_v1_interface, 1);
   }
 }
 
@@ -2054,6 +2407,22 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   destroy_outputs(context);
   if (context->decoration_manager) {
     zxdg_decoration_manager_v1_destroy(context->decoration_manager);
+  }
+  if (context->fractional_scale_manager != NULL) {
+    wp_fractional_scale_manager_v1_destroy(context->fractional_scale_manager);
+    context->fractional_scale_manager = NULL;
+  }
+  if (context->tablet_seat != NULL) {
+    zwp_tablet_seat_v2_destroy(context->tablet_seat);
+    context->tablet_seat = NULL;
+  }
+  if (context->tablet_manager != NULL) {
+    zwp_tablet_manager_v2_destroy(context->tablet_manager);
+    context->tablet_manager = NULL;
+  }
+  if (context->layer_shell != NULL) {
+    zwlr_layer_shell_v1_destroy(context->layer_shell);
+    context->layer_shell = NULL;
   }
   if (context->wm_base) {
     xdg_wm_base_destroy(context->wm_base);
@@ -2367,6 +2736,15 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
       zxdg_toplevel_decoration_v1_set_mode(window->decoration, mode);
     }
   }
+  if (context->fractional_scale_manager != NULL) {
+    window->fractional_scale =
+        wp_fractional_scale_manager_v1_get_fractional_scale(
+            context->fractional_scale_manager, window->surface);
+    if (window->fractional_scale != NULL) {
+      wp_fractional_scale_v1_add_listener(window->fractional_scale,
+                                          &fractional_scale_listener, window);
+    }
+  }
   wl_surface_commit(window->surface);
   if (use_shm_placeholder) {
     attach_placeholder_buffer(window);
@@ -2390,11 +2768,11 @@ int32_t mbw_wayland_window_wait_configured(uint64_t raw_window,
   if (!window || !window->context || !window->context->display) {
     return 0;
   }
-  if (window->configured) {
+  if (window->configured || window->layer_surface_configured) {
     return 1;
   }
   int64_t start = mbw_wayland_now_ms();
-  while (!window->configured) {
+  while (!window->configured && !window->layer_surface_configured) {
     if (timeout_ms >= 0 && mbw_wayland_now_ms() - start >= timeout_ms) {
       return 0;
     }
@@ -2760,6 +3138,115 @@ void mbw_wayland_install_input_event_callback(
   g_input_closure = closure;
 }
 
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_window_create_layer_window(
+    uint64_t raw_context, int32_t raw_id, int32_t width, int32_t height,
+    const uint8_t *title, int32_t title_len,
+    const uint8_t *app_id, int32_t app_id_len,
+    int use_shm_placeholder, uint64_t output_handle, uint32_t layer,
+    const uint8_t *namespace, int32_t namespace_len) {
+  (void)title;
+  (void)title_len;
+  (void)app_id;
+  (void)app_id_len;
+  mbw_wayland_context_t *context =
+      (mbw_wayland_context_t *)(uintptr_t)raw_context;
+  if (!context || !context->layer_shell || !context->compositor) {
+    return 0;
+  }
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)calloc(1, sizeof(mbw_wayland_window_t));
+  if (!window) {
+    return 0;
+  }
+  window->context = context;
+  window->raw_id = raw_id;
+  window->width = width > 0 ? width : 1;
+  window->height = height > 0 ? height : 1;
+  window->use_shm_placeholder = use_shm_placeholder ? 1 : 0;
+  window->is_layer_surface = 1;
+  window->layer_surface_layer = layer;
+
+  window->surface = wl_compositor_create_surface(context->compositor);
+  if (!window->surface) {
+    free(window);
+    return 0;
+  }
+  wl_surface_set_user_data(window->surface, window);
+  wl_surface_add_listener(window->surface, &surface_listener, window);
+
+  struct wl_output *output = (struct wl_output *)(uintptr_t)output_handle;
+
+  // 构建 namespace C 字符串
+  char ns_buf[256] = {0};
+  const char *ns = "moui";
+  if (namespace != NULL && namespace_len > 0) {
+    int32_t copy_len = namespace_len;
+    if (copy_len > (int32_t)sizeof(ns_buf) - 1) {
+      copy_len = (int32_t)sizeof(ns_buf) - 1;
+    }
+    memcpy(ns_buf, namespace, (size_t)copy_len);
+    ns = ns_buf;
+  }
+
+  window->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
+      context->layer_shell, window->surface, output, layer, ns);
+  if (!window->layer_surface) {
+    wl_surface_destroy(window->surface);
+    free(window);
+    return 0;
+  }
+  zwlr_layer_surface_v1_add_listener(window->layer_surface,
+                                     &layer_surface_listener, window);
+  zwlr_layer_surface_v1_set_size(window->layer_surface,
+                                 (uint32_t)window->width,
+                                 (uint32_t)window->height);
+  zwlr_layer_surface_v1_set_anchor(window->layer_surface,
+                                   ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
+
+  // Fractional scale 对象在 surface commit 之前创建
+  if (context->fractional_scale_manager != NULL) {
+    window->fractional_scale =
+        wp_fractional_scale_manager_v1_get_fractional_scale(
+            context->fractional_scale_manager, window->surface);
+    if (window->fractional_scale != NULL) {
+      wp_fractional_scale_v1_add_listener(window->fractional_scale,
+                                          &fractional_scale_listener, window);
+    }
+  }
+
+  // 添加到窗口链表
+  window->next = context->windows;
+  context->windows = window;
+
+  wl_surface_commit(window->surface);
+  if (flush_wayland_display(context->display, "layer window create") ==
+      MBW_WAYLAND_FLUSH_FAILED) {
+    detach_window_from_context(window);
+    destroy_window_resources(window);
+    return 0;
+  }
+  return (uint64_t)(uintptr_t)window;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_fractional_scale_available(uint64_t raw_window) {
+  mbw_wayland_window_t *window = window_from_raw(raw_window);
+  if (window == NULL) {
+    return 0;
+  }
+  return window->fractional_scale != NULL ? 1 : 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_fractional_scale_preferred(uint64_t raw_window) {
+  mbw_wayland_window_t *window = window_from_raw(raw_window);
+  if (window == NULL) {
+    return 0;
+  }
+  return window->fractional_scale_preferred;
+}
+
 #else
 
 #include <moonbit.h>
@@ -3005,6 +3492,38 @@ void mbw_wayland_install_input_event_callback(
     void *closure) {
   (void)trampoline;
   (void)closure;
+}
+MOONBIT_FFI_EXPORT
+uint64_t mbw_wayland_window_create_layer_window(
+    uint64_t raw_context, int32_t raw_id, int32_t width, int32_t height,
+    const uint8_t *title, int32_t title_len,
+    const uint8_t *app_id, int32_t app_id_len,
+    int use_shm_placeholder, uint64_t output_handle, uint32_t layer,
+    const uint8_t *namespace, int32_t namespace_len) {
+  (void)raw_context;
+  (void)raw_id;
+  (void)width;
+  (void)height;
+  (void)title;
+  (void)title_len;
+  (void)app_id;
+  (void)app_id_len;
+  (void)use_shm_placeholder;
+  (void)output_handle;
+  (void)layer;
+  (void)namespace;
+  (void)namespace_len;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_fractional_scale_available(uint64_t raw_window) {
+  (void)raw_window;
+  return 0;
+}
+MOONBIT_FFI_EXPORT
+int32_t mbw_wayland_window_fractional_scale_preferred(uint64_t raw_window) {
+  (void)raw_window;
+  return 0;
 }
 
 #endif
