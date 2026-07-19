@@ -34,7 +34,7 @@ test "web dispatch maps resize pointer key and redraw" {
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
   let raw_id = 42
-  web_dispatch_event(web_event_resize, raw_id, 320, 200, 0.0, "")
+  web_dispatch_event(web_event_resize, raw_id, 320, 200, 1.0, "")
   web_dispatch_event(web_event_pointer_move, raw_id, 12, 34, 0.0, "")
   web_dispatch_event(web_event_key_down, raw_id, 0, 0, 0.0, "a")
   app_state_queue_redraw(raw_id)
@@ -52,6 +52,21 @@ test "web dispatch maps resize pointer key and redraw" {
     _ => fail("expected keyboard input")
   }
   assert_true(app.events[3] is RedrawRequested)
+}
+
+///|
+test "web dispatch takes the browser supplied scale factor" {
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  web_dispatch_event(web_event_resize, 43, 320, 200, 2.0, "")
+  assert_eq(app.events.length(), 2)
+  match app.events[0] {
+    ScaleFactorChanged(2.0, _) => ()
+    _ => fail("expected the scale factor sent by the browser host")
+  }
+  assert_true(app.events[1] is SurfaceResized(_))
 }
 
 ///|

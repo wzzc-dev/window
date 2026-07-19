@@ -122,7 +122,7 @@ fn app_state_update_window_entry(
 fn app_state_window_scale_factor(raw_id : Int) -> Double {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.scale_factor
-    None => web_scale_factor()
+    None => 1.0
   }
 }
 
@@ -351,6 +351,11 @@ fn app_state_queue_redraw(raw_id : Int) -> Unit {
   if found is None {
     app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
   }
+}
+
+///|
+fn app_state_request_redraw(raw_id : Int) -> Unit {
+  app_state_queue_redraw(raw_id)
   app_state_schedule_tick()
 }
 

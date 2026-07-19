@@ -216,7 +216,7 @@ export function createWindowWebImports() {
       requestAnimationFrame(() => emit(1));
     },
     schedule_timeout(delayMs) {
-      setTimeout(() => emit(2), Math.max(0, delayMs | 0));
+      setTimeout(() => emit(2, 0, 0, 0, performance.now()), Math.max(0, delayMs | 0));
     },
     schedule_microtask() {
       queueMicrotask(() => emit(3));
@@ -418,7 +418,9 @@ export function createWindowWebImports() {
         }
         textInput.value = "";
       });
-      add(window, "resize", () => emit(10, rawId, canvas.width, canvas.height));
+      add(window, "resize", () =>
+        emit(10, rawId, canvas.width, canvas.height, window.devicePixelRatio || 1.0),
+      );
       const media = window.matchMedia?.("(prefers-color-scheme: dark)");
       if (media) {
         add(media, "change", event => emit(50, rawId, event.matches ? 1 : 0));

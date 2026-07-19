@@ -230,7 +230,7 @@ pub fn Window::request_surface_size(
 
 ///|
 pub fn Window::request_redraw(self : Window) -> Unit {
-  app_state_queue_redraw(self.raw_id())
+  app_state_request_redraw(self.raw_id())
 }
 
 ///|
