@@ -1,11 +1,15 @@
 ///|
-fn web_scale_factor() -> Double {
-  let scale = web_device_pixel_ratio()
+fn web_normalize_scale_factor(scale : Double) -> Double {
   if @dpi.validate_scale_factor(scale) {
     scale
   } else {
     1.0
   }
+}
+
+///|
+fn web_scale_factor() -> Double {
+  web_normalize_scale_factor(web_device_pixel_ratio())
 }
 
 ///|

@@ -248,7 +248,7 @@ fn dispatch_web_event(
     k if k == web_event_animation_frame =>
       app_state_queue_callback(NewEvents(@core.StartCause::Poll))
     k if k == web_event_timeout => {
-      let now = web_now_ms()
+      let now = argd.to_int64()
       app_state_queue_callback(
         NewEvents(@core.StartCause::ResumeTimeReached(now, now)),
       )
@@ -258,7 +258,7 @@ fn dispatch_web_event(
       let size = @dpi.PhysicalSize::PhysicalSize(arg0, arg1)
       let old_scale = app_state_window_scale_factor(raw_id)
       app_state_set_window_surface_size(raw_id, size)
-      let new_scale = web_scale_factor()
+      let new_scale = web_normalize_scale_factor(argd)
       if new_scale != old_scale {
         app_state_queue_window_event(
           raw_id,
