@@ -60,7 +60,18 @@ test "web dispatch takes the browser supplied scale factor" {
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
-  web_dispatch_event(web_event_resize, 43, 320, 200, 2.0, "")
+  let raw_id = 43
+  app_state_register_window_entry({
+    raw_id,
+    title: "",
+    visible: true,
+    resizable: true,
+    cursor: @core.Cursor::Icon(@core.CursorIcon::Default),
+    fullscreen: None,
+    scale_factor: 1.0,
+  })
+  web_dispatch_event(web_event_resize, raw_id, 320, 200, 2.0, "")
+  inspect(app_state_window_scale_factor(raw_id), content="2")
   assert_eq(app.events.length(), 2)
   match app.events[0] {
     ScaleFactorChanged(2.0, _) => ()
