@@ -259,6 +259,7 @@ fn dispatch_web_event(
       let old_scale = app_state_window_scale_factor(raw_id)
       app_state_set_window_surface_size(raw_id, size)
       let new_scale = web_normalize_scale_factor(argd)
+      app_state_set_window_scale_factor(raw_id, new_scale)
       if new_scale != old_scale {
         app_state_queue_window_event(
           raw_id,

@@ -14,7 +14,7 @@ priv struct WindowEntry {
   mut resizable : Bool
   mut cursor : @core.Cursor
   mut fullscreen : @core.Fullscreen?
-  scale_factor : Double
+  mut scale_factor : Double
 }
 
 ///|
@@ -124,6 +124,17 @@ fn app_state_window_scale_factor(raw_id : Int) -> Double {
     Some(entry) => entry.scale_factor
     None => 1.0
   }
+}
+
+///|
+fn app_state_set_window_scale_factor(
+  raw_id : Int,
+  scale_factor : Double,
+) -> Unit {
+  app_state_update_window_entry(raw_id, entry => {
+    entry.scale_factor = scale_factor
+    entry
+  })
 }
 
 ///|
