@@ -427,3 +427,60 @@ Known gaps:
   real Win32 runtime behavior before treating the backend as stable; the
   current smoke only accepts nonzero HINSTANCE-backed display handles and raw
   window handles that preserve HWND identity.
+
+
+## Android
+
+Build smoke:
+
+- `moon check android --target native`
+- `moon test -p android`
+
+Runtime smoke:
+
+- Drive surface bind/input injection from `moui_shell` Android embedder.
+- Verify `Window::native_window_handle()`, surface resize/scale, pointer/text
+  injection, redraw, and clean teardown.
+
+Known gaps:
+
+- Host UI loop and `ANativeWindow` ownership remain in `moui_shell`.
+- This package is an embedding-oriented EventLoop/Window facade, not a full
+  Android Activity implementation.
+- System decorations, multi-window, and advanced IME are deferred to shell.
+
+## iOS
+
+Build smoke:
+
+- `moon check ios --target native`
+- `moon test -p ios`
+
+Runtime smoke:
+
+- Drive view bind/input injection from `moui_shell` iOS embedder.
+- Verify `Window::view_handle()` / `ui_window_handle()`, resize/scale, pointer
+  injection, redraw, and clean teardown.
+
+Known gaps:
+
+- UIKit lifecycle remains in `moui_shell`.
+- Safe-area, orientation, and scene multi-window semantics are not fully modeled.
+
+## HarmonyOS
+
+Build smoke:
+
+- `moon check harmonyos --target native`
+- `moon test -p harmonyos`
+
+Runtime smoke:
+
+- Drive XComponent bind/input injection from `moui_shell` HarmonyOS embedder.
+- Verify `Window::xcomponent_window_handle()` / `xcomponent_id()`, resize/scale,
+  pointer injection, redraw, and clean teardown.
+
+Known gaps:
+
+- XComponent / NAPI lifecycle remains in `moui_shell`.
+- Display manager and input method framework integration are future work.

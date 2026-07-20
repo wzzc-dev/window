@@ -59,9 +59,14 @@ fn App::spawn_child_window(
       let child_index = self.windows.length() - 1
       let x = (child_index % 5).to_double() * 128.0
       let y = (child_index / 5).to_double() * 96.0
-      let parent_raw = @core.ParentWindow::from_raw(
+      let parent_raw = @core.ParentWindow::from_window_handle(
         parent_window.window_handle(),
-      )
+      ) catch {
+        err => {
+          println("failed to resolve parent window handle: \{err}")
+          return
+        }
+      }
       let child_attrs = @core.WindowAttributes::default()
         .with_title("child window")
         .with_surface_size(

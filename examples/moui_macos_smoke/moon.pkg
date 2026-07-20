@@ -6,12 +6,14 @@ import {
   "wzzc-dev/window/dpi",
   "wzzc-dev/window/examples/util",
   "wzzc-dev/window/macos",
+  "wzzc-dev/window/windowing",
 }
 
 supported_targets = "native"
 
+pkgtype(kind: "executable")
+
 options(
-  "is-main": true,
   "native-stub": [ "input_native.m" ],
   link: {
     "native": {

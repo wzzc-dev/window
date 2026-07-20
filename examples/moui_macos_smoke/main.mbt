@@ -70,17 +70,28 @@ fn App::log_surface(self : App, window : @macos.Window) -> Unit {
 
 ///|
 fn App::log_handles(self : App, window : @macos.Window) -> Bool {
-  let window_handle = window.window_handle()
   let content_view_handle = window.content_view_handle() catch {
     err => {
       self.log("MOUIMacSmoke: content_view_handle failed \{err}")
       (0 : Int).to_uint64()
     }
   }
+  let window_view = {
+    let raw = window.window_handle().as_raw() catch {
+        err => {
+          self.log("MOUIMacSmoke: window_handle.as_raw failed \{err}")
+          return false
+        }
+      }
+    match raw {
+      AppKit(handle) => handle.ns_view()
+      _ => (0 : Int).to_uint64()
+    }
+  }
   self.log(
-    "MOUIMacSmoke: handles window=0x\{window_handle.to_string(radix=16)} content_view=0x\{content_view_handle.to_string(radix=16)}",
+    "MOUIMacSmoke: handles window=0x\{window_view.to_string(radix=16)} content_view=0x\{content_view_handle.to_string(radix=16)}",
   )
-  window_handle != (0 : Int).to_uint64() &&
+  window_view != (0 : Int).to_uint64() &&
   content_view_handle != (0 : Int).to_uint64()
 }
 

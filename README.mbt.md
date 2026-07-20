@@ -1,14 +1,17 @@
 # wzzc-dev/window
 
 `wzzc-dev/window` is the wzzc-dev fork of `moonbit-community/window`, a MoonBit windowing library modeled after `winit`.
-This fork tracks upstream window 0.5.1 and adds the MoUI-oriented Web, Windows, and Linux packages needed before those targets are available upstream.
+This fork tracks upstream window 0.5.4 and adds the MoUI-oriented Web, Windows, Linux, Android, iOS, and HarmonyOS packages needed before those targets are available upstream.
 
 ## Platform Support
 
-- macOS: supported on the `native` target through AppKit (`wzzc-dev/window/macos`)
+- macOS: supported on the `native` target through AppKit (`wzzc-dev/window/macos`), tracking upstream 0.5.4 seams
 - Windows: preview support on the `native` target through Win32 (`wzzc-dev/window/windows`)
 - Linux: preview support on the `native` target through Wayland + xdg-shell (`wzzc-dev/window/linux`)
 - Web: experimental browser support on the `wasm-gc` target (`wzzc-dev/window/web`)
+- Android: embedding-oriented support for moui_shell surfaces (`wzzc-dev/window/android`)
+- iOS: embedding-oriented support for moui_shell UIView surfaces (`wzzc-dev/window/ios`)
+- HarmonyOS: embedding-oriented support for moui_shell XComponent surfaces (`wzzc-dev/window/harmonyos`)
 - Not supported yet: X11 and other Unix backends
 
 See `docs/platform-gaps.md` for the current MoUI readiness matrix and

@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/math",
   "wzzc-dev/window/macos",
+  "wzzc-dev/window/windowing",
 }
 
 supported_targets = "native"
