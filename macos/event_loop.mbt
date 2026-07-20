@@ -12,18 +12,34 @@ pub fn EventLoopProxy::wake_up(_self : EventLoopProxy) -> Unit {
 }
 
 ///|
-pub fn EventLoop::rwh_06_handle(_self : EventLoop) -> UInt64 {
-  cg_main_display_id()
+fn appkit_raw_display_handle() -> @windowing.RawDisplayHandle {
+  AppKit(@windowing.AppKitDisplayHandle::new())
 }
 
 ///|
-pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
-  self.rwh_06_handle()
+pub impl @windowing.DisplayHandleProvider for EventLoop with fn raw_display_handle(
+  _self,
+) {
+  appkit_raw_display_handle()
 }
 
 ///|
-pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
-  self.owned_display_handle()
+pub fn EventLoop::display_handle(self : EventLoop) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasDisplayHandle for EventLoop with fn display_handle(self) {
+  self.display_handle()
+}
+
+///|
+pub fn EventLoop::owned_display_handle(
+  self : EventLoop,
+) -> @windowing.DisplayHandle {
+  self.display_handle()
 }
 
 ///|
@@ -240,7 +256,7 @@ pub fn EventLoop::available_monitors(
 
 ///|
 pub fn EventLoop::primary_monitor(_self : EventLoop) -> @core.MonitorHandle? {
-  primary_monitor()
+  Some(primary_monitor())
 }
 
 ///|
@@ -404,18 +420,33 @@ pub fn ActiveEventLoop::exiting(self : ActiveEventLoop) -> Bool {
 }
 
 ///|
-pub fn ActiveEventLoop::rwh_06_handle(self : ActiveEventLoop) -> UInt64 {
-  self.inner.rwh_06_handle()
+pub impl @windowing.DisplayHandleProvider for ActiveEventLoop with fn raw_display_handle(
+  _self,
+) {
+  appkit_raw_display_handle()
 }
 
 ///|
-pub fn ActiveEventLoop::owned_display_handle(self : ActiveEventLoop) -> UInt64 {
-  self.inner.owned_display_handle()
+pub fn ActiveEventLoop::display_handle(
+  self : ActiveEventLoop,
+) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
 }
 
 ///|
-pub fn ActiveEventLoop::display_handle(self : ActiveEventLoop) -> UInt64 {
-  self.inner.display_handle()
+pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(
+  self,
+) {
+  self.display_handle()
+}
+
+///|
+pub fn ActiveEventLoop::owned_display_handle(
+  self : ActiveEventLoop,
+) -> @windowing.DisplayHandle {
+  self.display_handle()
 }
 
 ///|
@@ -478,6 +509,10 @@ pub fn EventLoopBuilder::with_activate_ignoring_other_apps(
 }
 
 ///|
+/// Set the cross-platform any-thread preference.
+///
+/// macOS does not support creating or running an AppKit event loop off the
+/// process main thread. Setting this to `true` does not relax that requirement.
 pub fn EventLoopBuilder::with_any_thread(
   self : EventLoopBuilder,
   any_thread : Bool,
@@ -523,13 +558,50 @@ pub fn EventLoop::new_with_platform_attributes(
 }
 
 ///|
+fn event_loop_creation_thread_error(
+  attributes : @core.PlatformEventLoopAttributes,
+  on_main_thread : Bool,
+) -> @core.EventLoopError? {
+  ignore(attributes)
+  if !on_main_thread {
+    Some(
+      @core.EventLoopError::os(
+        "On macOS, EventLoop creation must happen on the main thread",
+      ),
+    )
+  } else {
+    None
+  }
+}
+
+///|
+fn event_loop_run_thread_error(on_main_thread : Bool) -> @core.EventLoopError? {
+  if !on_main_thread {
+    Some(
+      @core.EventLoopError::os(
+        "On macOS, EventLoop must be run on the main thread",
+      ),
+    )
+  } else {
+    None
+  }
+}
+
+///|
+fn ensure_event_loop_run_thread() -> Unit raise @core.EventLoopError {
+  match event_loop_run_thread_error(is_main_thread()) {
+    Some(error) => raise error
+    None => ()
+  }
+}
+
+///|
 pub fn EventLoop::try_new_with_platform_attributes(
   attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop raise @core.EventLoopError {
-  if !attributes.any_thread() && is_main_thread() == false {
-    raise @core.EventLoopError::os(
-      "EventLoop creation must happen on the main thread when any_thread=false",
-    )
+  match event_loop_creation_thread_error(attributes, is_main_thread()) {
+    Some(error) => raise error
+    None => ()
   }
   if event_loop_global_created.val {
     raise RecreationAttempt
@@ -700,6 +772,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
   self : EventLoop,
   app : A,
 ) -> Unit raise @core.EventLoopError {
+  ensure_event_loop_run_thread()
   if app_state_is_running() {
     raise RecreationAttempt
   }
@@ -747,16 +820,18 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
   timeout_ms : Int?,
   app : A,
 ) -> @core.PumpStatus {
-  self.try_pump_app_events(timeout_ms, app)
+  try! self.try_pump_app_events(timeout_ms, app)
 }
 
 ///|
-/// See `pump_app_events()`.
+/// See `pump_app_events()`. Returns an `EventLoopError` when called outside the
+/// process main thread.
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   self : EventLoop,
   timeout_ms : Int?,
   app : A,
-) -> @core.PumpStatus {
+) -> @core.PumpStatus raise @core.EventLoopError {
+  ensure_event_loop_run_thread()
   app_state_set_dispatch_handler(app, self.as_active())
   let result = (fn() -> @core.PumpStatus {
     app_state_set_handler_in_use(false)
@@ -796,6 +871,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   self : EventLoop,
   app : A,
 ) -> Unit raise @core.EventLoopError {
+  ensure_event_loop_run_thread()
   app_state_set_dispatch_handler(app, self.as_active())
   let result = (fn() -> Unit raise @core.EventLoopError {
     self.try_start_running()

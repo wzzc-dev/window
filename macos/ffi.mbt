@@ -49,6 +49,13 @@ extern "C" fn native_cg_display_get_display_id_from_uuid(uuid : UInt64) -> UInt 
 extern "C" fn native_pthread_main_np() -> Int = "pthread_main_np"
 
 ///|
+#borrow(call_closure, callback)
+extern "C" fn native_run_on_main(
+  call_closure : FuncRef[(() -> Unit) -> Unit],
+  callback : () -> Unit,
+) -> Unit = "mbw_run_on_main"
+
+///|
 extern "C" fn native_cg_active_display_count() -> Int = "mbw_cg_active_display_count"
 
 ///|
@@ -62,9 +69,6 @@ extern "C" fn native_cg_display_bounds_y(display : UInt) -> Int = "mbw_cg_displa
 
 ///|
 extern "C" fn native_cg_display_bounds_height(display : UInt) -> Double = "mbw_cg_display_bounds_height"
-
-///|
-extern "C" fn native_cg_display_scale_factor(display : UInt) -> Double = "mbw_cg_display_scale_factor"
 
 ///|
 #borrow(call_closure)
@@ -91,23 +95,6 @@ extern "C" fn native_notification_center_add_observer(
 extern "C" fn appkit_notification_center_remove_observer(
   observer_handle : NotificationObserver,
 ) -> Unit = "mbw_notification_center_remove_observer"
-
-///|
-#borrow(call_closure)
-#owned(callback)
-extern "C" fn native_install_menu_action_callback(
-  call_closure : FuncRef[((Int) -> Unit, Int) -> Unit],
-  callback : (Int) -> Unit,
-) -> Unit = "mbw_install_menu_action_callback"
-
-///|
-extern "C" fn native_create_menu_action_target() -> UInt64 = "mbw_create_menu_action_target"
-
-///|
-extern "C" fn native_set_menu_item_action_id(
-  item_handle : UInt64,
-  action_id : Int,
-) -> Unit = "mbw_set_menu_item_action_id"
 
 ///|
 #borrow(call_closure)
@@ -282,6 +269,9 @@ impl Debug for MainRunLoopObserver with fn to_repr(_self) {
 
 ///|
 type NativeDisplayMode
+
+///|
+priv type NativeDisplayModeList
 
 ///|
 priv type NativeCfObject
@@ -635,13 +625,28 @@ extern "C" fn native_monitor_copy_current_display_mode_handle(
 ) -> NativeDisplayMode = "mbw_copy_current_display_mode_handle"
 
 ///|
-extern "C" fn native_monitor_copy_display_mode_count(monitor_id : UInt) -> Int = "mbw_copy_display_mode_count"
+extern "C" fn native_monitor_copy_display_mode_list(
+  monitor_id : UInt,
+) -> NativeDisplayModeList = "mbw_copy_display_mode_list"
 
 ///|
-extern "C" fn native_monitor_copy_display_mode_handle_at(
-  monitor_id : UInt,
+#borrow(mode_list)
+extern "C" fn native_monitor_display_mode_list_count(
+  mode_list : NativeDisplayModeList,
+) -> Int = "mbw_display_mode_list_count"
+
+///|
+#borrow(mode_list)
+extern "C" fn native_monitor_display_mode_list_mode_at(
+  mode_list : NativeDisplayModeList,
   index : Int,
-) -> NativeDisplayMode = "mbw_copy_display_mode_handle_at"
+) -> NativeDisplayMode = "mbw_display_mode_list_mode_at"
+
+///|
+#borrow(mode_list)
+extern "C" fn native_monitor_release_display_mode_list(
+  mode_list : NativeDisplayModeList,
+) -> Unit = "mbw_release_display_mode_list"
 
 ///|
 #borrow(mode_handle)
@@ -680,6 +685,19 @@ extern "C" fn native_monitor_display_mode_refresh_rate_millihertz(
 ) -> Int = "mbw_display_mode_refresh_rate_millihertz"
 
 ///|
+extern "C" fn native_monitor_display_refresh_rate_millihertz(
+  monitor_id : UInt,
+) -> Int = "mbw_display_refresh_rate_millihertz"
+
+///|
+extern "C" fn native_monitor_backing_scale_factor(monitor_id : UInt) -> Double = "mbw_monitor_backing_scale_factor"
+
+///|
+extern "C" fn native_monitor_copy_ns_screen(
+  monitor_id : UInt,
+) -> NativeObjcObject = "mbw_monitor_copy_ns_screen"
+
+///|
 #borrow(mode_handle)
 extern "C" fn native_monitor_release_display_mode_handle(
   mode_handle : NativeDisplayMode,
@@ -709,4 +727,29 @@ extern "C" fn native_cf_object_handle(handle : NativeCfObject) -> UInt64 = "mbw_
 
 ///|
 #borrow(handle)
+extern "C" fn native_cf_uuid_high(handle : NativeCfObject) -> UInt64 = "mbw_cf_uuid_high"
+
+///|
+#borrow(handle)
+extern "C" fn native_cf_uuid_low(handle : NativeCfObject) -> UInt64 = "mbw_cf_uuid_low"
+
+///|
+#borrow(handle)
 extern "C" fn native_cf_object_release(handle : NativeCfObject) -> Unit = "mbw_cf_object_release"
+
+///|
+#borrow(call_closure)
+#owned(callback)
+extern "C" fn native_install_menu_action_callback(
+  call_closure : FuncRef[((Int) -> Unit, Int) -> Unit],
+  callback : (Int) -> Unit,
+) -> Unit = "mbw_install_menu_action_callback"
+
+///|
+extern "C" fn native_create_menu_action_target() -> UInt64 = "mbw_create_menu_action_target"
+
+///|
+extern "C" fn native_set_menu_item_action_id(
+  item_handle : UInt64,
+  action_id : Int,
+) -> Unit = "mbw_set_menu_item_action_id"

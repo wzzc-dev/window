@@ -4,16 +4,6 @@
 // 1. We build monitor handles from CoreGraphics display IDs.
 // 2. Active displays are enumerated through small native primitives.
 
-fn normalize_display_id(display_id : UInt64) -> UInt64 {
-  let uuid = cg_display_create_uuid_from_display_id(display_id)
-  if !cf_object_valid(uuid) {
-    return (0 : Int).to_uint64()
-  }
-  let normalized = cg_display_get_display_id_from_uuid(cf_object_handle(uuid))
-  cf_object_release(uuid)
-  normalized
-}
-
 ///|
 fn native_find_display_mode_handle(
   monitor_id : UInt64,
@@ -39,8 +29,13 @@ fn native_copy_current_display_mode_handle(
 }
 
 ///|
-fn native_copy_display_mode_count(monitor_id : UInt64) -> Int {
-  let count = native_monitor_copy_display_mode_count(monitor_id.to_uint())
+fn native_copy_display_mode_list(monitor_id : UInt64) -> NativeDisplayModeList {
+  native_monitor_copy_display_mode_list(monitor_id.to_uint())
+}
+
+///|
+fn native_display_mode_list_count(mode_list : NativeDisplayModeList) -> Int {
+  let count = native_monitor_display_mode_list_count(mode_list)
   if count > 0 {
     count
   } else {
@@ -49,11 +44,16 @@ fn native_copy_display_mode_count(monitor_id : UInt64) -> Int {
 }
 
 ///|
-fn native_copy_display_mode_handle_at(
-  monitor_id : UInt64,
+fn native_display_mode_list_mode_at(
+  mode_list : NativeDisplayModeList,
   index : Int,
 ) -> NativeDisplayMode {
-  native_monitor_copy_display_mode_handle_at(monitor_id.to_uint(), index)
+  native_monitor_display_mode_list_mode_at(mode_list, index)
+}
+
+///|
+fn native_release_display_mode_list(mode_list : NativeDisplayModeList) -> Unit {
+  native_monitor_release_display_mode_list(mode_list)
 }
 
 ///|
@@ -107,40 +107,7 @@ fn native_display_mode_refresh_rate_millihertz(
 
 ///|
 fn native_display_refresh_rate_millihertz(monitor_id : UInt64) -> Int {
-  let maximum_frames_per_second = objc_runtime_selector_handle(
-    "maximumFramesPerSecond",
-  )
-  let mut screen = native_monitor_ns_screen(monitor_id)
-  if screen == (0 : Int).to_uint64() {
-    let ns_screen_class = objc_runtime_class_handle("NSScreen")
-    if ns_screen_class == (0 : Int).to_uint64() {
-      return 0
-    }
-    screen = appkit_objc_msg_send_u64(
-      ns_screen_class,
-      objc_runtime_selector_handle("mainScreen"),
-    )
-  }
-  if screen == (0 : Int).to_uint64() ||
-    appkit_objc_msg_send_bool_u64(
-      screen,
-      objc_runtime_selector_handle("respondsToSelector:"),
-      maximum_frames_per_second,
-    ) ==
-    false {
-    return 0
-  }
-  let frames_per_second = appkit_objc_msg_send_i64(
-    screen, maximum_frames_per_second,
-  ).to_int()
-  if frames_per_second <= 0 {
-    return 0
-  }
-  if frames_per_second > 2_147_483 {
-    2_147_483_647
-  } else {
-    frames_per_second * 1000
-  }
+  native_monitor_display_refresh_rate_millihertz(monitor_id.to_uint())
 }
 
 ///|
@@ -167,67 +134,16 @@ fn native_release_display_capture(monitor_id : UInt64) -> Bool {
 }
 
 ///|
-fn native_monitor_ns_screen(monitor_id : UInt64) -> UInt64 {
+fn native_monitor_ns_screen(monitor_id : UInt64) -> NSScreenHandle? {
   if monitor_id == (0 : Int).to_uint64() {
-    return (0 : Int).to_uint64()
+    return None
   }
-  let normalized_monitor_id = normalize_display_id(monitor_id)
-  if normalized_monitor_id == (0 : Int).to_uint64() {
-    return (0 : Int).to_uint64()
+  let screen_owner = native_monitor_copy_ns_screen(monitor_id.to_uint())
+  if appkit_objc_owned_object_handle(screen_owner) == (0 : Int).to_uint64() {
+    None
+  } else {
+    Some({ object: screen_owner })
   }
-  let ns_screen_class = objc_runtime_class_handle("NSScreen")
-  if ns_screen_class == (0 : Int).to_uint64() {
-    return (0 : Int).to_uint64()
-  }
-  let screens = appkit_objc_msg_send_u64(
-    ns_screen_class,
-    objc_runtime_selector_handle("screens"),
-  )
-  if screens == (0 : Int).to_uint64() {
-    return (0 : Int).to_uint64()
-  }
-  let count = appkit_objc_msg_send_i64(
-    screens,
-    objc_runtime_selector_handle("count"),
-  ).to_int()
-  if count <= 0 {
-    return (0 : Int).to_uint64()
-  }
-  let key = objc_nsstring_from_string("NSScreenNumber")
-  if key == (0 : Int).to_uint64() {
-    return (0 : Int).to_uint64()
-  }
-  let object_at_index = objc_runtime_selector_handle("objectAtIndex:")
-  let device_description = objc_runtime_selector_handle("deviceDescription")
-  let object_for_key = objc_runtime_selector_handle("objectForKey:")
-  let unsigned_int_value = objc_runtime_selector_handle("unsignedIntValue")
-  let mut index = 0
-  while index < count {
-    let screen = appkit_objc_msg_send_u64_u64(
-      screens,
-      object_at_index,
-      index.to_uint64(),
-    )
-    if screen != (0 : Int).to_uint64() {
-      let description = appkit_objc_msg_send_u64(screen, device_description)
-      if description != (0 : Int).to_uint64() {
-        let number = appkit_objc_msg_send_u64_u64(
-          description, object_for_key, key,
-        )
-        if number != (0 : Int).to_uint64() {
-          let screen_display_id = appkit_objc_msg_send_u64(
-            number, unsigned_int_value,
-          )
-          let normalized_screen_id = normalize_display_id(screen_display_id)
-          if normalized_screen_id == normalized_monitor_id {
-            return screen
-          }
-        }
-      }
-    }
-    index = index + 1
-  }
-  (0 : Int).to_uint64()
 }
 
 ///|
@@ -254,8 +170,8 @@ fn fallback_display_video_mode(display_id : UInt64) -> @core.VideoMode {
 
 ///|
 fn display_video_mode_from_handle(
-  display_id : UInt64,
   mode_handle : NativeDisplayMode,
+  fallback_refresh_rate_millihertz : Int,
 ) -> @core.VideoMode? {
   if native_display_mode_valid(mode_handle) == false {
     return None
@@ -273,7 +189,7 @@ fn display_video_mode_from_handle(
     if mode_refresh_rate_millihertz > 0 {
       mode_refresh_rate_millihertz
     } else {
-      native_display_refresh_rate_millihertz(display_id)
+      fallback_refresh_rate_millihertz
     }
   }
   Some(
@@ -307,19 +223,25 @@ fn push_unique_video_mode(
 ///|
 fn available_display_video_modes(display_id : UInt64) -> Array[@core.VideoMode] {
   let modes : Array[@core.VideoMode] = []
-  let count = native_copy_display_mode_count(display_id)
-  let mut index = 0
-  while index < count {
-    let mode_handle = native_copy_display_mode_handle_at(display_id, index)
+  let mode_list = native_copy_display_mode_list(display_id)
+  let count = native_display_mode_list_count(mode_list)
+  let fallback_refresh_rate_millihertz = native_display_refresh_rate_millihertz(
+    display_id,
+  )
+  for index in 0..<count {
+    let mode_handle = native_display_mode_list_mode_at(mode_list, index)
     if native_display_mode_valid(mode_handle) {
-      match display_video_mode_from_handle(display_id, mode_handle) {
+      match
+        display_video_mode_from_handle(
+          mode_handle, fallback_refresh_rate_millihertz,
+        ) {
         Some(mode) => push_unique_video_mode(modes, mode)
         None => ()
       }
-      native_release_display_mode_handle(mode_handle)
     }
-    index = index + 1
+    native_release_display_mode_handle(mode_handle)
   }
+  native_release_display_mode_list(mode_list)
   modes
 }
 
@@ -329,14 +251,17 @@ fn current_display_video_mode(display_id : UInt64) -> @core.VideoMode? {
   if native_display_mode_valid(mode_handle) == false {
     return None
   }
-  let mode = display_video_mode_from_handle(display_id, mode_handle)
+  let mode = display_video_mode_from_handle(
+    mode_handle,
+    native_display_refresh_rate_millihertz(display_id),
+  )
   native_release_display_mode_handle(mode_handle)
   mode
 }
 
 ///|
 fn clamped_scale_factor(display_id : UInt64) -> Double {
-  let scale = cg_display_scale_factor(display_id)
+  let scale = native_monitor_backing_scale_factor(display_id.to_uint())
   if scale > 0.0 {
     scale
   } else {
@@ -355,30 +280,107 @@ fn display_position(
 }
 
 ///|
-fn monitor_from_display_id(display_id : UInt64) -> @core.MonitorHandle? {
-  let display_id = normalize_display_id(display_id)
+priv struct MacosMonitorHandleProvider {
+  uuid : NativeCfObject
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn id(self) {
+  (native_cf_uuid_high(self.uuid), native_cf_uuid_low(self.uuid))
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn native_id(
+  self,
+) {
+  cg_display_get_display_id_from_uuid(cf_object_handle(self.uuid))
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn name(
+  self,
+) {
+  let display_id = self.native_id()
   if display_id == (0 : Int).to_uint64() {
+    None
+  } else {
+    Some("Monitor #" + cg_display_model_number(display_id).to_string())
+  }
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn position(
+  self,
+) {
+  let display_id = self.native_id()
+  if display_id == (0 : Int).to_uint64() {
+    PhysicalPosition(0, 0)
+  } else {
+    display_position(display_id, clamped_scale_factor(display_id))
+  }
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn surface_size(
+  self,
+) {
+  let display_id = self.native_id()
+  if display_id == (0 : Int).to_uint64() {
+    PhysicalSize(1, 1)
+  } else {
+    match current_display_video_mode(display_id) {
+      Some(mode) => mode.surface_size()
+      None => fallback_display_video_mode(display_id).surface_size()
+    }
+  }
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn scale_factor(
+  self,
+) {
+  clamped_scale_factor(self.native_id())
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn current_video_mode(
+  self,
+) {
+  let display_id = self.native_id()
+  if display_id == (0 : Int).to_uint64() {
+    None
+  } else {
+    current_display_video_mode(display_id)
+  }
+}
+
+///|
+impl @core.MonitorHandleProvider for MacosMonitorHandleProvider with fn video_modes(
+  self,
+) {
+  let display_id = self.native_id()
+  if display_id == (0 : Int).to_uint64() {
+    []
+  } else {
+    let modes = available_display_video_modes(display_id)
+    match current_display_video_mode(display_id) {
+      Some(mode) => push_unique_video_mode(modes, mode)
+      None => ()
+    }
+    modes
+  }
+}
+
+///|
+fn monitor_from_display_id(display_id : UInt64) -> @core.MonitorHandle? {
+  let uuid = cg_display_create_uuid_from_display_id(display_id)
+  if !cf_object_valid(uuid) {
+    cf_object_release(uuid)
     return None
   }
-  let scale_factor = clamped_scale_factor(display_id)
-  let current_mode = match current_display_video_mode(display_id) {
-    Some(mode) => mode
-    None => fallback_display_video_mode(display_id)
-  }
-  let video_modes = available_display_video_modes(display_id)
-  push_unique_video_mode(video_modes, current_mode)
-  let width = current_mode.surface_size().width
-  let height = current_mode.surface_size().height
-  let model_number = cg_display_model_number(display_id)
   Some(
-    MonitorHandle(
-      display_id,
-      Some("Monitor #" + model_number.to_string()),
-      display_position(display_id, scale_factor),
-      PhysicalSize(width, height),
-      scale_factor,
-      Some(current_mode),
-      video_modes,
+    @core.MonitorHandle::from_provider(
+      { uuid, } as &@core.MonitorHandleProvider,
     ),
   )
 }
@@ -389,9 +391,12 @@ fn monitor_from_native_id(monitor_id : UInt64) -> @core.MonitorHandle? {
 }
 
 ///|
-fn primary_monitor() -> @core.MonitorHandle? {
+fn primary_monitor() -> @core.MonitorHandle {
   let display_id = cg_main_display_id()
-  monitor_from_display_id(display_id)
+  match monitor_from_display_id(display_id) {
+    Some(monitor) => monitor
+    None => abort("primary monitor unavailable")
+  }
 }
 
 ///|
@@ -415,10 +420,7 @@ fn available_monitors() -> Array[@core.MonitorHandle] {
     index = index + 1
   }
   if monitors.is_empty() {
-    match primary_monitor() {
-      Some(monitor) => [monitor]
-      None => []
-    }
+    [primary_monitor()]
   } else {
     monitors
   }
@@ -427,11 +429,47 @@ fn available_monitors() -> Array[@core.MonitorHandle] {
 ///|
 // Port target: winit-reference/winit-appkit/src/lib.rs::MonitorHandleExtMacOS::ns_screen
 // MoonBit adaptation: foreign type extension methods are not allowed, so expose a free function.
-pub fn monitor_ns_screen(monitor : @core.MonitorHandle) -> UInt64? {
-  let screen = native_monitor_ns_screen(monitor.native_id())
-  if screen == (0 : Int).to_uint64() {
-    None
-  } else {
-    Some(screen)
-  }
+
+///|
+/// A retained snapshot of the `NSScreen` matched to a monitor.
+///
+/// Display reconfiguration can change which `NSScreen` corresponds to a
+/// monitor. Existing handles remain memory-valid, but callers should resolve a
+/// new handle after a reconfiguration event instead of treating this snapshot
+/// as the current screen indefinitely.
+pub struct NSScreenHandle {
+  priv object : NativeObjcObject
+}
+
+///|
+pub impl Debug for NSScreenHandle with fn to_repr(self) {
+  Repr::opaque_(
+    "NSScreenHandle",
+    Repr::literal("0x" + self.objc_handle().to_string()),
+  )
+}
+
+///|
+/// Borrow the underlying `NSScreen*`.
+///
+/// The pointer remains valid only while this `NSScreenHandle` is alive and has
+/// not been dropped. Keep the handle strongly reachable for every native call
+/// that uses the pointer, and do not release the pointer directly.
+pub fn NSScreenHandle::objc_handle(self : NSScreenHandle) -> UInt64 {
+  appkit_objc_owned_object_handle(self.object)
+}
+
+///|
+/// Release the retained `NSScreen` promptly. Repeated calls are safe.
+pub fn NSScreenHandle::drop(self : NSScreenHandle) -> Unit {
+  appkit_objc_release_object(self.object)
+}
+
+///|
+/// Resolve and retain the current `NSScreen` matched to this monitor.
+///
+/// Resolution always runs on the AppKit main thread. The returned handle owns
+/// a snapshot reference; call again after display reconfiguration.
+pub fn monitor_ns_screen(monitor : @core.MonitorHandle) -> NSScreenHandle? {
+  native_monitor_ns_screen(monitor.native_id())
 }

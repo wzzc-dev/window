@@ -23,12 +23,6 @@ priv struct WindowHandleEntry {
 }
 
 ///|
-priv struct FullscreenRequestEntry {
-  raw_id : Int
-  fullscreen : Bool
-}
-
-///|
 priv struct AppStateRuntime {
   mut activation_policy : Int
   mut default_menu : Bool
@@ -49,7 +43,6 @@ priv struct AppStateRuntime {
   mut wait_timeout_ms : Int64?
   mut pending_redraw_window_ids : Array[Int]
   mut window_handles : Array[WindowHandleEntry]
-  mut fullscreen_requests : Array[FullscreenRequestEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
 }
@@ -76,7 +69,6 @@ fn AppStateRuntime::AppStateRuntime() -> AppStateRuntime {
     wait_timeout_ms: None,
     pending_redraw_window_ids: [],
     window_handles: [],
-    fullscreen_requests: [],
     deferred_callbacks: [],
     dispatch_callback: None,
   }
@@ -200,54 +192,13 @@ fn app_state_callback_requires_running(callback : DeferredCallback) -> Bool {
 
 ///|
 fn app_state_defer_callback(callback : DeferredCallback) -> Unit {
-  app_state_runtime.val.deferred_callbacks.push(callback)
+  app_state_deferred_queue_push(callback)
   native_event_loop_wake_up()
 }
 
 ///|
-fn app_state_dispatch_with_registered_callback(
-  callback : DeferredCallback,
-) -> Bool {
-  match app_state_runtime.val.dispatch_callback {
-    Some(dispatch) => {
-      app_state_runtime.val.event_handler_in_use = true
-      dispatch(callback)
-      app_state_runtime.val.event_handler_in_use = false
-      true
-    }
-    None => false
-  }
-}
-
-///|
 fn app_state_take_next_dispatchable_callback() -> DeferredCallback? {
-  if app_state_runtime.val.deferred_callbacks.is_empty() {
-    return None
-  }
-  if app_state_is_running() {
-    return Some(app_state_runtime.val.deferred_callbacks.remove(0))
-  }
-  match
-    app_state_runtime.val.deferred_callbacks.search_by(callback => {
-      app_state_callback_requires_running(callback) == false
-    }) {
-    Some(index) => Some(app_state_runtime.val.deferred_callbacks.remove(index))
-    None => None
-  }
-}
-
-///|
-fn app_state_dispatch_registered_deferred_callbacks() -> Unit {
-  while app_state_runtime.val.event_handler_in_use == false &&
-        app_state_runtime.val.dispatch_callback is Some(_) {
-    match app_state_take_next_dispatchable_callback() {
-      Some(callback) =>
-        if app_state_dispatch_with_registered_callback(callback) == false {
-          return ()
-        }
-      None => return ()
-    }
-  }
+  app_state_deferred_queue_take_next_dispatchable(app_state_is_running())
 }
 
 ///|
@@ -260,7 +211,7 @@ fn app_state_maybe_dispatch_callback(callback : DeferredCallback) -> Unit {
     app_state_is_running() == false {
     return ()
   }
-  if app_state_runtime.val.dispatch_callback is None {
+  if !app_state_has_dispatch_handler() {
     match callback {
       // Port target: app_state.rs::did_finish_launching / will_terminate
       // Even without an active handler, lifecycle state still advances.
@@ -270,7 +221,7 @@ fn app_state_maybe_dispatch_callback(callback : DeferredCallback) -> Unit {
     }
     return ()
   }
-  if app_state_runtime.val.event_handler_in_use {
+  if app_state_handler_in_use() {
     match callback {
       // Port target: app_state.rs::handle_redraw
       // Drop re-entrant redraw callbacks instead of queueing them.
@@ -287,26 +238,24 @@ fn app_state_maybe_dispatch_callback(callback : DeferredCallback) -> Unit {
 
 ///|
 fn app_state_queue_did_finish_launching_notification() -> Unit {
-  if app_state_runtime.val.is_launched {
+  if app_state_is_launched() {
     return ()
   }
-  for callback in app_state_runtime.val.deferred_callbacks {
-    if callback is DidFinishLaunching {
-      return ()
-    }
+  if app_state_deferred_queue_contains(callback => {
+      callback is DidFinishLaunching
+    }) {
+    return ()
   }
   app_state_maybe_dispatch_callback(DidFinishLaunching)
 }
 
 ///|
 fn app_state_queue_will_terminate_notification() -> Unit {
-  if app_state_runtime.val.will_terminate_handled {
+  if app_state_will_terminate_handled() {
     return ()
   }
-  for callback in app_state_runtime.val.deferred_callbacks {
-    if callback is WillTerminate {
-      return ()
-    }
+  if app_state_deferred_queue_contains(callback => callback is WillTerminate) {
+    return ()
   }
   app_state_maybe_dispatch_callback(WillTerminate)
 }
@@ -417,7 +366,6 @@ fn app_state_queue_native_window_event(
       app_state_clear_window_redraw(raw_id)
       view_clear_pressed_modifiers(raw_id)
       view_clear_ime_state(raw_id)
-      app_state_clear_fullscreen_request(raw_id)
       app_state_clear_window_position_state(raw_id)
       app_state_unregister_window_handle(raw_id)
       app_state_queue_window_callback(window_id, Destroyed)
@@ -614,142 +562,6 @@ fn native_callback_will_terminate() -> Unit {
 }
 
 ///|
-fn native_callback_input_event(
-  raw_id : Int,
-  kind : Int,
-  event_type : Int,
-  x : Double,
-  y : Double,
-  state : Int,
-  button : Int,
-  modifier_flags : Int,
-  scancode : Int,
-  repeat : Int,
-  pointer_source : Int,
-  pointer_kind : Int,
-  scroll_delta_kind : Int,
-  delta_x : Double,
-  delta_y : Double,
-  phase : Int,
-  text_with_all_modifiers : UInt64,
-  text_ignoring_modifiers : UInt64,
-  text_without_modifiers : UInt64,
-) -> Unit {
-  let modifiers = native_modifiers_from_modifier_flags(modifier_flags)
-  let text_with_all_modifiers = native_copy_utf8_cstr_bytes(
-    text_with_all_modifiers,
-  )
-  let text_ignoring_modifiers = native_copy_utf8_cstr_bytes(
-    text_ignoring_modifiers,
-  )
-  let mut text_without_modifiers = native_copy_utf8_cstr_bytes(
-    text_without_modifiers,
-  )
-  let mut text_with_all_modifiers = text_with_all_modifiers
-  if (kind == 7 || kind == 26) && (event_type == 10 || event_type == 11) {
-    let left_alt_pressed = (modifier_flags & 0x20) != 0
-    let right_alt_pressed = (modifier_flags & 0x40) != 0
-    let alt_pressed = left_alt_pressed || right_alt_pressed
-    let control_pressed = (modifier_flags & 262_144) != 0
-    let meta_pressed = (modifier_flags & 1_048_576) != 0
-    if !control_pressed && !meta_pressed {
-      let option_as_alt = option_as_alt_for_window(raw_id)
-      if (option_as_alt == 1 && left_alt_pressed) ||
-        (option_as_alt == 2 && right_alt_pressed) ||
-        (option_as_alt == 3 && alt_pressed) {
-        text_with_all_modifiers = text_ignoring_modifiers
-      }
-    }
-    text_without_modifiers = text_ignoring_modifiers
-  }
-  if kind == 7 && event_type == 12 {
-    let state = modifiers_state_from_native(modifiers)
-    let pressed_modifiers = normalize_pressed_modifier_keys(
-      state,
-      view_pressed_modifiers(raw_id),
-    )
-    view_set_pressed_modifiers(raw_id, pressed_modifiers)
-    app_state_queue_window_callback(
-      @core.WindowId::from_raw(raw_id),
-      ModifiersChanged(@core.Modifiers::from_state(state, pressed_modifiers)),
-    )
-  }
-  if kind == 7 && event_type == 11 && !view_ime_allows_key_up(raw_id) {
-    return ()
-  }
-  if kind == 26 {
-    view_set_pending_key_snapshot(raw_id, {
-      x,
-      y,
-      state,
-      button,
-      modifiers,
-      scancode,
-      repeat,
-      pointer_source,
-      pointer_kind,
-      scroll_delta_kind,
-      delta_x,
-      delta_y,
-      phase,
-      text_with_all_modifiers,
-      text_ignoring_modifiers,
-      text_without_modifiers,
-    })
-    return ()
-  }
-  if kind == 4 ||
-    kind == 5 ||
-    kind == 13 ||
-    kind == 14 ||
-    kind == 15 ||
-    kind == 16 ||
-    kind == 17 {
-    queue_pointer_motion_event(raw_id, x, y)
-  }
-  queue_input_event(
-    raw_id,
-    kind,
-    x,
-    y,
-    state,
-    button,
-    modifiers,
-    scancode,
-    repeat,
-    pointer_source,
-    pointer_kind,
-    scroll_delta_kind,
-    delta_x,
-    delta_y,
-    phase,
-    text_with_all_modifiers,
-    text_ignoring_modifiers,
-    text_without_modifiers,
-    0,
-    @utf8.encode(""[:], bom=false),
-    -1,
-    -1,
-    @utf8.encode(""[:], bom=false),
-  )
-}
-
-///|
-fn native_callback_text_input_event(
-  raw_id : Int,
-  kind : Int,
-  state : Int,
-  text_handle : UInt64,
-  cursor_start : Int,
-  cursor_end : Int,
-  path_handle : UInt64,
-) -> Unit {
-  queue_native_text_input_event(
-    raw_id, kind, state, text_handle, cursor_start, cursor_end, path_handle,
-  )
-}
-
-///|
 fn native_callback_drag_event(
   raw_id : Int,
   kind : Int,
@@ -786,9 +598,6 @@ fn native_callback_sync_query(raw_id : Int, kind : Int, _arg0 : UInt64) -> Int {
 
 ///|
 fn app_state_on_before_waiting() -> Unit {
-  if app_state_is_launched() == false {
-    app_state_queue_did_finish_launching_notification()
-  }
   if app_state_handler_ready() == false {
     return ()
   }
@@ -896,7 +705,6 @@ fn app_state_unregister_window_handle(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_handles = remaining_entries
-  app_state_clear_fullscreen_request(raw_id)
   app_state_clear_window_position_state(raw_id)
 }
 
@@ -944,57 +752,18 @@ fn app_state_has_window_handle(window_handle : NativeWindow) -> Bool {
 }
 
 ///|
-fn app_state_set_fullscreen_request(raw_id : Int, fullscreen : Bool) -> Unit {
-  let next_requests : Array[FullscreenRequestEntry] = []
-  let mut replaced = false
-  for request in app_state_runtime.val.fullscreen_requests {
-    if request.raw_id == raw_id {
-      next_requests.push({ raw_id, fullscreen })
-      replaced = true
-    } else {
-      next_requests.push(request)
-    }
-  }
-  if replaced == false {
-    next_requests.push({ raw_id, fullscreen })
-  }
-  app_state_runtime.val.fullscreen_requests = next_requests
-}
-
-///|
-fn app_state_fullscreen_request(raw_id : Int) -> Bool? {
-  match
-    app_state_runtime.val.fullscreen_requests.search_by(request => {
-      request.raw_id == raw_id
-    }) {
-    Some(index) =>
-      Some(app_state_runtime.val.fullscreen_requests[index].fullscreen)
-    None => None
-  }
-}
-
-///|
-fn app_state_clear_fullscreen_request(raw_id : Int) -> Unit {
-  let next_requests : Array[FullscreenRequestEntry] = []
-  for request in app_state_runtime.val.fullscreen_requests {
-    if request.raw_id != raw_id {
-      next_requests.push(request)
-    }
-  }
-  app_state_runtime.val.fullscreen_requests = next_requests
-}
-
-///|
 fn app_state_process_queued_fullscreen_request(raw_id : Int) -> Unit {
-  match app_state_fullscreen_request(raw_id) {
-    Some(fullscreen) =>
-      match app_state_window_handle(raw_id) {
-        Some(window_handle) =>
-          if window_in_fullscreen_transition(window_handle) == false {
-            app_state_clear_fullscreen_request(raw_id)
+  match app_state_window_handle(raw_id) {
+    Some(window_handle) =>
+      if !window_in_fullscreen_transition(window_handle) {
+        match
+          take_window_target_fullscreen_state(
+            native_window_identity(window_handle),
+          ) {
+          Some(fullscreen) =>
             toggle_window_fullscreen(window_handle, fullscreen)
-          }
-        None => app_state_clear_fullscreen_request(raw_id)
+          None => ()
+        }
       }
     None => ()
   }
@@ -1044,83 +813,6 @@ fn app_state_setup_global(
     activation_policy, default_menu, activate_ignoring_other_apps,
   )
   app_state_install_native_callbacks()
-}
-
-///|
-fn app_state_set_stop_before_wait(value : Bool) -> Unit {
-  app_state_runtime.val.stop_before_wait = value
-}
-
-///|
-fn app_state_set_stop_on_launch(value : Bool) -> Unit {
-  app_state_runtime.val.stop_on_launch = value
-}
-
-///|
-fn app_state_stop_before_wait() -> Bool {
-  app_state_runtime.val.stop_before_wait
-}
-
-///|
-fn app_state_set_stop_after_wait(value : Bool) -> Unit {
-  app_state_runtime.val.stop_after_wait = value
-}
-
-///|
-fn app_state_stop_after_wait() -> Bool {
-  app_state_runtime.val.stop_after_wait
-}
-
-///|
-fn app_state_set_stop_on_redraw(value : Bool) -> Unit {
-  app_state_runtime.val.stop_on_redraw = value
-}
-
-///|
-fn app_state_stop_on_redraw() -> Bool {
-  app_state_runtime.val.stop_on_redraw
-}
-
-///|
-fn app_state_is_launched() -> Bool {
-  app_state_runtime.val.is_launched
-}
-
-///|
-fn app_state_set_running(value : Bool) -> Unit {
-  app_state_runtime.val.is_running = value
-}
-
-///|
-fn app_state_is_running() -> Bool {
-  app_state_runtime.val.is_running
-}
-
-///|
-fn app_state_set_handler_in_use(value : Bool) -> Unit {
-  app_state_runtime.val.event_handler_in_use = value
-}
-
-///|
-fn app_state_handler_ready() -> Bool {
-  app_state_runtime.val.is_running &&
-  app_state_runtime.val.event_handler_in_use == false &&
-  app_state_runtime.val.dispatch_callback is Some(_)
-}
-
-///|
-fn app_state_exit() -> Unit {
-  app_state_runtime.val.exit_requested = true
-}
-
-///|
-fn app_state_clear_exit() -> Unit {
-  app_state_runtime.val.exit_requested = false
-}
-
-///|
-fn app_state_exiting() -> Bool {
-  app_state_runtime.val.exit_requested
 }
 
 ///|
@@ -1193,10 +885,9 @@ fn app_state_wait_cause() -> @core.StartCause {
 
 ///|
 fn app_state_did_finish_launching() -> Unit {
-  if app_state_runtime.val.is_launched {
+  if !app_state_mark_launched() {
     return ()
   }
-  app_state_runtime.val.is_launched = true
   app_state_apply_launch_policy()
   app_state_runtime.val.waker.start()
 }
@@ -1273,32 +964,6 @@ fn app_state_apply_launch_policy() -> Unit {
 }
 
 ///|
-fn app_state_will_terminate() -> Unit {
-  if app_state_runtime.val.will_terminate_handled {
-    return ()
-  }
-  app_state_runtime.val.will_terminate_handled = true
-  notify_windows_of_exit()
-  app_state_runtime.val.dispatch_callback = None
-  app_state_runtime.val.deferred_callbacks = []
-  app_state_internal_exit()
-}
-
-///|
-fn app_state_internal_exit() -> Unit {
-  app_state_runtime.val.is_running = false
-  app_state_runtime.val.event_handler_in_use = false
-  app_state_runtime.val.stop_on_redraw = false
-  app_state_runtime.val.stop_before_wait = false
-  app_state_runtime.val.stop_after_wait = false
-  app_state_runtime.val.waker.stop()
-  app_state_runtime.val.wait_timeout_ms = None
-  app_state_runtime.val.start_time_ms = None
-  app_state_runtime.val.pending_redraw_window_ids = []
-  app_state_runtime.val.fullscreen_requests = []
-}
-
-///|
 fn[A : ApplicationHandler] app_state_dispatch_callback(
   app : A,
   event_loop : ActiveEventLoop,
@@ -1355,45 +1020,6 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
 }
 
 ///|
-fn[A : ApplicationHandler] app_state_set_dispatch_handler(
-  app : A,
-  event_loop : ActiveEventLoop,
-) -> Unit {
-  app_state_runtime.val.dispatch_callback = Some(fn(callback) {
-    app_state_dispatch_callback(app, event_loop, callback)
-  })
-}
-
-///|
-fn app_state_clear_dispatch_handler() -> Unit {
-  app_state_runtime.val.dispatch_callback = None
-}
-
-///|
-fn[A : ApplicationHandler] app_state_with_handler(
-  app : A,
-  event_loop : ActiveEventLoop,
-  callback : DeferredCallback,
-) -> Unit {
-  app_state_set_handler_in_use(true)
-  app_state_dispatch_callback(app, event_loop, callback)
-  app_state_set_handler_in_use(false)
-}
-
-///|
-fn[A : ApplicationHandler] app_state_dispatch_deferred_callbacks(
-  app : A,
-  event_loop : ActiveEventLoop,
-) -> Unit {
-  while app_state_runtime.val.event_handler_in_use == false {
-    match app_state_take_next_dispatchable_callback() {
-      Some(callback) => app_state_with_handler(app, event_loop, callback)
-      None => return ()
-    }
-  }
-}
-
-///|
 fn[A : ApplicationHandler] app_state_dispatch_init_events(
   app : A,
   event_loop : ActiveEventLoop,
@@ -1412,8 +1038,7 @@ fn[A : ApplicationHandler] app_state_did_finish_launching_and_dispatch(
   }
   app_state_did_finish_launching()
   app_state_dispatch_init_events(app, event_loop)
-  if app_state_runtime.val.stop_on_launch {
-    app_state_runtime.val.stop_on_launch = false
+  if app_state_take_stop_on_launch() {
     stop_app_immediately()
   }
 }

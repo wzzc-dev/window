@@ -5,7 +5,6 @@
 pub struct Window {
   priv id : @core.WindowId
   priv raw_window_handle : NativeWindow
-  priv raw_view_handle : UInt64
   priv mut cursor_state : @core.Cursor
   priv mut fullscreen_state : @core.Fullscreen?
   priv mut ime_capabilities_state : @core.ImeCapabilities?
@@ -34,45 +33,6 @@ pub struct Window {
 pub type WindowAttributesMacOS = @core.PlatformWindowAttributes
 
 ///|
-let invalid_native_window_handle_status = -1
-
-///|
-let core_graphics_error_domain = "CoreGraphics.CGError"
-
-///|
-let appkit_window_error_domain = "AppKit.NSWindow"
-
-///|
-fn request_error_from_native_status(
-  status : Int,
-  operation : String,
-) -> @core.RequestError {
-  if status == invalid_native_window_handle_status {
-    @core.RequestError::os(
-      "\{operation}: invalid native window handle",
-      code=status,
-      domain=appkit_window_error_domain,
-    )
-  } else {
-    @core.RequestError::os(
-      operation,
-      code=status,
-      domain=core_graphics_error_domain,
-    )
-  }
-}
-
-///|
-fn raise_request_error_from_native_status(
-  status : Int,
-  operation : String,
-) -> Unit raise @core.RequestError {
-  if status != 0 {
-    raise request_error_from_native_status(status, operation)
-  }
-}
-
-///|
 // Port target: window.rs::Window::Window
 pub fn Window::Window(
   event_loop : EventLoop,
@@ -87,40 +47,57 @@ pub fn Window::id(self : Window) -> @core.WindowId {
 }
 
 ///|
-pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
+fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
   let _ = self
-  cg_main_display_id()
+  AppKit(@windowing.AppKitDisplayHandle::new())
 }
 
 ///|
-pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
-  if self.raw_view_handle != (0 : Int).to_uint64() {
-    self.raw_view_handle
-  } else {
-    native_window_objc_handle(self.raw_window_handle)
-  }
+fn Window::raw_window_handle(
+  self : Window,
+) -> @windowing.RawWindowHandle raise @windowing.HandleError {
+  let raw_view = self.maybe_wait_on_main(fn(window) {
+    native_window_content_view_objc_handle(window.raw_window_handle)
+  })
+  AppKit(@windowing.AppKitWindowHandle::new(raw_view))
 }
 
 ///|
-// Port target: window.rs::raw_display_handle_rwh_06
-fn Window::raw_display_handle_rwh_06(self : Window) -> UInt64 {
-  self.rwh_06_display_handle()
+pub impl @windowing.DisplayHandleProvider for Window with fn raw_display_handle(
+  self,
+) {
+  self.raw_display_handle()
 }
 
 ///|
-// Port target: window.rs::raw_window_handle_rwh_06
-fn Window::raw_window_handle_rwh_06(self : Window) -> UInt64 {
-  self.rwh_06_window_handle()
+pub impl @windowing.WindowHandleProvider for Window with fn raw_window_handle(
+  self,
+) {
+  self.raw_window_handle()
 }
 
 ///|
-pub fn Window::display_handle(self : Window) -> UInt64 {
-  self.raw_display_handle_rwh_06()
+pub fn Window::display_handle(self : Window) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
 }
 
 ///|
-pub fn Window::window_handle(self : Window) -> UInt64 {
-  self.raw_window_handle_rwh_06()
+pub impl @windowing.HasDisplayHandle for Window with fn display_handle(self) {
+  self.display_handle()
+}
+
+///|
+pub fn Window::window_handle(self : Window) -> @windowing.WindowHandle {
+  @windowing.WindowHandle::from_provider(
+    self as &@windowing.WindowHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasWindowHandle for Window with fn window_handle(self) {
+  self.window_handle()
 }
 
 ///|
@@ -137,55 +114,62 @@ fn content_view_handle_from_raw(
 }
 
 ///|
+/// Return the borrowed AppKit content view handle for this window.
+///
+/// The handle is not retained for the caller. Use it only while the `Window` is
+/// alive, and do not release it.
 pub fn Window::content_view_handle(
   self : Window,
 ) -> UInt64 raise @core.RequestError {
-  content_view_handle_from_raw(
-    native_window_content_view_objc_handle(self.raw_window_handle),
-  )
+  self.maybe_wait_on_main_result(fn(window) -> UInt64 raise @core.RequestError {
+    content_view_handle_from_raw(
+      native_window_content_view_objc_handle(window.raw_window_handle),
+    )
+  })
 }
 
 ///|
 // Port target: window.rs::Drop::drop
 pub fn Window::drop(self : Window) -> Unit {
-  if self.simple_fullscreen_state {
-    ignore(self.set_simple_fullscreen(false))
-  }
-  if self.exclusive_fullscreen_state {
-    self.set_fullscreen(None)
-  }
-  close_window(self.raw_window_handle)
-  app_state_unregister_window_handle(self.id.into_raw())
+  self.maybe_wait_on_main(fn(window) {
+    if window.simple_fullscreen_state {
+      ignore(window.set_simple_fullscreen(false))
+    }
+    if window.exclusive_fullscreen_state {
+      window.set_fullscreen(None)
+    }
+    close_window(window.raw_window_handle)
+    app_state_unregister_window_handle(window.id.into_raw())
+  })
 }
 
 ///|
 pub fn Window::set_cursor(self : Window, cursor : @core.Cursor) -> Unit {
-  let cursor_visible = self.is_cursor_visible()
-  match cursor {
-    Icon(icon) => {
-      self.cursor_state = cursor
-      if cursor_visible {
-        set_window_cursor(self.raw_window_handle, cursor_icon_to_native(icon))
-      }
-    }
-    Custom(custom_cursor) =>
-      if cursor_visible {
-        if set_window_custom_cursor(
-            self.raw_window_handle,
-            custom_cursor.into_raw(),
-          ) {
-          self.cursor_state = cursor
-        } else {
-          self.cursor_state = Icon(Default)
-          set_window_cursor(
-            self.raw_window_handle,
-            cursor_icon_to_native(Default),
-          )
+  self.maybe_wait_on_main(fn(window) {
+    let cursor_visible = window.is_cursor_visible()
+    match cursor {
+      Icon(icon) => {
+        window.cursor_state = cursor
+        if cursor_visible {
+          set_window_cursor(window.raw_window_handle, icon)
         }
-      } else {
-        self.cursor_state = cursor
       }
-  }
+      Custom(custom_cursor) =>
+        if cursor_visible {
+          if native_window_set_custom_cursor(
+              window.raw_window_handle,
+              custom_cursor.into_raw(),
+            ) {
+            window.cursor_state = cursor
+          } else {
+            window.cursor_state = Icon(Default)
+            set_window_cursor(window.raw_window_handle, Default)
+          }
+        } else {
+          window.cursor_state = cursor
+        }
+    }
+  })
 }
 
 ///|
@@ -193,15 +177,17 @@ pub fn Window::set_cursor_icon(
   self : Window,
   cursor : @core.CursorIcon,
 ) -> Unit {
-  self.set_cursor(Icon(cursor))
+  self.maybe_wait_on_main(fn(window) { window.set_cursor(Icon(cursor)) })
 }
 
 ///|
 pub fn Window::set_cursor_visible(self : Window, visible : Bool) -> Unit {
-  set_window_cursor_visible(self.raw_window_handle, visible)
-  if visible {
-    self.set_cursor(self.cursor_state)
-  }
+  self.maybe_wait_on_main(fn(window) {
+    set_window_cursor_visible(window.raw_window_handle, visible)
+    if visible {
+      window.set_cursor(window.cursor_state)
+    }
+  })
 }
 
 ///|
@@ -209,7 +195,9 @@ pub fn Window::set_cursor_hittest(
   self : Window,
   hittest : Bool,
 ) -> Unit raise @core.RequestError {
-  window_set_cursor_hittest(self, hittest)
+  self.maybe_wait_on_main_result(fn(window) -> Unit raise @core.RequestError {
+    window_set_cursor_hittest(window, hittest)
+  })
 }
 
 ///|
@@ -228,7 +216,7 @@ pub impl @core.WindowCursorHittest for Window with fn set_cursor_hittest(
   self,
   hittest,
 ) {
-  window_set_cursor_hittest(self, hittest)
+  self.set_cursor_hittest(hittest)
 }
 
 ///|
@@ -244,18 +232,20 @@ pub fn Window::set_cursor_position(
   self : Window,
   position : @dpi.Position,
 ) -> Unit raise @core.RequestError {
-  let logical_position = cursor_position_to_logical(
-    position,
-    self.scale_factor(),
-  )
-  raise_request_error_from_native_status(
-    set_cursor_position(
-      self.raw_window_handle,
-      logical_position.x().to_int(),
-      logical_position.y().to_int(),
-    ),
-    "Failed to set cursor position",
-  )
+  self.maybe_wait_on_main_result(fn(window) -> Unit raise @core.RequestError {
+    let logical_position = cursor_position_to_logical(
+      position,
+      window.scale_factor(),
+    )
+    raise_request_error_from_native_status(
+      native_window_set_cursor_position(
+        window.raw_window_handle,
+        logical_position.x().to_int(),
+        logical_position.y().to_int(),
+      ),
+      "Failed to set cursor position",
+    )
+  })
 }
 
 ///|
@@ -263,28 +253,29 @@ pub fn Window::set_cursor_grab(
   self : Window,
   mode : @core.CursorGrabMode,
 ) -> Unit raise @core.RequestError {
-  if mode is Confined {
-    raise @core.RequestError::not_supported(
-      "Confined cursor grab is not supported on macOS",
+  self.maybe_wait_on_main_result(fn(window) -> Unit raise @core.RequestError {
+    if mode is Confined {
+      raise_request_not_supported(
+        "Confined cursor grab is not supported on macOS",
+      )
+    }
+    raise_request_error_from_native_status(
+      native_window_set_cursor_grab(
+        window.raw_window_handle,
+        cursor_grab_mode_to_native(mode),
+      ),
+      "Failed to set cursor grab mode",
     )
-  }
-  raise_request_error_from_native_status(
-    set_cursor_grab(self.raw_window_handle, cursor_grab_mode_to_native(mode)),
-    "Failed to set cursor grab mode",
-  )
+  })
 }
 
 ///|
 pub fn Window::drag_window(self : Window) -> Unit raise @core.RequestError {
-  let status = drag_window(self.raw_window_handle)
-  if status == -1 {
-    raise Ignored
-  }
-  if status == 0 {
-    raise @core.RequestError::not_supported(
-      "Window dragging is not supported in the current state",
+  self.maybe_wait_on_main_result(fn(window) -> Unit raise @core.RequestError {
+    raise_request_error_from_drag_window_status(
+      native_window_drag_window(window.raw_window_handle),
     )
-  }
+  })
 }
 
 ///|
@@ -292,15 +283,14 @@ pub fn Window::drag_resize_window(
   self : Window,
   direction : @core.ResizeDirection,
 ) -> Unit raise @core.RequestError {
-  if drag_resize_window(
-      self.raw_window_handle,
-      resize_direction_to_native(direction),
-    ) ==
-    false {
-    raise @core.RequestError::not_supported(
-      "Window edge dragging is not supported in the current state",
+  self.maybe_wait_on_main_result(fn(window) -> Unit raise @core.RequestError {
+    raise_request_error_from_drag_resize_result(
+      native_window_drag_resize_window(
+        window.raw_window_handle,
+        resize_direction_to_native(direction),
+      ),
     )
-  }
+  })
 }
 
 ///|
@@ -308,27 +298,33 @@ pub fn Window::show_window_menu(
   self : Window,
   position : @dpi.Position,
 ) -> Unit {
-  let physical_position = position.to_physical(self.scale_factor())
-  let _ = show_window_menu(
-    self.raw_window_handle,
-    physical_position.x(),
-    physical_position.y(),
-  )
+  self.maybe_wait_on_main(fn(window) {
+    let physical_position = position.to_physical(window.scale_factor())
+    let _ = native_window_show_window_menu(
+      window.raw_window_handle,
+      physical_position.x(),
+      physical_position.y(),
+    )
+  })
 }
 
 ///|
 pub fn Window::cursor(self : Window) -> @core.Cursor {
-  self.cursor_state
+  self.maybe_wait_on_main(fn(window) { window.cursor_state })
 }
 
 ///|
 pub fn Window::is_cursor_visible(self : Window) -> Bool {
-  window_cursor_visible(self.raw_window_handle)
+  self.maybe_wait_on_main(fn(window) {
+    window_cursor_visible(window.raw_window_handle)
+  })
 }
 
 ///|
 pub fn Window::is_cursor_hittest(self : Window) -> Bool {
-  window_cursor_hittest(self.raw_window_handle)
+  self.maybe_wait_on_main(fn(window) {
+    window_cursor_hittest(window.raw_window_handle)
+  })
 }
 
 ///|
@@ -336,53 +332,62 @@ pub fn Window::set_ime_purpose(
   self : Window,
   purpose : @core.ImePurpose,
 ) -> Unit {
-  match self.ime_capabilities() {
-    Some(capabilities) =>
-      if capabilities.hint_and_purpose() {
-        let _ = self.request_ime_update(
-          @core.ImeRequestData::default()
-          .with_hint_and_purpose(@core.ImeHint::none(), purpose)
-          .into_request(),
-        ) catch {
-          _ => ()
+  self.maybe_wait_on_main(fn(window) {
+    match window.ime_capabilities() {
+      Some(capabilities) =>
+        if capabilities.hint_and_purpose() {
+          let _ = window.request_ime_update(
+            @core.ImeRequestData::default()
+            .with_hint_and_purpose(@core.ImeHint::none(), purpose)
+            .into_request(),
+          ) catch {
+            _ => ()
+          }
         }
-      }
-    None => ()
-  }
+      None => ()
+    }
+  })
 }
 
 ///|
 pub fn Window::set_ime_hints(self : Window, hints : @core.ImeHint) -> Unit {
-  set_ime_hints(self.raw_window_handle, normalize_ime_hints_bits(hints.bits()))
+  self.maybe_wait_on_main(fn(window) {
+    set_ime_hints(
+      window.raw_window_handle,
+      normalize_ime_hints_bits(hints.bits()),
+    )
+  })
 }
 
 ///|
 pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
-  let request : @core.ImeRequest? = if allowed {
-    let capabilities = @core.ImeCapabilities::default()
-      .with_hint_and_purpose()
-      .with_cursor_area()
-    let request_data = @core.ImeRequestData::default()
-      .with_hint_and_purpose(@core.ImeHint::none(), Normal)
-      .with_cursor_area(
-        @dpi.LogicalPosition::LogicalPosition(0.0, 0.0).into_position(),
-        @dpi.LogicalSize::LogicalSize(0.0, 0.0).into_size(),
-      )
-    match
-      @core.ImeEnableRequest::from_capabilities(capabilities, request_data) {
-      Some(enable_request) => Some(Enable(enable_request))
-      None => None
+  self.maybe_wait_on_main(fn(window) {
+    let request : @core.ImeRequest? = if allowed {
+      let capabilities = @core.ImeCapabilities::default()
+        .with_hint_and_purpose()
+        .with_cursor_area()
+      let request_data = @core.ImeRequestData::default()
+        .with_hint_and_purpose(@core.ImeHint::none(), Normal)
+        .with_cursor_area(
+          @dpi.LogicalPosition::LogicalPosition(0.0, 0.0).into_position(),
+          @dpi.LogicalSize::LogicalSize(0.0, 0.0).into_size(),
+        )
+      match
+        @core.ImeEnableRequest::from_capabilities(capabilities, request_data) {
+        Some(enable_request) => Some(Enable(enable_request))
+        None => None
+      }
+    } else {
+      Some(Disable)
     }
-  } else {
-    Some(Disable)
-  }
-  match request {
-    Some(request) => {
-      let _ = self.request_ime_update(request) catch { _ => () }
-      ()
+    match request {
+      Some(request) => {
+        let _ = window.request_ime_update(request) catch { _ => () }
+        ()
+      }
+      None => ()
     }
-    None => ()
-  }
+  })
 }
 
 ///|
@@ -396,7 +401,9 @@ fn Window::set_ime_allowed_raw(self : Window, allowed : Bool) -> Unit {
 
 ///|
 pub fn Window::ime_allowed(self : Window) -> Bool {
-  window_ime_allowed(self.raw_window_handle)
+  self.maybe_wait_on_main(fn(window) {
+    window_ime_allowed(window.raw_window_handle)
+  })
 }
 
 ///|
@@ -405,19 +412,21 @@ pub fn Window::set_ime_cursor_area(
   position : @dpi.Position,
   size : @dpi.Size,
 ) -> Unit {
-  match self.ime_capabilities() {
-    Some(capabilities) =>
-      if capabilities.cursor_area() {
-        let _ = self.request_ime_update(
-          @core.ImeRequestData::default()
-          .with_cursor_area(position, size)
-          .into_request(),
-        ) catch {
-          _ => ()
+  self.maybe_wait_on_main(fn(window) {
+    match window.ime_capabilities() {
+      Some(capabilities) =>
+        if capabilities.cursor_area() {
+          let _ = window.request_ime_update(
+            @core.ImeRequestData::default()
+            .with_cursor_area(position, size)
+            .into_request(),
+          ) catch {
+            _ => ()
+          }
         }
-      }
-    None => ()
-  }
+      None => ()
+    }
+  })
 }
 
 ///|
@@ -453,44 +462,54 @@ pub fn Window::set_ime_surrounding_text(
   self : Window,
   surrounding_text : @core.ImeSurroundingText?,
 ) -> Unit {
-  match surrounding_text {
-    Some(surrounding_text) =>
-      self.ime_surrounding_text_state = Some(surrounding_text)
-    None => self.ime_surrounding_text_state = None
-  }
+  self.maybe_wait_on_main(fn(window) {
+    match surrounding_text {
+      Some(surrounding_text) =>
+        window.ime_surrounding_text_state = Some(surrounding_text)
+      None => window.ime_surrounding_text_state = None
+    }
+  })
 }
 
 ///|
 pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
-  @dpi.LogicalPosition::LogicalPosition(
-    window_ime_cursor_x(self.raw_window_handle).to_double(),
-    window_ime_cursor_y(self.raw_window_handle).to_double(),
-  ).to_physical(self.scale_factor())
+  self.maybe_wait_on_main(fn(window) {
+    @dpi.LogicalPosition::LogicalPosition(
+      window_ime_cursor_x(window.raw_window_handle).to_double(),
+      window_ime_cursor_y(window.raw_window_handle).to_double(),
+    ).to_physical(window.scale_factor())
+  })
 }
 
 ///|
 pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
-  @dpi.LogicalSize::LogicalSize(
-    window_ime_cursor_width(self.raw_window_handle).to_double(),
-    window_ime_cursor_height(self.raw_window_handle).to_double(),
-  ).to_physical(self.scale_factor())
+  self.maybe_wait_on_main(fn(window) {
+    @dpi.LogicalSize::LogicalSize(
+      window_ime_cursor_width(window.raw_window_handle).to_double(),
+      window_ime_cursor_height(window.raw_window_handle).to_double(),
+    ).to_physical(window.scale_factor())
+  })
 }
 
 ///|
 pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
-  self.ime_surrounding_text_state
+  self.maybe_wait_on_main(fn(window) { window.ime_surrounding_text_state })
 }
 
 ///|
 pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
-  ime_purpose_from_native(window_ime_purpose(self.raw_window_handle))
+  self.maybe_wait_on_main(fn(window) {
+    ime_purpose_from_native(window_ime_purpose(window.raw_window_handle))
+  })
 }
 
 ///|
 pub fn Window::ime_hints(self : Window) -> @core.ImeHint {
-  @core.ImeHint::from_bits(
-    normalize_ime_hints_bits(window_ime_hints(self.raw_window_handle)),
-  )
+  self.maybe_wait_on_main(fn(window) {
+    @core.ImeHint::from_bits(
+      normalize_ime_hints_bits(window_ime_hints(window.raw_window_handle)),
+    )
+  })
 }
 
 ///|
@@ -500,25 +519,6 @@ fn Window::apply_ime_request_data(
 ) -> Unit raise @core.ImeRequestError {
   if self.ime_capabilities_state is None {
     raise NotEnabled
-  }
-  if request_data.has_hint_and_purpose() {
-    if self.ime_supports_hint_and_purpose() {
-      match request_data.hint_and_purpose() {
-        Some((hint, purpose)) => {
-          self.set_ime_hints(hint)
-          set_ime_purpose(
-            self.raw_window_handle,
-            normalize_ime_purpose_native(ime_purpose_to_native(purpose)),
-          )
-        }
-        None => ()
-      }
-    }
-  }
-  if request_data.has_surrounding_text() {
-    if self.ime_supports_surrounding_text() {
-      self.set_ime_surrounding_text(request_data.surrounding_text())
-    }
   }
   if request_data.has_cursor_area() {
     if self.ime_supports_cursor_area() {
@@ -535,55 +535,43 @@ pub fn Window::request_ime_update(
   self : Window,
   request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
-  let current_caps = self.ime_capabilities_state
-  let request_data = match request {
-    Enable(enable_request) =>
-      match current_caps {
-        Some(_) => raise AlreadyEnabled
-        None => {
-          self.set_ime_allowed_raw(true)
-          self.ime_capabilities_state = Some(enable_request.capabilities())
-          enable_request.request_data()
+  self.maybe_wait_on_main_result(fn(
+    window,
+  ) -> Unit raise @core.ImeRequestError {
+    let current_caps = window.ime_capabilities_state
+    let request_data = match request {
+      Enable(enable_request) =>
+        match current_caps {
+          Some(_) => raise AlreadyEnabled
+          None => {
+            window.set_ime_allowed_raw(true)
+            window.ime_capabilities_state = Some(enable_request.capabilities())
+            enable_request.request_data()
+          }
         }
+      Update(request_data) =>
+        match current_caps {
+          Some(_) => request_data
+          None => raise NotEnabled
+        }
+      Disable => {
+        window.set_ime_allowed_raw(false)
+        return ()
       }
-    Update(request_data) =>
-      match current_caps {
-        Some(_) => request_data
-        None => raise NotEnabled
-      }
-    Disable => {
-      self.set_ime_allowed_raw(false)
-      return ()
     }
-  }
-  self.apply_ime_request_data(request_data)
+    window.apply_ime_request_data(request_data)
+  })
 }
 
 ///|
 pub fn Window::ime_capabilities(self : Window) -> @core.ImeCapabilities? {
-  self.ime_capabilities_state
-}
-
-///|
-fn Window::ime_supports_hint_and_purpose(self : Window) -> Bool {
-  match self.ime_capabilities_state {
-    Some(capabilities) => capabilities.hint_and_purpose()
-    None => false
-  }
+  self.maybe_wait_on_main(fn(window) { window.ime_capabilities_state })
 }
 
 ///|
 fn Window::ime_supports_cursor_area(self : Window) -> Bool {
   match self.ime_capabilities_state {
     Some(capabilities) => capabilities.cursor_area()
-    None => false
-  }
-}
-
-///|
-fn Window::ime_supports_surrounding_text(self : Window) -> Bool {
-  match self.ime_capabilities_state {
-    Some(capabilities) => capabilities.surrounding_text()
     None => false
   }
 }
