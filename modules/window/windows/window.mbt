@@ -192,7 +192,11 @@ pub fn Window::new(
     None => (cw_usedefault, cw_usedefault)
   }
   let parent_hwnd = match attributes.parent_window() {
-    Some(parent) => parent.into_raw()
+    Some(parent) =>
+      match parent.into_raw() {
+        Win32(handle) => handle.hwnd()
+        _ => (0 : Int).to_uint64()
+      }
     None => (0 : Int).to_uint64()
   }
   let hwnd = native_create_window(
