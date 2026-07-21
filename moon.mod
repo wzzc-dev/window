@@ -27,7 +27,7 @@ keywords = [
 description = "The wzzc-dev fork of moonbit-community/window, tracking upstream 0.5.4 macOS while adding MoUI-oriented Web, Windows, Linux, Android, iOS, and HarmonyOS support."
 
 import {
-  "moonbitlang/x@0.4.45",
+  "moonbitlang/x@0.4.46",
 }
 
 options(

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="Window Android Hosted"
+        android:hasCode="true">
+        <activity
+            android:name="dev.wzzc.window.template.HostedActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- Native library name is provided by the application package. -->
+        <meta-data
+            android:name="dev.wzzc.window.NATIVE_LIB"
+            android:value="window_android_app" />
+    </application>
+</manifest>

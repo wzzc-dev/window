@@ -68,6 +68,7 @@ test "web dispatch takes the browser supplied scale factor" {
     resizable: true,
     cursor: @core.Cursor::Icon(@core.CursorIcon::Default),
     fullscreen: None,
+    focused: false,
     scale_factor: 1.0,
   })
   web_dispatch_event(web_event_resize, raw_id, 320, 200, 2.0, "")

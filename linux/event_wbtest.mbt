@@ -52,6 +52,7 @@ fn register_test_window_entry(raw_id : Int, handle : UInt64) -> Unit {
     resizable: true,
     cursor: Icon(Default),
     fullscreen: None,
+    focused: false,
     surface_size: PhysicalSize(1, 1),
     scale_factor: 1.0,
   })
@@ -460,4 +461,28 @@ test "linux dispatch ignores invalid raw ids except proxy wake" {
   assert_true(app_state_modifiers().is_empty())
   dispatch_native_window_event(linux_event_proxy_wake, 0, 0, 0, 0, 0.0)
   assert_eq(app.proxy_wake_count, 1)
+}
+
+
+///|
+test "linux focus updates has_focus state" {
+  let raw_id = 9101
+  app_state_register_window_entry({
+    raw_id,
+    handle: 1UL,
+    title: "focus",
+    visible: true,
+    resizable: true,
+    cursor: Icon(Default),
+    fullscreen: None,
+    focused: false,
+    surface_size: PhysicalSize(1, 1),
+    scale_factor: 1.0,
+  })
+  assert_true(!app_state_window_focused(raw_id))
+  dispatch_native_window_event(linux_event_focus, raw_id, 1, 0, 0, 0.0)
+  assert_true(app_state_window_focused(raw_id))
+  dispatch_native_window_event(linux_event_focus, raw_id, 0, 0, 0, 0.0)
+  assert_true(!app_state_window_focused(raw_id))
+  app_state_unregister_window(raw_id)
 }

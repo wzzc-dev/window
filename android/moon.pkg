@@ -6,5 +6,6 @@ import {
 supported_targets = "native"
 
 options(
-  targets: { },
+  "native-stub": [ "native_android_host.c" ],
+  targets: { "host_ffi.mbt": [ "native" ] },
 )

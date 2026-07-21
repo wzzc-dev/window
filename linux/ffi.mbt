@@ -150,6 +150,12 @@ extern "C" fn native_window_set_maximized(
 ) -> Unit = "mbw_wayland_window_set_maximized"
 
 ///|
+extern "C" fn native_window_set_fullscreen(
+  window : UInt64,
+  fullscreen : Bool,
+) -> Unit = "mbw_wayland_window_set_fullscreen"
+
+///|
 extern "C" fn native_window_set_visible(
   window : UInt64,
   visible : Bool,

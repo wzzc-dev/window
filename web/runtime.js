@@ -206,6 +206,27 @@ export function createWindowWebImports() {
     set_document_title(title) {
       document.title = stringValue(title);
     },
+    set_canvas_fullscreen(rawId, fullscreen) {
+      const state = textInputs.get(rawId);
+      const canvas = state?.canvas ?? null;
+      if (!canvas) return;
+      if (fullscreen) {
+        if (document.fullscreenElement !== canvas && canvas.requestFullscreen) {
+          const p = canvas.requestFullscreen();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        }
+      } else if (document.fullscreenElement && document.exitFullscreen) {
+        const p = document.exitFullscreen();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      }
+    },
+    focus_canvas(rawId) {
+      const state = textInputs.get(rawId);
+      const canvas = state?.canvas ?? null;
+      if (canvas && typeof canvas.focus === "function") {
+        try { canvas.focus({ preventScroll: true }); } catch (_) { canvas.focus(); }
+      }
+    },
     device_pixel_ratio() {
       return window.devicePixelRatio || 1.0;
     },

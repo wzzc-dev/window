@@ -2527,6 +2527,22 @@ void mbw_wayland_window_set_maximized(uint64_t raw_window, int maximized) {
 }
 
 MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_fullscreen(uint64_t raw_window, int fullscreen) {
+  mbw_wayland_window_t *window =
+      (mbw_wayland_window_t *)(uintptr_t)raw_window;
+  if (!window || !window->xdg_toplevel) {
+    return;
+  }
+  if (fullscreen) {
+    save_restore_size(window);
+    xdg_toplevel_set_fullscreen(window->xdg_toplevel, NULL);
+  } else {
+    xdg_toplevel_unset_fullscreen(window->xdg_toplevel);
+  }
+  wl_surface_commit(window->surface);
+}
+
+MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_visible(uint64_t raw_window, int visible) {
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)(uintptr_t)raw_window;
@@ -2931,6 +2947,11 @@ MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_maximized(uint64_t raw_window, int maximized) {
   (void)raw_window;
   (void)maximized;
+}
+MOONBIT_FFI_EXPORT
+void mbw_wayland_window_set_fullscreen(uint64_t raw_window, int fullscreen) {
+  (void)raw_window;
+  (void)fullscreen;
 }
 MOONBIT_FFI_EXPORT
 void mbw_wayland_window_set_visible(uint64_t raw_window, int visible) {

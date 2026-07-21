@@ -566,6 +566,7 @@ fn dispatch_native_window_event(
     k if k == linux_event_redraw => app_state_queue_redraw(raw_id)
     k if k == linux_event_focus => {
       let focused = arg0 != 0
+      app_state_set_window_focused(raw_id, focused)
       app_state_queue_window_event(raw_id, Focused(focused))
       if !focused {
         match app_state_clear_modifiers() {

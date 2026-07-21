@@ -22,7 +22,7 @@ The current scope is a cross-platform MoUI-oriented window layer:
 - a Web backend on the `wasm-gc` target through browser canvas and DOM events
 - a Windows preview backend on the `native` target through Win32
 - a Linux preview backend on the `native` target through Wayland + xdg-shell
-- Android / iOS / HarmonyOS embedding-oriented backends for moui_shell surface injection
+- Android / iOS / HarmonyOS hosted backends (HostCmd + host-sim; templates under `templates/*`; native OS glue in progress)
 - event loop APIs: `run_app`, `run_app_on_demand`, `pump_app_events`, `EventLoopProxy::wake_up`, and `EventLoop::builder`
 
 Known deltas against upstream `moonbit-community/window`:

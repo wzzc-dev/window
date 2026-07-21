@@ -16,6 +16,7 @@ priv struct WindowEntry {
   mut resizable : Bool
   mut cursor : @core.Cursor
   mut fullscreen : @core.Fullscreen?
+  mut focused : Bool
   mut surface_size : @dpi.PhysicalSize
   scale_factor : Double
 }
@@ -265,6 +266,22 @@ fn app_state_window_fullscreen(raw_id : Int) -> @core.Fullscreen? {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.fullscreen
     None => None
+  }
+}
+
+///|
+fn app_state_set_window_focused(raw_id : Int, focused : Bool) -> Unit {
+  app_state_update_window_entry(raw_id, entry => {
+    entry.focused = focused
+    entry
+  })
+}
+
+///|
+fn app_state_window_focused(raw_id : Int) -> Bool {
+  match app_state_window_entry(raw_id) {
+    Some(entry) => entry.focused
+    None => false
   }
 }
 

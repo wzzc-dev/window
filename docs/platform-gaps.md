@@ -63,6 +63,25 @@ before a backend is treated as ready for MoUI integration.
 
 ## Latest Local Verification
 
+MoUI window-hosted Phase1 (2026-07-21):
+
+- `moui/backend/{android,ios,harmonyos}/window_hosted.mbt` ApplicationHandler bridges.
+- Host-sim tests pass via `moon test moui/backend/{android,ios,harmonyos}`.
+- Counter thin entries: `examples/counter/*_window_hosted` `moon check` pass.
+- Emulator/device install packaging still pending (see `docs/window-hosted-moui.md`).
+
+
+
+Parity implementation batch (2026-07-21, macOS host code changes; matching-host runtime still required for Windows/Linux device claims):
+
+- Windows: `set_cursor_visible` now drives `ShowCursor` via `mbw_set_cursor_visible` (was state-only).
+- Linux: `has_focus` tracks keyboard_enter/leave; `set_fullscreen` calls `xdg_toplevel_set/unset_fullscreen`.
+- Web: `has_focus` tracks canvas focus events; `set_fullscreen` best-effort Fullscreen API; `focus_window` focuses canvas.
+- iOS: device soft present paints RGBA into `UIView.layer.contents` (host-sim still non-zero-handle success).
+- Contract sheet: `docs/api-contract-matrix.md`.
+
+## Latest Local Verification
+
 Last verified on Windows, 2026-06-07:
 
 - Windows build/runtime smoke on Windows (Windows_NT), 2026-06-07: passed.
@@ -433,54 +452,78 @@ Known gaps:
 
 Build smoke:
 
-- `moon check android --target native`
+- `moon check -p android --target native`
 - `moon test -p android`
+- `bash scripts/check_android_hosted_smoke.sh` (host-sim + package check)
 
 Runtime smoke:
 
-- Drive surface bind/input injection from `moui_shell` Android embedder.
-- Verify `Window::native_window_handle()`, surface resize/scale, pointer/text
-  injection, redraw, and clean teardown.
+- Host-sim: `HostCmd` queue drives the same path as production (see
+  `docs/mobile-hosted-backend.md`).
+- Device/template: install `android/template` once native glue lands; verify
+  `resumed` / `can_create_surfaces` / background `destroy_surfaces` /
+  `suspended`, touch, resize/scale, and `Window::native_window_handle()`.
 
 Known gaps:
 
-- Host UI loop and `ANativeWindow` ownership remain in `moui_shell`.
-- This package is an embedding-oriented EventLoop/Window facade, not a full
-  Android Activity implementation.
-- System decorations, multi-window, and advanced IME are deferred to shell.
+- **Hosted M1 landed**: public `inject_*` / `bind_surface` removed; HostCmd +
+  host-sim cover lifecycle, create_window gating, pointer, generation.
+  C host queue + JNI for `HostedActivity` landed; soft `present_rgba_pixels`/`clear_color` API (M3 host-sim). Device GPU/Skia present evidence remains.
+- `moui_shell` is no longer the product host path; port native glue by copy into
+  `window/android/native` and `android/template`.
+- System decorations, multi-window, and advanced IME remain deferred.
 
 ## iOS
 
 Build smoke:
 
-- `moon check ios --target native`
+- `moon check -p ios --target native`
 - `moon test -p ios`
 
 Runtime smoke:
 
-- Drive view bind/input injection from `moui_shell` iOS embedder.
-- Verify `Window::view_handle()` / `ui_window_handle()`, resize/scale, pointer
-  injection, redraw, and clean teardown.
+- Target: hosted HostCmd path matching Android semantics
+  (`docs/mobile-hosted-backend.md`). The package-local `ios/template` builds
+  the Simulator app and has install+launch evidence; device Metal evidence is
+  still separate.
 
 Known gaps:
 
-- UIKit lifecycle remains in `moui_shell`.
-- Safe-area, orientation, and scene multi-window semantics are not fully modeled.
+- **Hosted M1 landed** (HostCmd + host-sim; inject/bind removed). C host queue
+  + poll bridge plus the `ios/template/Sources` UIKit host landed; soft present
+  API (M3 host-sim). Device Metal present remains.
+- Safe-area, orientation, and scene multi-window semantics are deferred.
 
 ## HarmonyOS
 
 Build smoke:
 
-- `moon check harmonyos --target native`
+- `moon check -p harmonyos --target native`
 - `moon test -p harmonyos`
 
 Runtime smoke:
 
-- Drive XComponent bind/input injection from `moui_shell` HarmonyOS embedder.
-- Verify `Window::xcomponent_window_handle()` / `xcomponent_id()`, resize/scale,
-  pointer injection, redraw, and clean teardown.
+- Target: same HostCmd semantic machine as Android/iOS
+  (`docs/mobile-hosted-backend.md`). Device smoke via `harmonyos/template` once
+  the HAP is built and an HVD/device is online.
 
 Known gaps:
 
-- XComponent / NAPI lifecycle remains in `moui_shell`.
-- Display manager and input method framework integration are future work.
+- **Hosted M1 landed** (HostCmd + host-sim; inject/bind removed). The package-local
+  Stage Ability/XComponent/NAPI template builds the native host when DevEco is
+  available. HVD/device present evidence remains outstanding.
+- Display manager and full IME integration remain future work.
+
+### MoUI window-hosted Android AVD (2026-07-21)
+
+- APK: `scripts/build-window-hosted-android-apk.sh` → `artifacts/window-hosted-android/app-debug.apk`
+- AVD `moui_api34`: install + `HostedActivity` resume; `WindowHosted` loaded `window_android_app`; `WindowAndroidApp` EventLoop thread started
+- Evidence: `artifacts/window-hosted-android/avd-evidence.md`, `avd-screenshot.png`
+- Path is window HostCmd only (no moui_shell / Embedding inject)
+
+### MoUI window-hosted iOS Simulator (2026-07-21)
+
+- App: `scripts/build-window-hosted-ios-sim-app.sh` → `artifacts/window-hosted-ios/WindowHostedCounter.app`
+- iPhone 17 simulator: install + launch Success
+- Evidence: `artifacts/window-hosted-ios/sim-evidence.md`, `sim-screenshot.png`
+- Path is window HostCmd only (no moui_shell / Embedding inject)

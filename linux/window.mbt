@@ -102,6 +102,7 @@ pub fn Window::new_with_linux_attributes(
     resizable: attributes.resizable(),
     cursor: attributes.cursor(),
     fullscreen: attributes.fullscreen(),
+    focused: false,
     surface_size: size,
     scale_factor: 1.0,
   })
@@ -393,13 +394,14 @@ pub fn Window::set_cursor_position(
 
 ///|
 pub fn Window::focus_window(self : Window) -> Unit {
-  let _ = self
+  // Wayland cannot force keyboard focus; record request as local focused state.
+  // Real Focused events still come from keyboard_enter/leave.
+  app_state_set_window_focused(self.raw_id(), true)
 }
 
 ///|
 pub fn Window::has_focus(self : Window) -> Bool {
-  let _ = self
-  false
+  app_state_window_focused(self.raw_id())
 }
 
 ///|
@@ -408,6 +410,7 @@ pub fn Window::set_fullscreen(
   fullscreen : @core.Fullscreen?,
 ) -> Unit {
   app_state_set_window_fullscreen(self.raw_id(), fullscreen)
+  native_window_set_fullscreen(self.handle, fullscreen is Some(_))
 }
 
 ///|

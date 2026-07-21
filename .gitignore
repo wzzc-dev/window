@@ -9,3 +9,16 @@ linux/generated/*
 !linux/generated/xdg-decoration-protocol.c
 artifacts/
 trace.json
+# Platform package templates (local builds)
+android/template/app/build/
+android/template/.gradle/
+android/template/build/
+android/template/app/.cxx/
+ios/template/build/
+harmonyos/template/build/
+harmonyos/template/.hvigor/
+harmonyos/template/oh_modules/
+harmonyos/template/entry/oh_modules/
+harmonyos/template/entry/build/
+harmonyos/template/entry/.cxx/
+harmonyos/template/entry/libs/

@@ -174,6 +174,9 @@ extern "C" fn native_clip_cursor(
 extern "C" fn native_set_cursor_pos(x : Int, y : Int) -> Int = "mbw_set_cursor_pos"
 
 ///|
+extern "C" fn native_set_cursor_visible(visible : Bool) -> Int = "mbw_set_cursor_visible"
+
+///|
 extern "C" fn native_enable_modern_dpi_awareness() -> Int = "mbw_enable_modern_dpi_awareness"
 
 ///|

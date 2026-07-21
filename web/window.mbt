@@ -97,6 +97,7 @@ pub fn Window::new_with_web_attributes(
     resizable: attributes.resizable(),
     cursor: attributes.cursor(),
     fullscreen: attributes.fullscreen(),
+    focused: true,
     scale_factor: scale,
   })
   {
@@ -379,13 +380,13 @@ pub fn Window::set_cursor_position(
 
 ///|
 pub fn Window::focus_window(self : Window) -> Unit {
-  let _ = self
+  web_focus_canvas(self.raw_id())
+  app_state_set_window_focused(self.raw_id(), true)
 }
 
 ///|
 pub fn Window::has_focus(self : Window) -> Bool {
-  let _ = self
-  true
+  app_state_window_focused(self.raw_id())
 }
 
 ///|
@@ -394,6 +395,8 @@ pub fn Window::set_fullscreen(
   fullscreen : @core.Fullscreen?,
 ) -> Unit {
   app_state_set_window_fullscreen(self.raw_id(), fullscreen)
+  // Browser Fullscreen API is best-effort; state remains the public contract.
+  web_set_canvas_fullscreen(self.raw_id(), fullscreen is Some(_))
 }
 
 ///|

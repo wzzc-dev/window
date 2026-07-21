@@ -1,9 +1,13 @@
 ///|
 priv enum DeferredCallback {
   NewEvents(@core.StartCause)
+  Resumed
   CanCreateSurfaces
   ProxyWakeUp
   WindowEvent(@core.WindowId, @core.WindowEvent)
+  Suspended
+  DestroySurfaces
+  MemoryWarning
 }
 
 ///|
@@ -19,6 +23,7 @@ priv struct WindowEntry {
   mut height : Int
   mut surface_handle : UInt64
   mut surface_token : UInt64
+  mut generation : Int
 }
 
 ///|
@@ -33,6 +38,7 @@ priv struct AppStateRuntime {
   mut window_entries : Array[WindowEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
+  mut saw_init : Bool
 }
 
 ///|
@@ -48,6 +54,7 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     window_entries: [],
     deferred_callbacks: [],
     dispatch_callback: None,
+    saw_init: false,
   }
 }
 
@@ -56,6 +63,12 @@ let app_state_runtime : Ref[AppStateRuntime] = Ref(AppStateRuntime::new())
 
 ///|
 let event_loop_global_created : Ref[Bool] = Ref(false)
+
+///|
+fn app_state_reset_for_test() -> Unit {
+  app_state_runtime.val = AppStateRuntime::new()
+  event_loop_global_created.val = false
+}
 
 ///|
 fn app_state_next_window_id() -> Int {
@@ -91,6 +104,9 @@ fn app_state_unregister_window(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_entries = next
+  if host_primary_window_id() is Some(primary) && primary == raw_id {
+    host_set_primary_window_id(None)
+  }
 }
 
 ///|
@@ -145,6 +161,11 @@ fn app_state_control_flow() -> @core.ControlFlow {
 ///|
 fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
   app_state_runtime.val.deferred_callbacks.push(callback)
+}
+
+///|
+fn app_state_queue_lifecycle(callback : DeferredCallback) -> Unit {
+  app_state_queue_callback(callback)
 }
 
 ///|
@@ -205,6 +226,7 @@ fn app_state_create_window_entry(
   scale_factor : Double,
   surface_handle : UInt64,
   surface_token : UInt64,
+  generation : Int,
 ) -> WindowEntry {
   let raw_id = app_state_next_window_id()
   let entry : WindowEntry = {
@@ -219,8 +241,12 @@ fn app_state_create_window_entry(
     height,
     surface_handle,
     surface_token,
+    generation,
   }
   app_state_register_window_entry(entry)
+  if host_primary_window_id() is None {
+    host_set_primary_window_id(Some(raw_id))
+  }
   entry
 }
 
@@ -240,7 +266,16 @@ fn app_state_update_surface(
       entry.scale_factor = scale_factor
       entry.surface_handle = surface_handle
       entry.surface_token = surface_token
+      entry.generation = host_generation()
     }
     None => ()
+  }
+}
+
+///|
+fn app_state_ensure_init_events() -> Unit {
+  if !app_state_runtime.val.saw_init {
+    app_state_runtime.val.saw_init = true
+    app_state_queue_callback(NewEvents(Init))
   }
 }

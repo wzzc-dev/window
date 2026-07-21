@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "Window Hosted Counter"
+    },
+    {
+      "name": "module_desc",
+      "value": "Window-hosted HarmonyOS application"
+    },
+    {
+      "name": "entry_desc",
+      "value": "Window-hosted entry ability"
+    }
+  ]
+}

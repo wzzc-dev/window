@@ -537,6 +537,7 @@ pub fn Window::cursor(self : Window) -> @core.Cursor {
 ///|
 pub fn Window::set_cursor_visible(self : Window, visible : Bool) -> Unit {
   self.is_cursor_visible_state = visible
+  ignore(native_set_cursor_visible(visible))
 }
 
 ///|

@@ -9,9 +9,10 @@ This fork tracks upstream window 0.5.4 and adds the MoUI-oriented Web, Windows, 
 - Windows: preview support on the `native` target through Win32 (`wzzc-dev/window/windows`)
 - Linux: preview support on the `native` target through Wayland + xdg-shell (`wzzc-dev/window/linux`)
 - Web: experimental browser support on the `wasm-gc` target (`wzzc-dev/window/web`)
-- Android: embedding-oriented support for moui_shell surfaces (`wzzc-dev/window/android`)
-- iOS: embedding-oriented support for moui_shell UIView surfaces (`wzzc-dev/window/ios`)
-- HarmonyOS: embedding-oriented support for moui_shell XComponent surfaces (`wzzc-dev/window/harmonyos`)
+- Android: hosted backend + host-sim + soft present (`wzzc-dev/window/android`); see `docs/mobile-hosted-backend.md`
+- Example cutover sketch: `examples/mobile_hosted_smoke` (ApplicationHandler, no moui_shell)
+- iOS: hosted backend + host-sim (`wzzc-dev/window/ios`); see `docs/mobile-hosted-backend.md`
+- HarmonyOS: hosted backend + host-sim (`wzzc-dev/window/harmonyos`); see `docs/mobile-hosted-backend.md`
 - Not supported yet: X11 and other Unix backends
 
 See `docs/platform-gaps.md` for the current MoUI readiness matrix and

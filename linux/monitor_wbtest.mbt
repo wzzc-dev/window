@@ -71,6 +71,7 @@ test "linux window current monitor does not fall back without surface output" {
     resizable: true,
     cursor: Icon(Default),
     fullscreen: None,
+    focused: false,
     surface_size: PhysicalSize(1, 1),
     scale_factor: 1.0,
   })

@@ -70,6 +70,7 @@ mbw_screen_to_client
 mbw_send_message
 mbw_set_cursor
 mbw_set_cursor_pos
+mbw_set_cursor_visible
 mbw_set_foreground_window
 mbw_set_window_cursor
 mbw_set_window_long_ex_style

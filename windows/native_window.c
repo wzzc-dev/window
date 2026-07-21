@@ -882,6 +882,19 @@ int32_t mbw_set_cursor_pos(int32_t x, int32_t y) {
 }
 
 MOONBIT_FFI_EXPORT
+int32_t mbw_set_cursor_visible(int32_t visible) {
+  // ShowCursor uses a counter; drive it to the requested visibility.
+  if (visible) {
+    while (ShowCursor(TRUE) < 0) {
+    }
+  } else {
+    while (ShowCursor(FALSE) >= 0) {
+    }
+  }
+  return 1;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_enable_modern_dpi_awareness(void) {
   return (int32_t)SetProcessDpiAwarenessContext(
       DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -1503,6 +1516,12 @@ MOONBIT_FFI_EXPORT
 int32_t mbw_set_cursor_pos(int32_t x, int32_t y) {
   (void)x;
   (void)y;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_set_cursor_visible(int32_t visible) {
+  (void)visible;
   return 0;
 }
 
