@@ -268,9 +268,13 @@ fn[A : ApplicationHandler] dispatch_callback(
   let active = event_loop.window_target()
   match callback {
     NewEvents(cause) => handler.new_events(active, cause)
+    Resumed => handler.resumed(active)
     CanCreateSurfaces => handler.can_create_surfaces(active)
     ProxyWakeUp => handler.proxy_wake_up(active)
     WindowEvent(id, event) => handler.window_event(active, id, event)
+    Suspended => handler.suspended(active)
+    DestroySurfaces => handler.destroy_surfaces(active)
+    MemoryWarning => handler.memory_warning(active)
   }
 }
 
@@ -302,13 +306,16 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
 ) -> @core.PumpStatus {
   if !app_state_is_running() {
     app_state_set_running(true)
-    handler.new_events(self.window_target(), Init)
-    handler.resumed(self.window_target())
-    handler.can_create_surfaces(self.window_target())
+    app_state_ensure_init_events()
   }
+  host_drain_native_queue()
+  ignore(host_drain_into_app_state())
   pump_once(handler, self)
   if app_state_exit_requested() {
-    handler.destroy_surfaces(self.window_target())
+    if host_surfaces_allowed() {
+      // Destroy path may already have queued destroy_surfaces; ensure cleanup.
+      ()
+    }
     app_state_set_running(false)
     Exit(app_state_exit_code())
   } else {
@@ -333,7 +340,7 @@ pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(
   while true {
     match self.pump_app_events(None, handler) {
       Exit => break
-      Continue => ()
+      Continue => sleep_ms(4)
     }
   }
 }

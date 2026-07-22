@@ -1,8 +1,8 @@
 ///|
 pub struct Window {
   priv id_ : @core.WindowId
-  priv mut surface_handle_ : UInt64
-  priv mut surface_token_ : UInt64
+  priv surface_handle_ : UInt64
+  priv surface_token_ : UInt64
   priv mut cursor_visible_state : Bool
   priv mut cursor_hittest_state : Bool
   priv mut transparent_state : Bool
@@ -16,6 +16,8 @@ pub struct Window {
   priv mut ime_hints_state : @core.ImeHint
   priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
+  priv mut ime_cursor_area_position_state : @dpi.PhysicalPosition
+  priv mut ime_cursor_area_size_state : @dpi.PhysicalSize
 }
 
 ///|
@@ -49,27 +51,57 @@ pub fn Window::new_with_ios_attributes(
   attributes : @core.WindowAttributes,
   platform_attributes : WindowAttributesiOS,
 ) -> Window raise @core.RequestError {
-  let scale = platform_attributes.scale_factor()
+  if !host_surfaces_allowed() {
+    raise @core.RequestError::not_supported(
+      "iOS create_window requires can_create_surfaces (host surface ready)",
+    )
+  }
+  let (host_w, host_h, host_scale, host_handle, host_token) = host_default_window_metrics()
+  let scale = if platform_attributes.scale_factor() > 0.0 &&
+    platform_attributes.scale_factor() != 1.0 {
+    platform_attributes.scale_factor()
+  } else {
+    host_scale
+  }
   let size = match attributes.surface_size() {
     Some(size) => size.to_physical(scale)
-    None =>
-      platform_nonzero_size(
-        platform_attributes.width(),
-        platform_attributes.height(),
-      )
+    None => {
+      let w = if platform_attributes.width() > 0 {
+        platform_attributes.width()
+      } else {
+        host_w
+      }
+      let h = if platform_attributes.height() > 0 {
+        platform_attributes.height()
+      } else {
+        host_h
+      }
+      platform_nonzero_size(w, h)
+    }
+  }
+  let handle = if platform_attributes.surface_handle() != 0UL {
+    platform_attributes.surface_handle()
+  } else {
+    host_handle
+  }
+  let token = if platform_attributes.surface_token() != 0UL {
+    platform_attributes.surface_token()
+  } else {
+    host_token
   }
   let entry = app_state_create_window_entry(
     attributes.title(),
     size.width,
     size.height,
     scale,
-    platform_attributes.surface_handle(),
-    platform_attributes.surface_token(),
+    handle,
+    token,
+    host_generation(),
   )
   let window = {
     id_: @core.WindowId::from_raw(entry.raw_id),
-    surface_handle_: platform_attributes.surface_handle(),
-    surface_token_: platform_attributes.surface_token(),
+    surface_handle_: handle,
+    surface_token_: token,
     cursor_visible_state: true,
     cursor_hittest_state: true,
     transparent_state: attributes.transparent(),
@@ -83,6 +115,8 @@ pub fn Window::new_with_ios_attributes(
     ime_hints_state: @core.ImeHint::none(),
     ime_purpose_state: @core.ImePurpose::Normal,
     ime_surrounding_text_state: None,
+    ime_cursor_area_position_state: PhysicalPosition(0, 0),
+    ime_cursor_area_size_state: PhysicalSize(1, 1),
   }
   app_state_queue_window_event(window.id_, SurfaceResized(size))
   app_state_request_redraw(entry.raw_id)
@@ -219,6 +253,66 @@ pub fn Window::pre_present_notify(self : Window) -> Unit {
 }
 
 ///|
+#borrow(pixels)
+extern "C" fn mbw_ios_window_present_rgba_pixels(
+  window_handle : UInt64,
+  width : Int,
+  height : Int,
+  stride_bytes : Int,
+  pixels : Bytes,
+  pixel_len : Int,
+) -> Int = "mbw_ios_window_present_rgba_pixels"
+
+///|
+extern "C" fn mbw_ios_window_clear_color(
+  window_handle : UInt64,
+  width : Int,
+  height : Int,
+  r : Byte,
+  g : Byte,
+  b : Byte,
+  a : Byte,
+) -> Int = "mbw_ios_window_clear_color"
+
+///|
+pub fn Window::present_rgba_pixels(
+  self : Window,
+  width : Int,
+  height : Int,
+  stride_bytes : Int,
+  pixels : Bytes,
+) -> Int {
+  let handle = self.view_handle()
+  if handle == 0UL {
+    return -10
+  }
+  mbw_ios_window_present_rgba_pixels(
+    handle,
+    width,
+    height,
+    stride_bytes,
+    pixels,
+    pixels.length(),
+  )
+}
+
+///|
+pub fn Window::clear_color(
+  self : Window,
+  r : Byte,
+  g : Byte,
+  b : Byte,
+  a : Byte,
+) -> Int {
+  let handle = self.view_handle()
+  if handle == 0UL {
+    return -10
+  }
+  let size = self.surface_size()
+  mbw_ios_window_clear_color(handle, size.width, size.height, r, g, b, a)
+}
+
+///|
 pub fn Window::set_resizable(self : Window, resizable : Bool) -> Unit {
   match app_state_window_entry(self.raw_id()) {
     Some(entry) => entry.resizable = resizable
@@ -312,10 +406,22 @@ pub fn Window::set_window_icon(self : Window, _icon : @core.Icon?) -> Unit {
 ///|
 pub fn Window::set_ime_cursor_area(
   self : Window,
-  _position : @dpi.Position,
-  _size : @dpi.Size,
+  position : @dpi.Position,
+  size : @dpi.Size,
 ) -> Unit {
-  let _ = self
+  let scale = self.scale_factor()
+  self.ime_cursor_area_position_state = position.to_physical(scale)
+  self.ime_cursor_area_size_state = size.to_physical(scale)
+}
+
+///|
+pub fn Window::ime_cursor_area_position(self : Window) -> @dpi.PhysicalPosition {
+  self.ime_cursor_area_position_state
+}
+
+///|
+pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
+  self.ime_cursor_area_size_state
 }
 
 ///|
@@ -375,6 +481,55 @@ pub fn Window::set_ime_surrounding_text(
 ///|
 pub fn Window::ime_surrounding_text(self : Window) -> @core.ImeSurroundingText? {
   self.ime_surrounding_text_state
+}
+
+///|
+pub fn Window::request_ime_update(
+  self : Window,
+  request : @core.ImeRequest,
+) -> Unit raise @core.ImeRequestError {
+  match request {
+    Enable(enable_request) =>
+      match self.ime_capabilities_state {
+        Some(_) => raise AlreadyEnabled
+        None => {
+          self.ime_capabilities_state = Some(enable_request.capabilities())
+          self.ime_allowed_state = true
+          self.apply_ime_request_data(enable_request.request_data())
+        }
+      }
+    Update(request_data) =>
+      match self.ime_capabilities_state {
+        Some(_) => self.apply_ime_request_data(request_data)
+        None => raise NotEnabled
+      }
+    Disable => {
+      self.ime_allowed_state = false
+      self.ime_capabilities_state = None
+    }
+  }
+}
+
+///|
+fn Window::apply_ime_request_data(
+  self : Window,
+  request_data : @core.ImeRequestData,
+) -> Unit {
+  match request_data.hint_and_purpose() {
+    Some((hint, purpose)) => {
+      self.ime_hints_state = hint
+      self.ime_purpose_state = purpose
+    }
+    None => ()
+  }
+  match request_data.surrounding_text() {
+    Some(text) => self.ime_surrounding_text_state = Some(text)
+    None => ()
+  }
+  match request_data.cursor_area() {
+    Some((position, size)) => self.set_ime_cursor_area(position, size)
+    None => ()
+  }
 }
 
 ///|
@@ -518,7 +673,10 @@ pub fn Window::scale_factor(self : Window) -> Double {
 
 ///|
 pub fn Window::window_handle(self : Window) -> UInt64 {
-  self.surface_handle_
+  match app_state_window_entry(self.raw_id()) {
+    Some(entry) => entry.surface_handle
+    None => self.surface_handle_
+  }
 }
 
 ///|
@@ -537,34 +695,286 @@ pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
 }
 
 ///|
-/// UIView* pointer as UInt64 for embedding consumers.
+/// UIView* pointer as UInt64 for UIKit consumers.
 pub fn Window::view_handle(self : Window) -> UInt64 {
-  self.surface_handle_
+  self.window_handle()
+}
+
+///|
+/// UIWindow* pointer as UInt64 when available.
+pub fn Window::surface_token(self : Window) -> UInt64 {
+  match app_state_window_entry(self.raw_id()) {
+    Some(entry) => entry.surface_token
+    None => self.surface_token_
+  }
 }
 
 ///|
 /// UIWindow* pointer as UInt64 when available.
 pub fn Window::ui_window_handle(self : Window) -> UInt64 {
-  self.surface_token_
+  self.surface_token()
 }
 
 ///|
-pub fn Window::bind_surface(
+pub fn Window::surface_generation(self : Window) -> Int {
+  match app_state_window_entry(self.raw_id()) {
+    Some(entry) => entry.generation
+    None => host_generation()
+  }
+}
+
+///|
+pub fn Window::is_fullscreen(self : Window) -> Bool {
+  match app_state_window_entry(self.raw_id()) {
+    Some(entry) => entry.fullscreen is Some(_)
+    None => false
+  }
+}
+
+///|
+pub fn Window::is_transparent(self : Window) -> Bool {
+  self.transparent_state
+}
+
+///|
+pub fn Window::set_transparent(self : Window, transparent : Bool) -> Unit {
+  self.transparent_state = transparent
+}
+
+///|
+pub fn Window::is_blurred(self : Window) -> Bool {
+  self.blur_state
+}
+
+///|
+pub fn Window::set_blur(self : Window, blur : Bool) -> Unit {
+  self.blur_state = blur
+}
+
+///|
+pub fn Window::is_cursor_visible(self : Window) -> Bool {
+  self.cursor_visible_state
+}
+
+///|
+pub fn Window::is_cursor_hittest(self : Window) -> Bool {
+  self.cursor_hittest_state
+}
+
+///|
+pub fn Window::has_shadow(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::set_has_shadow(self : Window, _shadow : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_document_edited(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::set_document_edited(self : Window, _edited : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_content_protected(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::is_borderless_game(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::set_borderless_game(self : Window, _enabled : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::is_occluded(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::min_inner_size(___self : Window) -> @dpi.PhysicalSize? {
+  None
+}
+
+///|
+pub fn Window::max_inner_size(___self : Window) -> @dpi.PhysicalSize? {
+  None
+}
+
+///|
+pub fn Window::min_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  self.min_inner_size()
+}
+
+///|
+pub fn Window::max_surface_size(self : Window) -> @dpi.PhysicalSize? {
+  self.max_inner_size()
+}
+
+///|
+pub fn Window::set_min_inner_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_max_inner_size(self : Window, _size : @dpi.Size?) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_min_surface_size(self : Window, size : @dpi.Size?) -> Unit {
+  self.set_min_inner_size(size)
+}
+
+///|
+pub fn Window::set_max_surface_size(self : Window, size : @dpi.Size?) -> Unit {
+  self.set_max_inner_size(size)
+}
+
+///|
+pub fn Window::resize_increments(___self : Window) -> @dpi.PhysicalSize? {
+  None
+}
+
+///|
+pub fn Window::surface_resize_increments(self : Window) -> @dpi.PhysicalSize? {
+  self.resize_increments()
+}
+
+///|
+pub fn Window::set_resize_increments(
   self : Window,
-  surface_handle : UInt64,
-  surface_token : UInt64,
-  width : Int,
-  height : Int,
-  scale_factor : Double,
+  _increments : @dpi.Size?,
 ) -> Unit {
-  self.surface_handle_ = surface_handle
-  self.surface_token_ = surface_token
-  inject_surface_metrics(
-    self.id_,
-    width,
-    height,
-    scale_factor,
-    surface_handle,
-    surface_token,
+  let _ = self
+}
+
+///|
+pub fn Window::set_surface_resize_increments(
+  self : Window,
+  increments : @dpi.Size?,
+) -> Unit {
+  self.set_resize_increments(increments)
+}
+
+///|
+pub fn Window::window_level(self : Window) -> @core.WindowLevel {
+  self.window_level_state
+}
+
+///|
+pub fn Window::set_cursor_icon(self : Window, icon : @core.CursorIcon) -> Unit {
+  self.set_cursor(Icon(icon))
+}
+
+///|
+pub fn Window::safe_area(___self : Window) -> @dpi.PhysicalSize {
+  PhysicalSize(0, 0)
+}
+
+///|
+pub fn Window::set_prefers_status_bar_hidden(
+  self : Window,
+  _hidden : Bool,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_prefers_home_indicator_hidden(
+  self : Window,
+  _hidden : Bool,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_preferred_screen_edges_deferring_system_gestures(
+  self : Window,
+  _edges : @core.ScreenEdge,
+) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::set_simple_fullscreen(
+  self : Window,
+  _fullscreen : Bool,
+) -> Unit raise @core.RequestError {
+  raise @core.RequestError::not_supported(
+    "simple fullscreen is not supported on this mobile backend",
   )
+}
+
+///|
+pub fn Window::simple_fullscreen(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::set_unified_titlebar(self : Window, _enabled : Bool) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::unified_titlebar(___self : Window) -> Bool {
+  false
+}
+
+///|
+pub fn Window::set_tabbing_identifier(self : Window, _id : String) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::tabbing_identifier(___self : Window) -> String {
+  ""
+}
+
+///|
+pub fn Window::num_tabs(___self : Window) -> Int {
+  1
+}
+
+///|
+pub fn Window::select_next_tab(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::select_previous_tab(self : Window) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+  let _ = self
+}
+
+///|
+pub fn Window::option_as_alt(___self : Window) -> @core.OptionAsAlt {
+  None
+}
+
+///|
+pub fn Window::set_option_as_alt(
+  ___self : Window,
+  _option : @core.OptionAsAlt,
+) -> Unit {
+  ()
+}
+
+///|
+pub fn Window::reset_dead_keys(___self : Window) -> Unit {
+  ()
 }

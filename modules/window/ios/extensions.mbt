@@ -1,5 +1,7 @@
 ///|
-/// Platform attributes for iOS surfaces owned by moui_shell embedding.
+/// Platform attributes for iOS hosted windows.
+/// Surface metrics normally come from the host (`SurfaceInit`); optional
+/// overrides remain for tests and advanced templates.
 pub struct WindowAttributesiOS {
   priv mut surface_handle_ : UInt64
   priv mut surface_token_ : UInt64
@@ -14,8 +16,8 @@ pub fn WindowAttributesiOS::default() -> WindowAttributesiOS {
     surface_handle_: 0UL,
     surface_token_: 0UL,
     scale_factor_: 1.0,
-    width_: 1080,
-    height_: 2400,
+    width_: 0,
+    height_: 0,
   }
 }
 

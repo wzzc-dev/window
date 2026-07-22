@@ -205,6 +205,31 @@ export function createWindowWebImports() {
     set_document_title(title) {
       document.title = stringValue(title);
     },
+    set_canvas_fullscreen(rawId, fullscreen) {
+      const state = textInputs.get(rawId);
+      const canvas = state?.canvas ?? null;
+      if (!canvas) return;
+      if (fullscreen) {
+        if (document.fullscreenElement !== canvas && canvas.requestFullscreen) {
+          const promise = canvas.requestFullscreen();
+          if (promise && typeof promise.catch === "function") promise.catch(() => {});
+        }
+      } else if (document.fullscreenElement && document.exitFullscreen) {
+        const promise = document.exitFullscreen();
+        if (promise && typeof promise.catch === "function") promise.catch(() => {});
+      }
+    },
+    focus_canvas(rawId) {
+      const state = textInputs.get(rawId);
+      const canvas = state?.canvas ?? null;
+      if (canvas && typeof canvas.focus === "function") {
+        try {
+          canvas.focus({ preventScroll: true });
+        } catch (_) {
+          canvas.focus();
+        }
+      }
+    },
     device_pixel_ratio() {
       return window.devicePixelRatio || 1.0;
     },

@@ -155,3 +155,81 @@ test "linux dispatch maps proxy wake" {
   dispatch_native_window_event(linux_event_proxy_wake, 0, 0, 0, 0, 0.0)
   assert_eq(app.proxy_wake_count, 1)
 }
+
+///|
+test "linux focus updates has_focus state" {
+  reset_test_state()
+  let raw_id = 9101
+  app_state_register_window_entry({
+    raw_id,
+    handle: 1UL,
+    title: "focus",
+    visible: true,
+    resizable: true,
+    cursor: @core.Cursor::Icon(@core.CursorIcon::Default),
+    fullscreen: None,
+    focused: false,
+    surface_size: @dpi.PhysicalSize::PhysicalSize(1, 1),
+    scale_factor: 1.0,
+  })
+  assert_false(app_state_window_focused(raw_id))
+  dispatch_native_window_event(linux_event_focus, raw_id, 1, 0, 0, 0.0)
+  assert_true(app_state_window_focused(raw_id))
+  dispatch_native_window_event(linux_event_focus, raw_id, 0, 0, 0, 0.0)
+  assert_false(app_state_window_focused(raw_id))
+  app_state_unregister_window(raw_id)
+}
+
+///|
+test "linux clipboard and drag-drop APIs are safe without a Wayland context" {
+  reset_test_state()
+  assert_false(clipboard_available())
+  assert_true(read_clipboard_text() is None)
+  assert_false(write_clipboard_text("clipboard text"))
+  assert_false(drag_drop_available())
+}
+
+///|
+test "linux dispatch maps drag lifecycle events" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  dispatch_native_input_event(raw_id, linux_event_drag_enter, 12, 34, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_drag_move, 13, 35, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_drag_drop, 14, 36, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_drag_leave, 15, 37, 0, 0L)
+  assert_eq(app.events.length(), 4)
+  match app.events[0] {
+    @core.WindowEvent::DragEntered(paths, position) => {
+      assert_eq(paths.length(), 0)
+      assert_eq(position.x(), 12.0)
+      assert_eq(position.y(), 34.0)
+    }
+    _ => fail("expected drag entered")
+  }
+  match app.events[1] {
+    @core.WindowEvent::DragMoved(position) => {
+      assert_eq(position.x(), 13.0)
+      assert_eq(position.y(), 35.0)
+    }
+    _ => fail("expected drag moved")
+  }
+  match app.events[2] {
+    @core.WindowEvent::DragDropped(paths, position) => {
+      assert_eq(paths.length(), 0)
+      assert_eq(position.x(), 14.0)
+      assert_eq(position.y(), 36.0)
+    }
+    _ => fail("expected drag dropped")
+  }
+  match app.events[3] {
+    @core.WindowEvent::DragLeft(Some(position)) => {
+      assert_eq(position.x(), 15.0)
+      assert_eq(position.y(), 37.0)
+    }
+    _ => fail("expected drag left")
+  }
+}

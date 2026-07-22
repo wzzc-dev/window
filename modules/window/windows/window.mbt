@@ -5,6 +5,8 @@ pub struct Window {
   priv mut cursor_state : @core.Cursor
   priv mut fullscreen_state : @core.Fullscreen?
   priv mut ime_capabilities_state : @core.ImeCapabilities?
+  priv mut ime_hints_state : @core.ImeHint
+  priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
   priv mut ime_cursor_area_position_state : @dpi.PhysicalPosition
   priv mut ime_cursor_area_size_state : @dpi.PhysicalSize
@@ -16,7 +18,6 @@ pub struct Window {
   priv mut is_cursor_hittest_state : Bool
   priv mut is_transparent_state : Bool
   priv mut is_blurred_state : Bool
-  priv scale_factor_state : Double
   priv mut saved_window_rect_left : Int
   priv mut saved_window_rect_top : Int
   priv mut saved_window_rect_right : Int
@@ -136,6 +137,15 @@ let htcaption : Int = 2
 let wheel_delta : Int = 120
 
 ///|
+fn windows_scale_factor_from_dpi(dpi : UInt) -> Double {
+  if dpi == 0 {
+    1.0
+  } else {
+    dpi.to_double() / 96.0
+  }
+}
+
+///|
 fn compute_window_style(attributes : @core.WindowAttributes) -> UInt64 {
   let mut style = ws_overlappedwindow
   if attributes.decorations() == false {
@@ -206,6 +216,7 @@ pub fn Window::new(
     raise @core.RequestError::os("CreateWindowExW returned a null HWND")
   }
   native_set_window_raw_id(hwnd, raw_id)
+  app_state_register_window_handle(raw_id, hwnd)
   match attributes.title() {
     "" => ()
     title => {
@@ -216,18 +227,17 @@ pub fn Window::new(
   if attributes.visible() {
     ignore(native_show_window(hwnd, sw_shownormal))
   }
-  app_state_register_window_handle(raw_id, hwnd)
   {
     id: window_id,
     hwnd,
-    cursor_state: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor_state: Icon(Default),
     fullscreen_state: None,
     ime_capabilities_state: None,
+    ime_hints_state: attributes.ime_hints(),
+    ime_purpose_state: attributes.ime_purpose(),
     ime_surrounding_text_state: None,
-    ime_cursor_area_position_state: @dpi.PhysicalPosition::PhysicalPosition(
-      0, 0,
-    ),
-    ime_cursor_area_size_state: @dpi.PhysicalSize::PhysicalSize(1, 1),
+    ime_cursor_area_position_state: PhysicalPosition(0, 0),
+    ime_cursor_area_size_state: PhysicalSize(1, 1),
     is_decorated_state: attributes.decorations(),
     is_maximized_state: false,
     is_visible_state: attributes.visible(),
@@ -236,7 +246,6 @@ pub fn Window::new(
     is_cursor_hittest_state: attributes.cursor_hittest(),
     is_transparent_state: attributes.transparent(),
     is_blurred_state: attributes.blur(),
-    scale_factor_state: native_get_dpi_for_window(hwnd).to_double() / 96.0,
     saved_window_rect_left: 0,
     saved_window_rect_top: 0,
     saved_window_rect_right: 0,
@@ -265,7 +274,7 @@ pub fn Window::drop(self : Window) -> Unit {
     self.set_fullscreen(None)
   }
   native_destroy_window(self.hwnd)
-  app_state_unregister_window_handle(self.id.into_raw())
+  app_state_clear_window_runtime_state(self.id.into_raw())
 }
 
 ///|
@@ -301,7 +310,7 @@ pub fn Window::inner_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_client_rect_top(self.hwnd)
   let right = native_get_client_rect_right(self.hwnd)
   let bottom = native_get_client_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
+  PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -310,7 +319,7 @@ pub fn Window::outer_size(self : Window) -> @dpi.PhysicalSize {
   let top = native_get_window_rect_top(self.hwnd)
   let right = native_get_window_rect_right(self.hwnd)
   let bottom = native_get_window_rect_bottom(self.hwnd)
-  @dpi.PhysicalSize::PhysicalSize(right - left, bottom - top)
+  PhysicalSize(right - left, bottom - top)
 }
 
 ///|
@@ -319,7 +328,7 @@ pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
   let top = native_get_client_rect_top(self.hwnd)
   let x = native_client_to_screen_x(self.hwnd, left, top)
   let y = native_client_to_screen_y(self.hwnd, left, top)
-  @dpi.PhysicalPosition::PhysicalPosition(x, y)
+  PhysicalPosition(x, y)
 }
 
 ///|
@@ -329,7 +338,7 @@ pub fn Window::outer_position(
 ) -> @dpi.PhysicalPosition raise @core.RequestError {
   let left = native_get_window_rect_left(self.hwnd)
   let top = native_get_window_rect_top(self.hwnd)
-  @dpi.PhysicalPosition::PhysicalPosition(left, top)
+  PhysicalPosition(left, top)
 }
 
 ///|
@@ -498,7 +507,7 @@ pub fn Window::is_maximized(self : Window) -> Bool {
 
 ///|
 pub fn Window::scale_factor(self : Window) -> Double {
-  native_get_dpi_for_window(self.hwnd).to_double() / 96.0
+  windows_scale_factor_from_dpi(native_get_dpi_for_window(self.hwnd))
 }
 
 ///|
@@ -508,14 +517,14 @@ pub fn Window::set_cursor_icon(
 ) -> Unit {
   let cursor_handle = cursor_icon_to_native(cursor)
   ignore(native_set_window_cursor(self.hwnd, cursor_handle))
-  self.cursor_state = @core.Cursor::Icon(cursor)
+  self.cursor_state = Icon(cursor)
 }
 
 ///|
 pub fn Window::set_cursor(self : Window, cursor : @core.Cursor) -> Unit {
   match cursor {
-    @core.Cursor::Icon(icon) => self.set_cursor_icon(icon)
-    @core.Cursor::Custom(_custom) => ()
+    Icon(icon) => self.set_cursor_icon(icon)
+    Custom(_custom) => ()
   }
   self.cursor_state = cursor
 }
@@ -528,6 +537,7 @@ pub fn Window::cursor(self : Window) -> @core.Cursor {
 ///|
 pub fn Window::set_cursor_visible(self : Window, visible : Bool) -> Unit {
   self.is_cursor_visible_state = visible
+  ignore(native_set_cursor_visible(visible))
 }
 
 ///|
@@ -555,15 +565,15 @@ pub fn Window::set_cursor_grab(
   mode : @core.CursorGrabMode,
 ) -> Unit raise @core.RequestError {
   match mode {
-    @core.CursorGrabMode::None => ignore(native_clip_cursor(0, 0, 0, 0))
-    @core.CursorGrabMode::Locked => {
+    None => ignore(native_clip_cursor(0, 0, 0, 0))
+    Locked => {
       let left = native_get_client_rect_left(self.hwnd)
       let top = native_get_client_rect_top(self.hwnd)
       let right = native_get_client_rect_right(self.hwnd)
       let bottom = native_get_client_rect_bottom(self.hwnd)
       ignore(native_clip_cursor(left, top, right, bottom))
     }
-    @core.CursorGrabMode::Confined =>
+    Confined =>
       raise @core.RequestError::not_supported(
         "Windows confined cursor grab is not supported yet",
       )
@@ -662,9 +672,9 @@ pub fn Window::set_window_level(
   level : @core.WindowLevel,
 ) -> Unit {
   let insert_after = match level {
-    @core.WindowLevel::Normal => hwnd_notopmost
-    @core.WindowLevel::AlwaysOnTop => hwnd_topmost
-    @core.WindowLevel::AlwaysOnBottom => hwnd_bottom
+    Normal => hwnd_notopmost
+    AlwaysOnTop => hwnd_topmost
+    AlwaysOnBottom => hwnd_bottom
   }
   ignore(
     native_set_window_pos(
@@ -683,9 +693,9 @@ pub fn Window::set_window_level(
 pub fn Window::window_level(self : Window) -> @core.WindowLevel {
   let ex_style = native_get_window_long_ex_style(self.hwnd)
   if (ex_style & (8 : Int).to_uint64()) != (0 : Int).to_uint64() {
-    @core.WindowLevel::AlwaysOnTop
+    AlwaysOnTop
   } else {
-    @core.WindowLevel::Normal
+    Normal
   }
 }
 
@@ -747,10 +757,8 @@ pub fn Window::set_ime_allowed(self : Window, allowed : Bool) -> Unit {
   } else {
     self.ime_capabilities_state = None
     self.ime_surrounding_text_state = None
-    self.ime_cursor_area_position_state = @dpi.PhysicalPosition::PhysicalPosition(
-      0, 0,
-    )
-    self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(1, 1)
+    self.ime_cursor_area_position_state = PhysicalPosition(0, 0)
+    self.ime_cursor_area_size_state = PhysicalSize(1, 1)
   }
 }
 
@@ -774,9 +782,7 @@ pub fn Window::set_ime_cursor_area(
     1
   }
   self.ime_cursor_area_position_state = physical_position
-  self.ime_cursor_area_size_state = @dpi.PhysicalSize::PhysicalSize(
-    width, height,
-  )
+  self.ime_cursor_area_size_state = PhysicalSize(width, height)
 }
 
 ///|
@@ -791,14 +797,12 @@ pub fn Window::ime_cursor_area_size(self : Window) -> @dpi.PhysicalSize {
 
 ///|
 pub fn Window::set_ime_hints(self : Window, hints : @core.ImeHint) -> Unit {
-  let _ = self
-  let _ = hints
+  self.ime_hints_state = hints
 }
 
 ///|
 pub fn Window::ime_hints(self : Window) -> @core.ImeHint {
-  let _ = self
-  @core.ImeHint::none()
+  self.ime_hints_state
 }
 
 ///|
@@ -806,14 +810,12 @@ pub fn Window::set_ime_purpose(
   self : Window,
   purpose : @core.ImePurpose,
 ) -> Unit {
-  let _ = self
-  let _ = purpose
+  self.ime_purpose_state = purpose
 }
 
 ///|
 pub fn Window::ime_purpose(self : Window) -> @core.ImePurpose {
-  let _ = self
-  @core.ImePurpose::Normal
+  self.ime_purpose_state
 }
 
 ///|
@@ -822,20 +824,20 @@ pub fn Window::request_ime_update(
   request : @core.ImeRequest,
 ) -> Unit raise @core.ImeRequestError {
   match request {
-    @core.ImeRequest::Enable(enable_request) =>
+    Enable(enable_request) =>
       match self.ime_capabilities_state {
-        Some(_) => raise @core.ImeRequestError::AlreadyEnabled
+        Some(_) => raise AlreadyEnabled
         None => {
           self.ime_capabilities_state = Some(enable_request.capabilities())
           self.apply_ime_request_data(enable_request.request_data())
         }
       }
-    @core.ImeRequest::Update(request_data) =>
+    Update(request_data) =>
       match self.ime_capabilities_state {
         Some(_) => self.apply_ime_request_data(request_data)
-        None => raise @core.ImeRequestError::NotEnabled
+        None => raise NotEnabled
       }
-    @core.ImeRequest::Disable => self.set_ime_allowed(false)
+    Disable => self.set_ime_allowed(false)
   }
 }
 
@@ -862,6 +864,13 @@ fn Window::apply_ime_request_data(
   self : Window,
   request_data : @core.ImeRequestData,
 ) -> Unit {
+  match request_data.hint_and_purpose() {
+    Some((hint, purpose)) => {
+      self.ime_hints_state = hint
+      self.ime_purpose_state = purpose
+    }
+    None => ()
+  }
   match request_data.surrounding_text() {
     Some(text) => self.ime_surrounding_text_state = Some(text)
     None => ()
@@ -931,14 +940,14 @@ pub fn Window::drag_resize_window(
 ) -> Unit raise @core.RequestError {
   native_release_capture()
   let hit_test = match direction {
-    @core.ResizeDirection::East => 11
-    @core.ResizeDirection::North => 12
-    @core.ResizeDirection::NorthEast => 14
-    @core.ResizeDirection::NorthWest => 13
-    @core.ResizeDirection::South => 15
-    @core.ResizeDirection::SouthEast => 17
-    @core.ResizeDirection::SouthWest => 16
-    @core.ResizeDirection::West => 10
+    East => 11
+    North => 12
+    NorthEast => 14
+    NorthWest => 13
+    South => 15
+    SouthEast => 17
+    SouthWest => 16
+    West => 10
   }
   ignore(native_send_message(self.hwnd, 0x00A1, hit_test.to_uint64(), 0))
 }
@@ -959,7 +968,7 @@ pub fn Window::reset_dead_keys(self : Window) -> Unit {
 ///|
 pub fn Window::display_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|
@@ -970,7 +979,7 @@ pub fn Window::window_handle(self : Window) -> UInt64 {
 ///|
 pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  native_hinstance_handle()
 }
 
 ///|
@@ -999,7 +1008,7 @@ pub fn Window::set_borderless_game(self : Window, borderless : Bool) -> Unit {
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
   let _ = self
-  @core.OptionAsAlt::None
+  None
 }
 
 ///|
@@ -1115,7 +1124,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
+  PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|
@@ -1199,8 +1208,10 @@ pub fn Window::is_document_edited(self : Window) -> Bool {
 
 ///|
 pub fn Window::current_monitor(self : Window) -> @core.MonitorHandle? {
-  let _ = self
-  None
+  match app_state_window_handle(self.id.into_raw()) {
+    Some(hwnd) => current_monitor_for_window(hwnd)
+    None => None
+  }
 }
 
 ///|
@@ -1218,40 +1229,40 @@ pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
 ///|
 fn cursor_icon_to_native(icon : @core.CursorIcon) -> UInt64 {
   let name = match icon {
-    @core.CursorIcon::Default => (32512 : Int).to_uint64()
-    @core.CursorIcon::Pointer => (32649 : Int).to_uint64()
-    @core.CursorIcon::Text => (32513 : Int).to_uint64()
-    @core.CursorIcon::Crosshair => (32515 : Int).to_uint64()
-    @core.CursorIcon::Move => (32649 : Int).to_uint64()
-    @core.CursorIcon::Wait => (32514 : Int).to_uint64()
-    @core.CursorIcon::Progress => (32650 : Int).to_uint64()
-    @core.CursorIcon::Help => (32651 : Int).to_uint64()
-    @core.CursorIcon::NotAllowed => (32648 : Int).to_uint64()
-    @core.CursorIcon::Grab => (32649 : Int).to_uint64()
-    @core.CursorIcon::Grabbing => (32649 : Int).to_uint64()
-    @core.CursorIcon::EResize => (32643 : Int).to_uint64()
-    @core.CursorIcon::NResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::NeResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::NwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::SResize => (32646 : Int).to_uint64()
-    @core.CursorIcon::SeResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::SwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::WResize => (32643 : Int).to_uint64()
-    @core.CursorIcon::EwResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::NsResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::NeswResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::NwseResize => (32642 : Int).to_uint64()
-    @core.CursorIcon::ColResize => (32644 : Int).to_uint64()
-    @core.CursorIcon::RowResize => (32645 : Int).to_uint64()
-    @core.CursorIcon::AllScroll => (32649 : Int).to_uint64()
-    @core.CursorIcon::ZoomIn => (32512 : Int).to_uint64()
-    @core.CursorIcon::ZoomOut => (32512 : Int).to_uint64()
-    @core.CursorIcon::ContextMenu => (32651 : Int).to_uint64()
-    @core.CursorIcon::Cell => (32513 : Int).to_uint64()
-    @core.CursorIcon::VerticalText => (32513 : Int).to_uint64()
-    @core.CursorIcon::Alias => (32512 : Int).to_uint64()
-    @core.CursorIcon::Copy => (32512 : Int).to_uint64()
-    @core.CursorIcon::NoDrop => (32648 : Int).to_uint64()
+    Default => (32512 : Int).to_uint64()
+    Pointer => (32649 : Int).to_uint64()
+    Text => (32513 : Int).to_uint64()
+    Crosshair => (32515 : Int).to_uint64()
+    Move => (32649 : Int).to_uint64()
+    Wait => (32514 : Int).to_uint64()
+    Progress => (32650 : Int).to_uint64()
+    Help => (32651 : Int).to_uint64()
+    NotAllowed => (32648 : Int).to_uint64()
+    Grab => (32649 : Int).to_uint64()
+    Grabbing => (32649 : Int).to_uint64()
+    EResize => (32643 : Int).to_uint64()
+    NResize => (32645 : Int).to_uint64()
+    NeResize => (32642 : Int).to_uint64()
+    NwResize => (32644 : Int).to_uint64()
+    SResize => (32646 : Int).to_uint64()
+    SeResize => (32642 : Int).to_uint64()
+    SwResize => (32644 : Int).to_uint64()
+    WResize => (32643 : Int).to_uint64()
+    EwResize => (32644 : Int).to_uint64()
+    NsResize => (32645 : Int).to_uint64()
+    NeswResize => (32642 : Int).to_uint64()
+    NwseResize => (32642 : Int).to_uint64()
+    ColResize => (32644 : Int).to_uint64()
+    RowResize => (32645 : Int).to_uint64()
+    AllScroll => (32649 : Int).to_uint64()
+    ZoomIn => (32512 : Int).to_uint64()
+    ZoomOut => (32512 : Int).to_uint64()
+    ContextMenu => (32651 : Int).to_uint64()
+    Cell => (32513 : Int).to_uint64()
+    VerticalText => (32513 : Int).to_uint64()
+    Alias => (32512 : Int).to_uint64()
+    Copy => (32512 : Int).to_uint64()
+    NoDrop => (32648 : Int).to_uint64()
   }
   native_load_cursor((0 : Int).to_uint64(), name)
 }

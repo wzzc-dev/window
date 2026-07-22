@@ -1,6 +1,4 @@
-#ifndef _WIN32
-#error "native_monitor.c is only for Windows"
-#endif
+#ifdef _WIN32
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -153,3 +151,76 @@ MOONBIT_FFI_EXPORT
 int32_t mbw_enum_display_modes(uint64_t hmonitor) {
   return 0;
 }
+
+#else
+#include <moonbit.h>
+#include <stdint.h>
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_enum_monitors(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_monitor_handle_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_monitor_rect_left_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_monitor_rect_top_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_monitor_rect_width_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_monitor_rect_height_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+double mbw_monitor_scale_factor_at(int32_t index) {
+  (void)index;
+  return 1.0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_monitor_name_len_at(int32_t index) {
+  (void)index;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+moonbit_bytes_t mbw_monitor_name_bytes_at(int32_t index) {
+  (void)index;
+  return moonbit_make_bytes(0, 0);
+}
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_primary_monitor_handle(void) { return 0; }
+
+MOONBIT_FFI_EXPORT
+uint64_t mbw_current_monitor_handle(uint64_t hwnd) {
+  (void)hwnd;
+  return 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_enum_display_modes(uint64_t hmonitor) {
+  (void)hmonitor;
+  return 0;
+}
+
+
+#endif

@@ -1,0 +1,13 @@
+import {
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/android",
+}
+
+supported_targets = "native"
+
+// Library-style smoke package: proves MoUI-shaped ApplicationHandler against
+// the hosted android backend without moui_shell.
+
+options(
+  targets: { },
+)

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MoUI window web smoke</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        background: #111417;
+        color: #eef4f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+        padding: 28px;
+        background: #111417;
+      }
+
+      main {
+        max-width: 960px;
+        display: grid;
+        gap: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.6rem, 4vw, 2.8rem);
+      }
+
+      p {
+        margin: 0;
+        color: #b8c5cc;
+      }
+
+      canvas {
+        width: min(100%, 640px);
+        height: auto;
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: #182128;
+        outline: none;
+      }
+
+      #status {
+        width: fit-content;
+        padding: 7px 10px;
+        background: rgba(255, 255, 255, 0.11);
+        color: #dff8ef;
+      }
+
+      #log {
+        min-height: 11rem;
+        max-height: 20rem;
+        overflow: auto;
+        margin: 0;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.32);
+        color: #d7f7df;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MoUI window web smoke</h1>
+      <p>
+        This page exercises the public Web window API as a downstream consumer:
+        canvas identity, surface size, redraw, resize, pointer, and keyboard.
+      </p>
+      <div id="status">Loading wasm...</div>
+      <canvas id="moui-web-smoke-canvas" tabindex="0"></canvas>
+      <pre id="log" aria-live="polite"></pre>
+    </main>
+
+    <script type="module">
+      import {
+        connectWindowWeb,
+        createWindowWebImports,
+      } from "../../web/runtime.js?window-web-dev=1";
+
+      const status = document.querySelector("#status");
+      const log = document.querySelector("#log");
+      const canvas = document.querySelector("#moui-web-smoke-canvas");
+      const wasmUrl =
+        "../../_build/wasm-gc/debug/build/wzzc-dev/window/examples/moui_web_smoke/moui_web_smoke.wasm?window-web-dev=1";
+      const smoke = {
+        lines: [],
+        passed: false,
+        failed: false,
+      };
+      window.__mouiWebSmoke = smoke;
+      let line = "";
+
+      const appendLog = message => {
+        smoke.lines.push(message);
+        log.textContent += `${message}\n`;
+        log.scrollTop = log.scrollHeight;
+      };
+
+      const printChar = value => {
+        const ch = String.fromCodePoint(Number(value));
+        if (ch === "\n") {
+          appendLog(line);
+          line = "";
+        } else {
+          line += ch;
+        }
+      };
+
+      async function instantiateWasm(url, imports) {
+        if (WebAssembly.instantiateStreaming) {
+          try {
+            return await WebAssembly.instantiateStreaming(fetch(url), imports);
+          } catch (error) {
+            console.warn("Falling back to ArrayBuffer wasm loading", error);
+          }
+        }
+        const response = await fetch(url);
+        const bytes = await response.arrayBuffer();
+        return WebAssembly.instantiate(bytes, imports);
+      }
+
+      const nextFrame = () =>
+        new Promise(resolve => requestAnimationFrame(() => resolve()));
+
+      const hasLine = text => smoke.lines.some(line => line.includes(text));
+      const requiredEvidence = [
+        "MOUISmoke: surface canvas_id=moui-web-smoke-canvas size=640x360",
+        "MOUISmoke: redraw pre_present_notify",
+        "MOUISmoke: resize size=640x360",
+        "MOUISmoke: pointer x=24 y=32",
+        "MOUISmoke: keyboard text=a",
+        "MOUISmoke: ready",
+      ];
+
+      async function waitForCanvas() {
+        for (let i = 0; i < 60; i += 1) {
+          if (canvas.width > 0 && canvas.height > 0) {
+            return;
+          }
+          await nextFrame();
+        }
+        throw new Error("Timed out waiting for smoke canvas dimensions");
+      }
+
+      async function dispatchConsumerEvents() {
+        await waitForCanvas();
+        canvas.focus();
+        window.dispatchEvent(new Event("resize"));
+        const rect = canvas.getBoundingClientRect();
+        const PointerCtor = window.PointerEvent || window.MouseEvent;
+        canvas.dispatchEvent(
+          new PointerCtor("pointermove", {
+            bubbles: true,
+            clientX: rect.left + 24,
+            clientY: rect.top + 32,
+          }),
+        );
+        canvas.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            key: "a",
+          }),
+        );
+        await nextFrame();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      async function verifySmoke() {
+        for (let i = 0; i < 60; i += 1) {
+          const missing = requiredEvidence.filter(text => !hasLine(text));
+          if (missing.length === 0) {
+            smoke.passed = true;
+            status.textContent = "PASS";
+            appendLog("MOUISmoke: PASS");
+            return;
+          }
+          await nextFrame();
+        }
+        throw new Error(
+          `MoUI Web smoke did not collect required evidence. Lines: ${smoke.lines.join(" | ")}`,
+        );
+      }
+
+      try {
+        const windowWeb = createWindowWebImports();
+        const imports = {
+          window_web: windowWeb,
+          spectest: { print_char: printChar },
+        };
+        const { instance } = await instantiateWasm(wasmUrl, imports);
+        connectWindowWeb(instance, windowWeb);
+        instance.exports._start?.();
+        status.textContent = "Running";
+        await dispatchConsumerEvents();
+        await verifySmoke();
+      } catch (error) {
+        smoke.failed = true;
+        status.textContent = "FAIL";
+        appendLog(error.stack || String(error));
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>

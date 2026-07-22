@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "wzzc-dev/window/examples/mobile_hosted_smoke"
+
+import {
+  "wzzc-dev/window/android",
+  "wzzc-dev/window/core",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+type MobileHostedSmokeApp
+pub impl @android.ApplicationHandler for MobileHostedSmokeApp
+
+// Type aliases
+
+// Traits
+

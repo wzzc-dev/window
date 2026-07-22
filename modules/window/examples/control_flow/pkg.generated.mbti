@@ -1,10 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/window/examples/control_flow"
+package "wzzc-dev/window/examples/control_flow"
 
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/macos",
   "moonbitlang/core/debug",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/macos",
 }
 
 // Values

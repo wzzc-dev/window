@@ -274,10 +274,14 @@ fn dispatch_web_event(
         @core.WindowEvent::SurfaceResized(size),
       )
     }
-    k if k == web_event_focus =>
+    k if k == web_event_focus => {
+      app_state_set_window_focused(raw_id, true)
       app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(true))
-    k if k == web_event_blur =>
+    }
+    k if k == web_event_blur => {
+      app_state_set_window_focused(raw_id, false)
       app_state_queue_window_event(raw_id, @core.WindowEvent::Focused(false))
+    }
     k if k == web_event_pointer_enter => {
       let position = @dpi.PhysicalPositionF64::PhysicalPositionF64(
         arg0.to_double(),

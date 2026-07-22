@@ -170,7 +170,7 @@ Current control:
 - The repository is a two-module workspace. `modules/windowing` contains
   `Milky2018/windowing`, which defines backend-neutral
   `RawWindowHandle`/`RawDisplayHandle` variants and provider traits without
-  depending on the `Milky2018/window` module in `modules/window`.
+  depending on the `wzzc-dev/window` compatibility module in `modules/window`.
 - `WindowHandle` and `DisplayHandle` keep a provider trait object, so the
   originating window/event-loop owner remains reachable while a handle exists.
 - The public AppKit window handle is `RawWindowHandle::AppKit` containing an

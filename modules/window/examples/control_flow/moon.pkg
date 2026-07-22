@@ -1,7 +1,7 @@
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/examples/util",
-  "Milky2018/window/macos",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/examples/util",
+  "wzzc-dev/window/macos",
 }
 
 supported_targets = "native"

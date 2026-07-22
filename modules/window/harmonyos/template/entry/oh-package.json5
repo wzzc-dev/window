@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Window-hosted HarmonyOS entry module",
+  "main": "",
+  "author": "wzzc-dev",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "libwindow_harmonyos_hosted.so": "file:./src/main/cpp/types/libwindow_harmonyos_hosted"
+  }
+}

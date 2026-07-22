@@ -1,6 +1,6 @@
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/dpi",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
 }
 
 supported_targets = "wasm-gc+wasm"

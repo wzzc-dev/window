@@ -1,0 +1,66 @@
+plugins {
+    id "com.android.application"
+}
+
+def workspaceRoot = file(project.findProperty("mbwWorkspaceRoot") ?: rootDir.parentFile.parentFile.parentFile.parentFile)
+def windowRoot = file(project.findProperty("mbwWindowRoot") ?: new File(workspaceRoot, "window/modules/window"))
+def moonHome = (project.findProperty("mbwMoonHome") ?: System.getenv("MOON_HOME") ?: "${System.getProperty("user.home")}/.moon").toString()
+def moonbitC = file(project.findProperty("mbwMoonbitC") ?: new File(workspaceRoot, "artifacts/window-hosted-android/cgen-newnative0/moonbit/native/debug/build/examples/counter/android_window_hosted/android_window_hosted.c"))
+def abi = (project.findProperty("mbwAbi") ?: "arm64-v8a").toString()
+def ndkVersionValue = (project.findProperty("mbwNdkVersion") ?: System.getenv("MOUI_ANDROID_NDK_VERSION") ?: "28.2.13676358").toString()
+def skiaCxxRsp = (project.findProperty("mbwSkiaCxxRsp") ?: "").toString()
+def skiaLinkRsp = (project.findProperty("mbwSkiaLinkRsp") ?: "").toString()
+def jniLibsDir = (project.findProperty("mbwJniLibsDir") ?: "").toString()
+
+android {
+    namespace = "dev.wzzc.window.template"
+    compileSdk = 35
+    ndkVersion = ndkVersionValue
+    defaultConfig {
+        applicationId = "dev.wzzc.window.hosted.counter"
+        minSdk = 23
+        targetSdk = 35
+        versionCode = 1
+        versionName = "0.1.0"
+        externalNativeBuild {
+            cmake {
+                arguments(
+                    "-DMBW_MOONBIT_C=${moonbitC.absolutePath}",
+                    "-DMBW_WINDOW_ROOT=${windowRoot.absolutePath}",
+                    "-DMBW_MOON_HOME=${moonHome}",
+                    "-DMBW_WORKSPACE_ROOT=${workspaceRoot.absolutePath}",
+                    "-DMBW_SKIA_CXX_RSP=${skiaCxxRsp}",
+                    "-DMBW_SKIA_LINK_RSP=${skiaLinkRsp}",
+                    "-DANDROID_STL=c++_shared",
+                )
+            }
+        }
+        ndk { abiFilters += abi }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+    sourceSets {
+        main {
+            if (jniLibsDir != "" && file(jniLibsDir).exists()) {
+                jniLibs.srcDirs += [jniLibsDir]
+            }
+        }
+    }
+    packaging {
+        jniLibs {
+            keepDebugSymbols += ["**/libc++_shared.so"]
+        }
+    }
+}
+
+dependencies {
+    // no androidx required for plain Activity template
+}

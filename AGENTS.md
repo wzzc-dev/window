@@ -13,7 +13,8 @@ You can browse and install extra skills here:
   `_wbtest.mbt`).
 
 - The repository is a workspace declared by `moon.work`. The
-  `modules/window/` directory contains the `Milky2018/window` module;
+  `modules/window/` directory contains the `wzzc-dev/window` compatibility
+  module;
   `modules/windowing/` contains the independent `Milky2018/windowing`
   handle-contract module.
 

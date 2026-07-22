@@ -1,14 +1,22 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/window/linux"
+package "wzzc-dev/window/linux"
 
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/dpi",
   "moonbitlang/core/debug",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
 }
 
 // Values
+pub fn clipboard_available() -> Bool
+
+pub fn drag_drop_available() -> Bool
+
 pub fn monitor_ns_screen(@core.MonitorHandle) -> UInt64?
+
+pub fn read_clipboard_text() -> String?
+
+pub fn write_clipboard_text(String) -> Bool
 
 // Errors
 
@@ -39,8 +47,8 @@ pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::wl_display(Self) -> UInt64
-pub impl ActiveEventLoopExtLinux for ActiveEventLoop
 pub impl Show for ActiveEventLoop
+pub impl ActiveEventLoopExtLinux for ActiveEventLoop
 
 pub struct EventLoop {
   // private fields
@@ -82,8 +90,8 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @co
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
 pub fn EventLoop::wl_display(Self) -> UInt64
-pub impl EventLoopExtLinux for EventLoop
 pub impl Show for EventLoop
+pub impl EventLoopExtLinux for EventLoop
 
 pub struct EventLoopBuilder {
   // private fields
@@ -233,9 +241,9 @@ pub fn Window::wl_display(Self) -> UInt64
 pub fn Window::wl_surface(Self) -> UInt64
 pub fn Window::xdg_surface(Self) -> UInt64
 pub fn Window::xdg_toplevel(Self) -> UInt64
-pub impl WindowExtLinux for Window
 pub impl Eq for Window
 pub impl Show for Window
+pub impl WindowExtLinux for Window
 
 #alias(WindowAttributesLinuxAlias)
 pub struct WindowAttributesLinux {

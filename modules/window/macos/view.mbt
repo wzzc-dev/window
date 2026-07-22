@@ -981,7 +981,8 @@ fn queue_native_text_input_event(
       if !view_ime_allowed(raw_id) || text.length() == 0 {
         return ()
       }
-      if view_ime_state(raw_id) != view_ime_state_disabled &&
+      if view_has_marked_text(raw_id) &&
+        view_ime_state(raw_id) != view_ime_state_disabled &&
         !view_string_is_control(text_handle) {
         view_queue_ime_event(raw_id, Preedit("", None))
         view_queue_ime_event(raw_id, Commit(text))

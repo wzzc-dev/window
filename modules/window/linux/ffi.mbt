@@ -14,6 +14,59 @@ extern "C" fn native_context_wake_fd(context : UInt64) -> Int = "mbw_wayland_con
 extern "C" fn native_context_system_theme(context : UInt64) -> Int = "mbw_wayland_context_system_theme"
 
 ///|
+extern "C" fn native_context_clipboard_available(context : UInt64) -> Int = "mbw_wayland_context_clipboard_available"
+
+///|
+extern "C" fn native_context_clipboard_read_text(context : UInt64) -> Bytes = "mbw_wayland_context_clipboard_read_text"
+
+///|
+#borrow(text)
+extern "C" fn native_context_clipboard_write_text(
+  context : UInt64,
+  text : Bytes,
+  text_len : Int,
+) -> Int = "mbw_wayland_context_clipboard_write_text"
+
+///|
+extern "C" fn native_context_drag_drop_available(context : UInt64) -> Int = "mbw_wayland_context_drag_drop_available"
+
+///|
+extern "C" fn native_monitor_count(context : UInt64) -> Int = "mbw_wayland_monitor_count"
+
+///|
+extern "C" fn native_monitor_handle_at(context : UInt64, index : Int) -> UInt64 = "mbw_wayland_monitor_handle_at"
+
+///|
+extern "C" fn native_monitor_rect_left_at(context : UInt64, index : Int) -> Int = "mbw_wayland_monitor_rect_left_at"
+
+///|
+extern "C" fn native_monitor_rect_top_at(context : UInt64, index : Int) -> Int = "mbw_wayland_monitor_rect_top_at"
+
+///|
+extern "C" fn native_monitor_rect_width_at(
+  context : UInt64,
+  index : Int,
+) -> Int = "mbw_wayland_monitor_rect_width_at"
+
+///|
+extern "C" fn native_monitor_rect_height_at(
+  context : UInt64,
+  index : Int,
+) -> Int = "mbw_wayland_monitor_rect_height_at"
+
+///|
+extern "C" fn native_monitor_scale_factor_at(
+  context : UInt64,
+  index : Int,
+) -> Double = "mbw_wayland_monitor_scale_factor_at"
+
+///|
+extern "C" fn native_monitor_name_bytes_at(
+  context : UInt64,
+  index : Int,
+) -> Bytes = "mbw_wayland_monitor_name_bytes_at"
+
+///|
 extern "C" fn native_now_ms() -> Int64 = "mbw_wayland_now_ms"
 
 ///|
@@ -62,7 +115,13 @@ extern "C" fn native_window_xdg_toplevel_handle(window : UInt64) -> UInt64 = "mb
 extern "C" fn native_window_display_handle(window : UInt64) -> UInt64 = "mbw_wayland_window_display_handle"
 
 ///|
+extern "C" fn native_window_current_monitor_handle(window : UInt64) -> UInt64 = "mbw_wayland_window_current_monitor_handle"
+
+///|
 extern "C" fn native_window_client_decorated(window : UInt64) -> Bool = "mbw_wayland_window_client_decorated"
+
+///|
+extern "C" fn native_window_take_drag_paths(window : UInt64) -> Bytes = "mbw_wayland_window_take_drag_paths"
 
 ///|
 #borrow(title)
@@ -89,6 +148,12 @@ extern "C" fn native_window_set_maximized(
   window : UInt64,
   maximized : Bool,
 ) -> Unit = "mbw_wayland_window_set_maximized"
+
+///|
+extern "C" fn native_window_set_fullscreen(
+  window : UInt64,
+  fullscreen : Bool,
+) -> Unit = "mbw_wayland_window_set_fullscreen"
 
 ///|
 extern "C" fn native_window_set_visible(

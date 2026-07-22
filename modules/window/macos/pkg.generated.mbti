@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/window/macos"
+package "wzzc-dev/window/macos"
 
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/dpi",
   "Milky2018/windowing",
   "moonbitlang/core/debug",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
 }
 
 // Values
@@ -272,12 +272,12 @@ pub fn Window::title(Self) -> String
 pub fn Window::unified_titlebar(Self) -> Bool
 pub fn Window::window_handle(Self) -> @windowing.WindowHandle
 pub fn Window::window_level(Self) -> @core.WindowLevel
-pub impl @core.WindowCursorHittest for Window
 pub impl @windowing.DisplayHandleProvider for Window
 pub impl @windowing.HasDisplayHandle for Window
 pub impl @windowing.HasWindowHandle for Window
 pub impl @windowing.WindowHandleProvider for Window
 pub impl Show for Window
+pub impl @core.WindowCursorHittest for Window
 
 // Type aliases
 pub using @core {type PlatformWindowAttributes as WindowAttributesMacOS}

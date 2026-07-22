@@ -1,10 +1,11 @@
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/dpi",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
 }
 
 supported_targets = "native"
 
 options(
-  targets: { },
+  "native-stub": [ "native_harmonyos_host.c" ],
+  targets: { "host_ffi.mbt": [ "native" ] },
 )

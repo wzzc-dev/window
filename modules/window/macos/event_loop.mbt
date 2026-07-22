@@ -256,7 +256,7 @@ pub fn EventLoop::available_monitors(
 
 ///|
 pub fn EventLoop::primary_monitor(_self : EventLoop) -> @core.MonitorHandle? {
-  primary_monitor()
+  Some(primary_monitor())
 }
 
 ///|

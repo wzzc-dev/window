@@ -4,7 +4,7 @@ priv enum DeferredCallback {
   CanCreateSurfaces
   AboutToWait
   WindowEvent(@core.WindowId, @core.WindowEvent)
-  ScaleFactorChanged(@core.WindowId, Double, Int, Int)
+  ScaleFactorChanged(@core.WindowId, Double, @dpi.PhysicalSize)
 }
 
 ///|
@@ -35,7 +35,7 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     exit_requested: false,
     exit_code: 0,
     event_handler_in_use: false,
-    control_flow: @core.ControlFlow::Wait,
+    control_flow: Wait,
     pending_redraw_window_ids: [],
     window_handles: [],
     deferred_callbacks: [],
@@ -83,6 +83,23 @@ fn app_state_unregister_window_handle(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_handles = next_entries
+}
+
+///|
+fn app_state_clear_window_runtime_state(raw_id : Int) -> Unit {
+  clear_windows_window_input_state(raw_id)
+  app_state_clear_pending_redraw(raw_id)
+  app_state_unregister_window_handle(raw_id)
+}
+
+///|
+fn app_state_clear_all_window_runtime_state() -> Unit {
+  let entries = app_state_runtime.val.window_handles
+  for entry in entries {
+    clear_windows_window_input_state(entry.raw_id)
+  }
+  app_state_runtime.val.pending_redraw_window_ids = []
+  app_state_runtime.val.window_handles = []
 }
 
 ///|
@@ -174,19 +191,12 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
     AboutToWait => app.about_to_wait(active_loop)
     WindowEvent(window_id, event) =>
       app.window_event(active_loop, window_id, event)
-    ScaleFactorChanged(window_id, scale_factor, dpi_x, dpi_y) => {
-      let size_writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(
-        @dpi.PhysicalSize::PhysicalSize(
-          dpi_x *
-          app_state_scale_factor_for_window(window_id.into_raw()).to_int(),
-          dpi_y *
-          app_state_scale_factor_for_window(window_id.into_raw()).to_int(),
-        ),
-      )
+    ScaleFactorChanged(window_id, scale_factor, size) => {
+      let size_writer = @core.SurfaceSizeWriter::SurfaceSizeWriter(size)
       app.window_event(
         active_loop,
         window_id,
-        @core.WindowEvent::ScaleFactorChanged(scale_factor, size_writer),
+        ScaleFactorChanged(scale_factor, size_writer),
       )
     }
   }
@@ -197,7 +207,7 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
 fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
   if app_state_handler_ready() &&
     !(app_state_runtime.val.event_handler_in_use &&
-    callback is WindowEvent(_, @core.WindowEvent::RedrawRequested)) {
+    callback is WindowEvent(_, RedrawRequested)) {
     match app_state_runtime.val.dispatch_callback {
       Some(dispatch) => dispatch(callback)
       None => app_state_runtime.val.deferred_callbacks.push(callback)
@@ -218,12 +228,28 @@ fn app_state_queue_window_event(
 
 ///|
 fn app_state_queue_redraw(raw_id : Int) -> Unit {
-  let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
-    id == raw_id
-  })
-  if found is None {
-    app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
+  match app_state_window_handle(raw_id) {
+    Some(_hwnd) => {
+      let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
+        id == raw_id
+      })
+      if found is None {
+        app_state_runtime.val.pending_redraw_window_ids.push(raw_id)
+      }
+    }
+    None => ()
   }
+}
+
+///|
+fn app_state_clear_pending_redraw(raw_id : Int) -> Unit {
+  let next : Array[Int] = []
+  for id in app_state_runtime.val.pending_redraw_window_ids {
+    if id != raw_id {
+      next.push(id)
+    }
+  }
+  app_state_runtime.val.pending_redraw_window_ids = next
 }
 
 ///|
@@ -244,7 +270,7 @@ fn[A : ApplicationHandler] app_state_dispatch_init_events(
   active_loop : ActiveEventLoop,
 ) -> Unit {
   app_state_set_dispatch_handler(app, active_loop)
-  app_state_queue_callback(NewEvents(@core.StartCause::Init))
+  app_state_queue_callback(NewEvents(Init))
   app_state_queue_callback(CanCreateSurfaces)
   app_state_dispatch_deferred_callbacks()
 }
@@ -254,17 +280,9 @@ fn app_state_dispatch_redraws() -> Unit {
   let redraw_ids = app_state_runtime.val.pending_redraw_window_ids
   app_state_runtime.val.pending_redraw_window_ids = []
   for raw_id in redraw_ids {
-    app_state_queue_window_event(raw_id, @core.WindowEvent::RedrawRequested)
+    app_state_queue_window_event(raw_id, RedrawRequested)
   }
   app_state_dispatch_deferred_callbacks()
-}
-
-///|
-fn app_state_scale_factor_for_window(raw_id : Int) -> Double {
-  match app_state_window_handle(raw_id) {
-    Some(hwnd) => native_get_dpi_for_window(hwnd).to_double() / 96.0
-    None => 1.0
-  }
 }
 
 ///|

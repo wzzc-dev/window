@@ -2,6 +2,9 @@
 extern "C" fn native_register_window_class() -> Int = "mbw_register_window_class"
 
 ///|
+extern "C" fn native_hinstance_handle() -> UInt64 = "mbw_hinstance_handle"
+
+///|
 extern "C" fn native_create_msg_window() -> UInt64 = "mbw_create_msg_window"
 
 ///|
@@ -168,6 +171,9 @@ extern "C" fn native_clip_cursor(
 
 ///|
 extern "C" fn native_set_cursor_pos(x : Int, y : Int) -> Int = "mbw_set_cursor_pos"
+
+///|
+extern "C" fn native_set_cursor_visible(visible : Bool) -> Int = "mbw_set_cursor_visible"
 
 ///|
 extern "C" fn native_enable_modern_dpi_awareness() -> Int = "mbw_enable_modern_dpi_awareness"

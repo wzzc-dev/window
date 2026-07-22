@@ -18,3 +18,11 @@ fn platform_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
 fn platform_default_scale() -> Double {
   1.0
 }
+
+///|
+extern "C" fn mbw_harmonyos_sleep_ms(ms : Int) -> Unit = "mbw_harmonyos_sleep_ms"
+
+///|
+fn sleep_ms(ms : Int) -> Unit {
+  mbw_harmonyos_sleep_ms(ms)
+}

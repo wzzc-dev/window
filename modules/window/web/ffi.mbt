@@ -144,3 +144,12 @@ extern "wasm" fn web_set_ime_surrounding_text(
 
 ///|
 extern "wasm" fn web_system_theme() -> Int = "window_web" "system_theme"
+
+///|
+extern "wasm" fn web_set_canvas_fullscreen(
+  raw_id : Int,
+  fullscreen : Bool,
+) -> Unit = "window_web" "set_canvas_fullscreen"
+
+///|
+extern "wasm" fn web_focus_canvas(raw_id : Int) -> Unit = "window_web" "focus_canvas"

@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/window/examples/ime"
+package "wzzc-dev/window/examples/ime"
 
 import {
-  "Milky2018/window/core",
-  "Milky2018/window/macos",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/macos",
 }
 
 // Values
