@@ -1,0 +1,11 @@
+<!-- WeChat Mini Program index page with Canvas for MoUI rendering -->
+<view class="container" style="padding-top: {{statusBarHeight}}px">
+  <canvas
+    type="2d"
+    id="moui-canvas"
+    class="moui-canvas"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+  ></canvas>
+</view>

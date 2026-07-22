@@ -1,0 +1,12 @@
+/* Page styles for MoUI Mini Program */
+.container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.moui-canvas {
+  width: 100%;
+  height: 100%;
+}
