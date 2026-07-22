@@ -1,6 +1,6 @@
 import {
-  "wzzc-dev/window/core",
-  "wzzc-dev/window/dpi",
+  "Milky2018/window/core",
+  "Milky2018/window/dpi",
 }
 
 supported_targets = "native"

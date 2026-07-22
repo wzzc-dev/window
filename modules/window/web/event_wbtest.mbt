@@ -5,7 +5,7 @@ struct RecordingApp {
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with window_event(
+pub impl ApplicationHandler for RecordingApp with fn window_event(
   self,
   _event_loop,
   _window_id,
@@ -15,7 +15,7 @@ pub impl ApplicationHandler for RecordingApp with window_event(
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with proxy_wake_up(
+pub impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
   self,
   _event_loop,
 ) {

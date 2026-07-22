@@ -28,7 +28,11 @@ pub fn[A : ApplicationHandler] EventLoop::run_app(
   handler.resumed(active)
   handler.can_create_surfaces(active)
   handler.new_events(active, @core.StartCause::Poll)
-  handler.window_event(active, @core.WindowId::from_raw(0), @core.WindowEvent::RedrawRequested)
+  handler.window_event(
+    active,
+    @core.WindowId::from_raw(0),
+    @core.WindowEvent::RedrawRequested,
+  )
 }
 
 ///|
@@ -45,11 +49,7 @@ pub fn[A : ApplicationHandler] EventLoop::handle_event(
   handler : A,
   event : @core.WindowEvent,
 ) -> Unit {
-  handler.window_event(
-    self.as_active(),
-    @core.WindowId::from_raw(0),
-    event,
-  )
+  handler.window_event(self.as_active(), @core.WindowId::from_raw(0), event)
 }
 
 ///|

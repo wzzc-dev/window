@@ -129,6 +129,9 @@ test "insert_text_commits_without_existing_marked_text" {
   reset_view_state_for_test()
 
   let raw_id = 37
+  let window_handle = (97 : Int).to_uint64()
+  app_state_register_window_identity_for_test(raw_id, window_handle)
+  set_window_ime_allowed_state(window_handle, true)
   app_state_set_running(true)
   app_state_set_handler_in_use(true)
   app_state_runtime.val.dispatch_callback = Some(fn(_callback) {  })

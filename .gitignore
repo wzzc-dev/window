@@ -5,4 +5,4 @@ _build/
 winit-reference/
 trace.json
 .vscode
-linux/generated/
+modules/window/linux/generated/

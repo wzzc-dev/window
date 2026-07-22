@@ -1,10 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "wzzc-dev/window/ios"
+package "Milky2018/window/android"
 
 import {
+  "Milky2018/window/core",
+  "Milky2018/window/dpi",
   "moonbitlang/core/debug",
-  "wzzc-dev/window/core",
-  "wzzc-dev/window/dpi",
 }
 
 // Values
@@ -36,7 +36,7 @@ pub fn ActiveEventLoop::control_flow(Self) -> @core.ControlFlow
 pub fn ActiveEventLoop::create_custom_cursor(Self, @core.CustomCursorSource) -> @core.CustomCursor raise @core.RequestError
 pub fn ActiveEventLoop::create_proxy(Self) -> EventLoopProxy
 pub fn ActiveEventLoop::create_window(Self, @core.WindowAttributes) -> Window
-pub fn ActiveEventLoop::create_window_with_ios_attributes(Self, @core.WindowAttributes, WindowAttributesiOS) -> Window
+pub fn ActiveEventLoop::create_window_with_android_attributes(Self, @core.WindowAttributes, WindowAttributesAndroid) -> Window
 pub fn ActiveEventLoop::display_handle(Self) -> UInt64
 pub fn ActiveEventLoop::exit(Self) -> Unit
 pub fn ActiveEventLoop::exiting(Self) -> Bool
@@ -50,7 +50,7 @@ pub fn ActiveEventLoop::set_allows_automatic_window_tabbing(Self, Bool) -> Unit
 pub fn ActiveEventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
 pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
-pub fn ActiveEventLoop::try_create_window_with_ios_attributes(Self, @core.WindowAttributes, WindowAttributesiOS) -> Window raise @core.RequestError
+pub fn ActiveEventLoop::try_create_window_with_android_attributes(Self, @core.WindowAttributes, WindowAttributesAndroid) -> Window raise @core.RequestError
 pub impl Show for ActiveEventLoop
 
 pub struct EventLoop {
@@ -140,8 +140,9 @@ pub fn Window::is_maximized(Self) -> Bool
 pub fn Window::is_minimized(Self) -> Bool?
 pub fn Window::is_resizable(Self) -> Bool
 pub fn Window::is_visible(Self) -> Bool?
+pub fn Window::native_window_handle(Self) -> UInt64
 pub fn Window::new(EventLoop, @core.WindowAttributes) -> Self raise @core.RequestError
-pub fn Window::new_with_ios_attributes(EventLoop, @core.WindowAttributes, WindowAttributesiOS) -> Self raise @core.RequestError
+pub fn Window::new_with_android_attributes(EventLoop, @core.WindowAttributes, WindowAttributesAndroid) -> Self raise @core.RequestError
 pub fn Window::outer_position(Self) -> @dpi.PhysicalPosition raise @core.RequestError
 pub fn Window::outer_size(Self) -> @dpi.PhysicalSize
 pub fn Window::pre_present_notify(Self) -> Unit
@@ -181,27 +182,26 @@ pub fn Window::set_window_level(Self, @core.WindowLevel) -> Unit
 pub fn Window::show_window_menu(Self, @dpi.Position) -> Unit
 pub fn Window::surface_position(Self) -> @dpi.PhysicalPosition
 pub fn Window::surface_size(Self) -> @dpi.PhysicalSize
+pub fn Window::surface_token(Self) -> UInt64
 pub fn Window::theme(Self) -> @core.Theme?
 pub fn Window::title(Self) -> String
-pub fn Window::ui_window_handle(Self) -> UInt64
-pub fn Window::view_handle(Self) -> UInt64
 pub fn Window::window_handle(Self) -> UInt64
 pub impl Eq for Window
 pub impl Show for Window
 
-pub struct WindowAttributesiOS {
+pub struct WindowAttributesAndroid {
   // private fields
 }
-pub fn WindowAttributesiOS::default() -> Self
-pub fn WindowAttributesiOS::height(Self) -> Int
-pub fn WindowAttributesiOS::scale_factor(Self) -> Double
-pub fn WindowAttributesiOS::surface_handle(Self) -> UInt64
-pub fn WindowAttributesiOS::surface_token(Self) -> UInt64
-pub fn WindowAttributesiOS::width(Self) -> Int
-pub fn WindowAttributesiOS::with_scale_factor(Self, Double) -> Self
-pub fn WindowAttributesiOS::with_size(Self, Int, Int) -> Self
-pub fn WindowAttributesiOS::with_surface_handle(Self, UInt64) -> Self
-pub fn WindowAttributesiOS::with_surface_token(Self, UInt64) -> Self
+pub fn WindowAttributesAndroid::default() -> Self
+pub fn WindowAttributesAndroid::height(Self) -> Int
+pub fn WindowAttributesAndroid::scale_factor(Self) -> Double
+pub fn WindowAttributesAndroid::surface_handle(Self) -> UInt64
+pub fn WindowAttributesAndroid::surface_token(Self) -> UInt64
+pub fn WindowAttributesAndroid::width(Self) -> Int
+pub fn WindowAttributesAndroid::with_scale_factor(Self, Double) -> Self
+pub fn WindowAttributesAndroid::with_size(Self, Int, Int) -> Self
+pub fn WindowAttributesAndroid::with_surface_handle(Self, UInt64) -> Self
+pub fn WindowAttributesAndroid::with_surface_token(Self, UInt64) -> Self
 
 // Type aliases
 
