@@ -67,8 +67,8 @@ fn log_surface(window : @windows.Window) -> Unit {
 
 ///|
 fn log_handle(window : @windows.Window) -> Bool {
-  let hwnd = window.window_handle()
-  let display = window.display_handle()
+  let hwnd = window.native_window_handle()
+  let display = window.rwh_06_display_handle()
   let raw_display = window.rwh_06_display_handle()
   let raw_window = window.rwh_06_window_handle()
   println(
@@ -236,7 +236,7 @@ pub impl @windows.ApplicationHandler for App with fn can_create_surfaces(
       println(
         "MOUIWindowsSmoke: resize requested size=\{resized_size.width()}x\{resized_size.height()}",
       )
-      if native_send_input(window.window_handle()) != 0 {
+      if native_send_input(window.native_window_handle()) != 0 {
         self.requested_input = true
         println("MOUIWindowsSmoke: input requested")
       } else {

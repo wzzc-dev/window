@@ -288,23 +288,53 @@ pub fn EventLoop::create_custom_cursor(
 }
 
 ///|
-pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
-  self.owned_display_handle()
-}
-
-///|
-pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
+pub fn EventLoop::native_display_handle(self : EventLoop) -> UInt64 {
   native_context_display_handle(self.context)
 }
 
 ///|
+pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
+  self.native_display_handle()
+}
+
+///|
 pub fn EventLoop::rwh_06_handle(self : EventLoop) -> UInt64 {
-  self.owned_display_handle()
+  self.native_display_handle()
 }
 
 ///|
 pub fn EventLoop::wl_display(self : EventLoop) -> UInt64 {
   native_context_display_handle(self.context)
+}
+
+///|
+pub fn EventLoop::raw_display_handle(
+  self : EventLoop,
+) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
+  Wayland(
+    @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
+  )
+}
+
+///|
+pub impl @windowing.DisplayHandleProvider for EventLoop with fn raw_display_handle(
+  self,
+) {
+  self.raw_display_handle()
+}
+
+///|
+pub fn EventLoop::display_handle(
+  self : EventLoop,
+) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasDisplayHandle for EventLoop with fn display_handle(self) {
+  self.display_handle()
 }
 
 ///|
@@ -442,18 +472,46 @@ pub fn ActiveEventLoop::rwh_06_handle(self : ActiveEventLoop) -> UInt64 {
 }
 
 ///|
+pub fn ActiveEventLoop::native_display_handle(self : ActiveEventLoop) -> UInt64 {
+  self.inner.native_display_handle()
+}
+
+///|
 pub fn ActiveEventLoop::owned_display_handle(self : ActiveEventLoop) -> UInt64 {
   self.inner.owned_display_handle()
 }
 
 ///|
-pub fn ActiveEventLoop::display_handle(self : ActiveEventLoop) -> UInt64 {
-  self.inner.display_handle()
+pub fn ActiveEventLoop::wl_display(self : ActiveEventLoop) -> UInt64 {
+  self.inner.wl_display()
 }
 
 ///|
-pub fn ActiveEventLoop::wl_display(self : ActiveEventLoop) -> UInt64 {
-  self.inner.wl_display()
+pub fn ActiveEventLoop::raw_display_handle(
+  self : ActiveEventLoop,
+) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
+  self.inner.raw_display_handle()
+}
+
+///|
+pub impl @windowing.DisplayHandleProvider for ActiveEventLoop with fn raw_display_handle(
+  self,
+) {
+  self.raw_display_handle()
+}
+
+///|
+pub fn ActiveEventLoop::display_handle(
+  self : ActiveEventLoop,
+) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(self) {
+  self.display_handle()
 }
 
 ///|

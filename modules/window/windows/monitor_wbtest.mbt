@@ -78,8 +78,8 @@ test "windows current monitor rejects invalid hwnd handles" {
 test "windows raw handle accessors preserve hwnd and do not fabricate display handle" {
   let window = test_window_for_monitor(7UL)
   let display = native_hinstance_handle()
-  assert_eq(window.window_handle(), 7UL)
+  assert_eq(window.native_window_handle(), 7UL)
   assert_eq(window.rwh_06_window_handle(), 7UL)
-  assert_eq(window.display_handle(), display)
+  assert_eq(window.rwh_06_display_handle(), display)
   assert_eq(window.rwh_06_display_handle(), display)
 }

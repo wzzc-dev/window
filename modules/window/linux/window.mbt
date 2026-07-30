@@ -714,23 +714,81 @@ pub fn Window::reset_dead_keys(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::display_handle(self : Window) -> UInt64 {
-  self.rwh_06_display_handle()
+/// Return the raw Wayland `wl_surface*` handle for this window.
+pub fn Window::native_window_handle(self : Window) -> UInt64 {
+  native_window_surface_handle(self.handle)
 }
 
 ///|
-pub fn Window::window_handle(self : Window) -> UInt64 {
-  self.rwh_06_window_handle()
-}
-
-///|
-pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
+/// Return the raw Wayland `wl_display*` handle for this window.
+pub fn Window::native_display_handle(self : Window) -> UInt64 {
   native_window_display_handle(self.handle)
 }
 
 ///|
+pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
+  self.native_display_handle()
+}
+
+///|
 pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
-  native_window_surface_handle(self.handle)
+  self.native_window_handle()
+}
+
+///|
+fn Window::raw_display_handle(
+  self : Window,
+) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
+  Wayland(
+    @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
+  )
+}
+
+///|
+fn Window::raw_window_handle(
+  self : Window,
+) -> @windowing.RawWindowHandle raise @windowing.HandleError {
+  Wayland(
+    @windowing.WaylandWindowHandle::new(self.native_window_handle()),
+  )
+}
+
+///|
+pub impl @windowing.DisplayHandleProvider for Window with fn raw_display_handle(
+  self,
+) {
+  self.raw_display_handle()
+}
+
+///|
+pub impl @windowing.WindowHandleProvider for Window with fn raw_window_handle(
+  self,
+) {
+  self.raw_window_handle()
+}
+
+///|
+pub fn Window::display_handle(self : Window) -> @windowing.DisplayHandle {
+  @windowing.DisplayHandle::from_provider(
+    self as &@windowing.DisplayHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasDisplayHandle for Window with fn display_handle(self) {
+  self.display_handle()
+}
+
+///|
+pub fn Window::window_handle(self : Window) -> @windowing.WindowHandle {
+  @windowing.WindowHandle::from_provider(
+    self as &@windowing.WindowHandleProvider,
+  )
+}
+
+///|
+pub impl @windowing.HasWindowHandle for Window with fn window_handle(self) {
+  self.window_handle()
 }
 
 ///|

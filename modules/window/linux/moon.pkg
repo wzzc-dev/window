@@ -1,5 +1,6 @@
 import {
   "moonbitlang/core/encoding/utf8",
+  "Milky2018/windowing",
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
 }
