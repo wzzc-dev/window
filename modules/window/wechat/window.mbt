@@ -401,4 +401,3 @@ pub fn Window::theme(self : Window) -> @core.Theme? {
 pub fn Window::set_content_protected(self : Window, _protected : Bool) -> Unit {
   let _ = self
 }
-

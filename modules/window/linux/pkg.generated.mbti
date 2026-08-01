@@ -2,6 +2,7 @@
 package "wzzc-dev/window/linux"
 
 import {
+  "Milky2018/windowing",
   "moonbitlang/core/debug",
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
@@ -31,15 +32,17 @@ pub fn ActiveEventLoop::create_custom_cursor(Self, @core.CustomCursorSource) -> 
 pub fn ActiveEventLoop::create_proxy(Self) -> EventLoopProxy
 pub fn ActiveEventLoop::create_window(Self, @core.WindowAttributes) -> Window
 pub fn ActiveEventLoop::create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window
-pub fn ActiveEventLoop::display_handle(Self) -> UInt64
+pub fn ActiveEventLoop::display_handle(Self) -> @windowing.DisplayHandle
 pub fn ActiveEventLoop::display_handle_wayland(Self) -> UInt64
 pub fn ActiveEventLoop::exit(Self) -> Unit
 pub fn ActiveEventLoop::exiting(Self) -> Bool
 pub fn ActiveEventLoop::hide_application(Self) -> Unit
 pub fn ActiveEventLoop::hide_other_applications(Self) -> Unit
 pub fn ActiveEventLoop::listen_device_events(Self, @core.DeviceEvents) -> Unit
+pub fn ActiveEventLoop::native_display_handle(Self) -> UInt64
 pub fn ActiveEventLoop::owned_display_handle(Self) -> UInt64
 pub fn ActiveEventLoop::primary_monitor(Self) -> @core.MonitorHandle?
+pub fn ActiveEventLoop::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
 pub fn ActiveEventLoop::rwh_06_handle(Self) -> UInt64
 pub fn ActiveEventLoop::set_allows_automatic_window_tabbing(Self, Bool) -> Unit
 pub fn ActiveEventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
@@ -47,6 +50,8 @@ pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::wl_display(Self) -> UInt64
+pub impl @windowing.DisplayHandleProvider for ActiveEventLoop
+pub impl @windowing.HasDisplayHandle for ActiveEventLoop
 pub impl Show for ActiveEventLoop
 pub impl ActiveEventLoopExtLinux for ActiveEventLoop
 
@@ -62,7 +67,7 @@ pub fn EventLoop::create_custom_cursor(Self, @core.CustomCursorSource) -> @core.
 pub fn EventLoop::create_proxy(Self) -> EventLoopProxy
 pub fn EventLoop::create_window(Self, @core.WindowAttributes) -> Window
 pub fn EventLoop::create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window
-pub fn EventLoop::display_handle(Self) -> UInt64
+pub fn EventLoop::display_handle(Self) -> @windowing.DisplayHandle
 pub fn EventLoop::display_handle_wayland(Self) -> UInt64
 pub fn EventLoop::drop(Self) -> Unit
 pub fn EventLoop::exit(Self) -> Unit
@@ -70,11 +75,13 @@ pub fn EventLoop::exiting(Self) -> Bool
 pub fn EventLoop::hide_application(Self) -> Unit
 pub fn EventLoop::hide_other_applications(Self) -> Unit
 pub fn EventLoop::listen_device_events(Self, @core.DeviceEvents) -> Unit
+pub fn EventLoop::native_display_handle(Self) -> UInt64
 pub fn EventLoop::new() -> Self
 pub fn EventLoop::new_with_platform_attributes(@core.PlatformEventLoopAttributes) -> Self
 pub fn EventLoop::owned_display_handle(Self) -> UInt64
 pub fn EventLoop::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(Self, Int?, A) -> @core.PumpStatus
+pub fn EventLoop::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
 pub fn[A : ApplicationHandler] EventLoop::run_app(Self, A) -> Unit
 pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(Self, A) -> Unit
 pub fn EventLoop::rwh_06_handle(Self) -> UInt64
@@ -90,6 +97,8 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @co
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
 pub fn EventLoop::wl_display(Self) -> UInt64
+pub impl @windowing.DisplayHandleProvider for EventLoop
+pub impl @windowing.HasDisplayHandle for EventLoop
 pub impl Show for EventLoop
 pub impl EventLoopExtLinux for EventLoop
 
@@ -122,7 +131,7 @@ pub fn Window::Window(EventLoop, @core.WindowAttributes) -> Self raise @core.Req
 pub fn Window::available_monitors(Self) -> Array[@core.MonitorHandle]
 pub fn Window::current_monitor(Self) -> @core.MonitorHandle?
 pub fn Window::cursor(Self) -> @core.Cursor
-pub fn Window::display_handle(Self) -> UInt64
+pub fn Window::display_handle(Self) -> @windowing.DisplayHandle
 pub fn Window::drag_resize_window(Self, @core.ResizeDirection) -> Unit raise @core.RequestError
 pub fn Window::drag_window(Self) -> Unit raise @core.RequestError
 pub fn Window::drop(Self) -> Unit
@@ -159,6 +168,8 @@ pub fn Window::max_inner_size(Self) -> @dpi.PhysicalSize?
 pub fn Window::max_surface_size(Self) -> @dpi.PhysicalSize?
 pub fn Window::min_inner_size(Self) -> @dpi.PhysicalSize?
 pub fn Window::min_surface_size(Self) -> @dpi.PhysicalSize?
+pub fn Window::native_display_handle(Self) -> UInt64
+pub fn Window::native_window_handle(Self) -> UInt64
 pub fn Window::new(EventLoop, @core.WindowAttributes) -> Self raise @core.RequestError
 pub fn Window::new_with_linux_attributes(EventLoop, @core.WindowAttributes, WindowAttributesLinux) -> Self raise @core.RequestError
 pub fn Window::num_tabs(Self) -> Int
@@ -235,12 +246,16 @@ pub fn Window::theme(Self) -> @core.Theme?
 pub fn Window::title(Self) -> String
 pub fn Window::unified_titlebar(Self) -> Bool
 pub fn Window::uses_client_decorations(Self) -> Bool
-pub fn Window::window_handle(Self) -> UInt64
+pub fn Window::window_handle(Self) -> @windowing.WindowHandle
 pub fn Window::window_level(Self) -> @core.WindowLevel
 pub fn Window::wl_display(Self) -> UInt64
 pub fn Window::wl_surface(Self) -> UInt64
 pub fn Window::xdg_surface(Self) -> UInt64
 pub fn Window::xdg_toplevel(Self) -> UInt64
+pub impl @windowing.DisplayHandleProvider for Window
+pub impl @windowing.HasDisplayHandle for Window
+pub impl @windowing.HasWindowHandle for Window
+pub impl @windowing.WindowHandleProvider for Window
 pub impl Eq for Window
 pub impl Show for Window
 pub impl WindowExtLinux for Window

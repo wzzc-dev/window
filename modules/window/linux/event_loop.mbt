@@ -311,9 +311,7 @@ pub fn EventLoop::wl_display(self : EventLoop) -> UInt64 {
 pub fn EventLoop::raw_display_handle(
   self : EventLoop,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
-  Wayland(
-    @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
-  )
+  Wayland(@windowing.WaylandDisplayHandle::new(self.native_display_handle()))
 }
 
 ///|
@@ -324,9 +322,7 @@ pub impl @windowing.DisplayHandleProvider for EventLoop with fn raw_display_hand
 }
 
 ///|
-pub fn EventLoop::display_handle(
-  self : EventLoop,
-) -> @windowing.DisplayHandle {
+pub fn EventLoop::display_handle(self : EventLoop) -> @windowing.DisplayHandle {
   @windowing.DisplayHandle::from_provider(
     self as &@windowing.DisplayHandleProvider,
   )
@@ -510,7 +506,9 @@ pub fn ActiveEventLoop::display_handle(
 }
 
 ///|
-pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(self) {
+pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(
+  self,
+) {
   self.display_handle()
 }
 

@@ -297,9 +297,7 @@ pub impl @windowing.DisplayHandleProvider for EventLoop with fn raw_display_hand
 }
 
 ///|
-pub fn EventLoop::display_handle(
-  self : EventLoop,
-) -> @windowing.DisplayHandle {
+pub fn EventLoop::display_handle(self : EventLoop) -> @windowing.DisplayHandle {
   @windowing.DisplayHandle::from_provider(
     self as &@windowing.DisplayHandleProvider,
   )
@@ -459,7 +457,9 @@ pub fn ActiveEventLoop::display_handle(
 }
 
 ///|
-pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(self) {
+pub impl @windowing.HasDisplayHandle for ActiveEventLoop with fn display_handle(
+  self,
+) {
   self.display_handle()
 }
 

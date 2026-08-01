@@ -983,9 +983,7 @@ pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
 }
 
 ///|
-fn Window::raw_display_handle(
-  self : Window,
-) -> @windowing.RawDisplayHandle {
+fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
   let _ = self
   Windows(@windowing.WindowsDisplayHandle::new())
 }

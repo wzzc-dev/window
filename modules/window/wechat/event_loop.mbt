@@ -304,9 +304,7 @@ pub fn ActiveEventLoop::create_custom_cursor(
 }
 
 ///|
-pub fn ActiveEventLoop::create_proxy(
-  self : ActiveEventLoop,
-) -> EventLoopProxy {
+pub fn ActiveEventLoop::create_proxy(self : ActiveEventLoop) -> EventLoopProxy {
   self.inner.create_proxy()
 }
 
@@ -319,9 +317,7 @@ pub fn ActiveEventLoop::listen_device_events(
 }
 
 ///|
-pub fn ActiveEventLoop::system_theme(
-  self : ActiveEventLoop,
-) -> @core.Theme? {
+pub fn ActiveEventLoop::system_theme(self : ActiveEventLoop) -> @core.Theme? {
   self.inner.system_theme()
 }
 

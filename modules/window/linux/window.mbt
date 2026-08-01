@@ -739,18 +739,14 @@ pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
 fn Window::raw_display_handle(
   self : Window,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
-  Wayland(
-    @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
-  )
+  Wayland(@windowing.WaylandDisplayHandle::new(self.native_display_handle()))
 }
 
 ///|
 fn Window::raw_window_handle(
   self : Window,
 ) -> @windowing.RawWindowHandle raise @windowing.HandleError {
-  Wayland(
-    @windowing.WaylandWindowHandle::new(self.native_window_handle()),
-  )
+  Wayland(@windowing.WaylandWindowHandle::new(self.native_window_handle()))
 }
 
 ///|
