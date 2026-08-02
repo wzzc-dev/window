@@ -349,7 +349,7 @@ pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
   self : EventLoop,
   handler : A,
-) -> Unit raise @core.EventLoopError {
+) -> Unit {
   self.run_app_on_demand(handler)
 }
 
@@ -365,7 +365,7 @@ pub fn[A : ApplicationHandler] EventLoop::run_app(
 pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   self : EventLoop,
   handler : A,
-) -> Unit raise @core.EventLoopError {
+) -> Unit {
   self.run_app(handler)
 }
 

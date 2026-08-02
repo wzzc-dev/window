@@ -908,7 +908,7 @@ pub fn Window::set_preferred_screen_edges_deferring_system_gestures(
 
 ///|
 pub fn Window::set_simple_fullscreen(
-  self : Window,
+  _self : Window,
   _fullscreen : Bool,
 ) -> Unit raise @core.RequestError {
   raise @core.RequestError::not_supported(
