@@ -11,17 +11,16 @@
 
 ///|
 pub(all) struct Window {
-  pub id : @core.WindowId
-  pub canvas_id : String
+  id : @core.WindowId
+  canvas_id : String
   mut logical_size : @dpi.Size
-  pub scale_factor : Double
+  scale_factor : Double
   priv mut cursor_visible_state : Bool
   priv mut cursor_hittest_state : Bool
   priv mut cursor_state : @core.Cursor
   priv mut decorated_state : Bool
   priv mut fullscreen_state : @core.Fullscreen?
   priv mut ime_allowed_state : Bool
-  priv mut ime_capabilities_state : @core.ImeCapabilities?
   priv mut ime_hints_state : @core.ImeHint
   priv mut ime_purpose_state : @core.ImePurpose
   priv mut ime_surrounding_text_state : @core.ImeSurroundingText?
@@ -45,7 +44,6 @@ pub fn Window::new(
     decorated_state: true,
     fullscreen_state: None,
     ime_allowed_state: false,
-    ime_capabilities_state: None,
     ime_hints_state: @core.ImeHint::none(),
     ime_purpose_state: @core.ImePurpose::Normal,
     ime_surrounding_text_state: None,
@@ -99,7 +97,7 @@ pub fn Window::scale_factor(self : Window) -> Double {
 }
 
 ///|
-pub fn Window::request_redraw(self : Window) -> Unit {
+pub fn Window::request_redraw(_self : Window) -> Unit {
   // Redraw is triggered by the JS runtime via wechat_render_frame()
 }
 
@@ -266,7 +264,7 @@ pub fn Window::set_title(self : Window, _title : String) -> Unit {
 }
 
 ///|
-pub fn Window::title(self : Window) -> String {
+pub fn Window::title(_self : Window) -> String {
   "WeChat Mini Program"
 }
 
@@ -276,7 +274,7 @@ pub fn Window::set_visible(self : Window, _visible : Bool) -> Unit {
 }
 
 ///|
-pub fn Window::is_visible(self : Window) -> Bool? {
+pub fn Window::is_visible(_self : Window) -> Bool? {
   Some(true)
 }
 
@@ -286,7 +284,7 @@ pub fn Window::set_resizable(self : Window, _resizable : Bool) -> Unit {
 }
 
 ///|
-pub fn Window::is_resizable(self : Window) -> Bool {
+pub fn Window::is_resizable(_self : Window) -> Bool {
   true
 }
 
@@ -306,7 +304,7 @@ pub fn Window::set_minimized(self : Window, _minimized : Bool) -> Unit {
 }
 
 ///|
-pub fn Window::is_minimized(self : Window) -> Bool? {
+pub fn Window::is_minimized(_self : Window) -> Bool? {
   Some(false)
 }
 
@@ -316,7 +314,7 @@ pub fn Window::set_maximized(self : Window, _maximized : Bool) -> Unit {
 }
 
 ///|
-pub fn Window::is_maximized(self : Window) -> Bool {
+pub fn Window::is_maximized(_self : Window) -> Bool {
   false
 }
 
@@ -326,7 +324,7 @@ pub fn Window::focus_window(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::has_focus(self : Window) -> Bool {
+pub fn Window::has_focus(_self : Window) -> Bool {
   true
 }
 
@@ -357,7 +355,7 @@ pub fn Window::set_simple_fullscreen(self : Window, _simple : Bool) -> Bool {
 }
 
 ///|
-pub fn Window::simple_fullscreen(self : Window) -> Bool {
+pub fn Window::simple_fullscreen(_self : Window) -> Bool {
   false
 }
 
@@ -393,7 +391,7 @@ pub fn Window::set_theme(self : Window, _theme : @core.Theme?) -> Unit {
 }
 
 ///|
-pub fn Window::theme(self : Window) -> @core.Theme? {
+pub fn Window::theme(_self : Window) -> @core.Theme? {
   None
 }
 

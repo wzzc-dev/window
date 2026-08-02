@@ -32,7 +32,6 @@ priv struct AppStateRuntime {
   mut is_running : Bool
   mut exit_requested : Bool
   mut exit_code : Int
-  mut event_handler_in_use : Bool
   mut control_flow : @core.ControlFlow
   mut pending_redraw_window_ids : Array[Int]
   mut window_entries : Array[WindowEntry]
@@ -48,7 +47,6 @@ fn AppStateRuntime::new() -> AppStateRuntime {
     is_running: false,
     exit_requested: false,
     exit_code: 0,
-    event_handler_in_use: false,
     control_flow: Wait,
     pending_redraw_window_ids: [],
     window_entries: [],
@@ -248,28 +246,6 @@ fn app_state_create_window_entry(
     host_set_primary_window_id(Some(raw_id))
   }
   entry
-}
-
-///|
-fn app_state_update_surface(
-  raw_id : Int,
-  width : Int,
-  height : Int,
-  scale_factor : Double,
-  surface_handle : UInt64,
-  surface_token : UInt64,
-) -> Unit {
-  match app_state_window_entry(raw_id) {
-    Some(entry) => {
-      entry.width = width
-      entry.height = height
-      entry.scale_factor = scale_factor
-      entry.surface_handle = surface_handle
-      entry.surface_token = surface_token
-      entry.generation = host_generation()
-    }
-    None => ()
-  }
 }
 
 ///|

@@ -33,9 +33,6 @@ extern "C" fn mbw_ios_host_poll_raw(
 extern "C" fn mbw_ios_host_take_pending_ime_text() -> Bytes = "mbw_ios_host_take_pending_ime_text"
 
 ///|
-extern "C" fn mbw_ios_ime_reset() -> Unit = "mbw_ios_ime_reset"
-
-///|
 fn host_drain_native_queue() -> Unit {
   while true {
     let handle = Ref(0UL)

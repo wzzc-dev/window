@@ -171,7 +171,7 @@ pub fn EventLoop::system_theme(_self : EventLoop) -> @core.Theme? {
 
 ///|
 pub fn EventLoop::create_window(
-  self : EventLoop,
+  _self : EventLoop,
   window_attributes : @core.WindowAttributes,
 ) -> Window {
   let size = match window_attributes.inner_size() {
@@ -180,7 +180,7 @@ pub fn EventLoop::create_window(
   }
   Window::new(
     id=@core.WindowId::from_raw(0),
-    canvas_id=window_attributes.name().or("moui-canvas"),
+    canvas_id=window_attributes.name().unwrap_or("moui-canvas"),
     size~,
   )
 }
@@ -275,7 +275,7 @@ pub fn ActiveEventLoop::create_window(
 
 ///|
 pub fn ActiveEventLoop::request_redraw(
-  self : ActiveEventLoop,
+  _self : ActiveEventLoop,
   _window : Window,
 ) -> Unit {
   // Redraw is handled by the JS runtime via wechat_render_frame()

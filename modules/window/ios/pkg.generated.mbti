@@ -76,8 +76,8 @@ pub fn EventLoop::try_create_window(Self, @core.WindowAttributes) -> Window rais
 pub fn EventLoop::try_new() -> Self raise @core.EventLoopError
 pub fn EventLoop::try_new_with_platform_attributes(@core.PlatformEventLoopAttributes) -> Self raise @core.EventLoopError
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(Self, Int?, A) -> @core.PumpStatus
-pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @core.EventLoopError
-pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
+pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit
+pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
 pub impl Show for EventLoop
 
@@ -117,7 +117,7 @@ pub(all) enum HostCmd {
   ImeEvent(Int, String, Int, Int)
   MemoryWarning
   Destroy
-} derive(Eq, @debug.Debug)
+}
 
 pub struct Window {
   // private fields

@@ -1,8 +1,8 @@
 ///|
 /// WeChat Mini Program monitor/screen information.
 pub(all) struct Monitor {
-  pub size : @dpi.Size
-  pub scale_factor : Double
+  size : @dpi.Size
+  scale_factor : Double
 }
 
 ///|

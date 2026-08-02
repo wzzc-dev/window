@@ -339,7 +339,7 @@ pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(
 ) -> Unit {
   while true {
     match self.pump_app_events(None, handler) {
-      Exit => break
+      Exit(_) => break
       Continue => sleep_ms(4)
     }
   }

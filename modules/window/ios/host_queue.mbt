@@ -17,17 +17,15 @@ pub(all) enum HostCmd {
   ImeEvent(Int, String, Int, Int)
   MemoryWarning
   Destroy
-} derive(Eq, Debug)
+}
 
 ///|
 /// Host lifecycle phase tracked for create_window gating and generation.
 priv enum HostPhase {
   Idle
-  Started
   Resumed
   SurfacesAllowed
-  Suspended
-} derive(Eq, Debug)
+}
 
 ///|
 priv struct HostSurfaceSnapshot {
@@ -185,11 +183,7 @@ fn host_drain_into_app_state() -> Bool {
   let mut exit_loop = false
   for cmd in cmds {
     match cmd {
-      Start =>
-        match host_runtime.val.phase {
-          Idle => host_runtime.val.phase = Started
-          _ => ()
-        }
+      Start => ()
       Resume => {
         host_runtime.val.phase = Resumed
         app_state_queue_lifecycle(Resumed)
@@ -201,7 +195,6 @@ fn host_drain_into_app_state() -> Bool {
           host_invalidate_window_handles()
           app_state_queue_lifecycle(DestroySurfaces)
         }
-        host_runtime.val.phase = Suspended
         host_runtime.val.surface = None
         app_state_queue_lifecycle(Suspended)
       }

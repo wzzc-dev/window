@@ -93,16 +93,6 @@ fn app_state_clear_window_runtime_state(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_clear_all_window_runtime_state() -> Unit {
-  let entries = app_state_runtime.val.window_handles
-  for entry in entries {
-    clear_windows_window_input_state(entry.raw_id)
-  }
-  app_state_runtime.val.pending_redraw_window_ids = []
-  app_state_runtime.val.window_handles = []
-}
-
-///|
 fn app_state_window_handle(raw_id : Int) -> UInt64? {
   for entry in app_state_runtime.val.window_handles {
     if entry.raw_id == raw_id {

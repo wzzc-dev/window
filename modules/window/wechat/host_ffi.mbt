@@ -6,12 +6,12 @@
 ///|
 /// Dispatch a window event from the JS runtime.
 pub fn wechat_dispatch_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
-  argd : Double,
-  text_id : Int,
+  _kind : Int,
+  _raw_id : Int,
+  _arg0 : Int,
+  _arg1 : Int,
+  _argd : Double,
+  _text_id : Int,
 ) -> Unit {
   // Event dispatch for Mini Program → MoUI
   // The actual dispatch is handled by the host runtime
@@ -20,14 +20,14 @@ pub fn wechat_dispatch_event(
 ///|
 /// Dispatch a pointer/touch input event from the JS runtime.
 pub fn wechat_dispatch_pointer_input(
-  raw_id : Int,
-  kind : Int,
-  x_px : Double,
-  y_px : Double,
-  delta_x_px : Double,
-  delta_y_px : Double,
-  button : Int,
-  modifiers : Int,
+  _raw_id : Int,
+  _kind : Int,
+  _x_px : Double,
+  _y_px : Double,
+  _delta_x_px : Double,
+  _delta_y_px : Double,
+  _button : Int,
+  _modifiers : Int,
 ) -> Int {
   // Pointer input dispatch for Mini Program → MoUI
   // The actual dispatch is handled by the host runtime
@@ -44,9 +44,9 @@ pub fn wechat_render_frame() -> Unit {
 ///|
 /// Notify that a surface (canvas) was created.
 pub fn wechat_surface_created(
-  width : Double,
-  height : Double,
-  scale_factor : Double,
+  _width : Double,
+  _height : Double,
+  _scale_factor : Double,
 ) -> Unit {
   // Surface created dispatch
   // The actual dispatch is handled by the host runtime
