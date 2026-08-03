@@ -9,6 +9,7 @@
 #if defined(__ANDROID__)
 #include <android/log.h>
 #include <jni.h>
+extern void mbw_android_host_set_java_vm(JavaVM *vm);
 #ifndef MBW_ANDROID_APP_LOG_TAG
 #define MBW_ANDROID_APP_LOG_TAG "WindowAndroidApp"
 #endif
@@ -52,8 +53,8 @@ int mbw_android_start_event_loop(void) {
 #if defined(__ANDROID__)
 /* Also start the loop when the library loads if Activity starts late. */
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
-  (void)vm;
   (void)reserved;
+  mbw_android_host_set_java_vm(vm);
   return JNI_VERSION_1_6;
 }
 #endif

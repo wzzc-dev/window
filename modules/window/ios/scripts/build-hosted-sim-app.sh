@@ -105,7 +105,7 @@ for f in skia_stub.cpp skia_stub_common.cpp skia_stub_surface_image_data.cpp ski
   fi
 done
 
-for glue in   "$WORKSPACE/moui/backend/ios/skia/ios_skia_view_glue.mm"   "$WORKSPACE/moui/backend/ios/skia/ios_skia_presenter.mm"
+for glue in "$WORKSPACE/moui/backend/ios/ios_present.mm"
 do
   if [[ -f "$glue" ]]; then
     base="$(basename "$glue" .mm)"

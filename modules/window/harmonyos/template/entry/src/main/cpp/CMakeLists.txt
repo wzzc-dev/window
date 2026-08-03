@@ -43,7 +43,7 @@ add_library(${MBW_LIBRARY_NAME} SHARED
   "${MBW_MOONBIT_C}"
   "${MBW_MOON_HOME}/lib/runtime.c"
   "${MBW_WORKSPACE_ROOT}/.mooncakes/moonbitlang/x/fs/fs_native.c"
-  "${MBW_WORKSPACE_ROOT}/moui/backend/harmonyos/skia/harmonyos_skia_presenter.cpp"
+  "${MBW_WORKSPACE_ROOT}/moui/backend/harmonyos/harmonyos_present.cpp"
   ${MBW_SKIA_STUB_SOURCES}
 )
 

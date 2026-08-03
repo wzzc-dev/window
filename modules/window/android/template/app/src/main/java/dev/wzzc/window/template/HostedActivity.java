@@ -3,7 +3,10 @@ package dev.wzzc.window.template;
 import android.app.Activity;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
@@ -11,6 +14,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.FrameLayout;
 
 /**
@@ -21,6 +25,7 @@ import android.widget.FrameLayout;
 public final class HostedActivity extends Activity implements SurfaceHolder.Callback {
   private static final String TAG = "WindowHosted";
   private SurfaceView surfaceView;
+  private volatile boolean statusBarImmersive;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -94,6 +99,44 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
       Log.e(TAG, "nativeOnHostDestroy failed", error);
     }
     super.onDestroy();
+  }
+
+  /**
+   * Applies the app-selected status-bar layout mode without hiding either
+   * system bar. The native host calls this from the MoonBit entry thread;
+   * Android window mutations are marshalled back to the UI thread here.
+   */
+  public void applyStatusBarImmersive(final boolean immersive) {
+    Runnable update =
+        new Runnable() {
+          @Override
+          public void run() {
+            statusBarImmersive = immersive;
+            Window window = getWindow();
+            View decor = window.getDecorView();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+              window.setDecorFitsSystemWindows(!immersive);
+            }
+            int flags = decor.getSystemUiVisibility();
+            if (immersive) {
+              flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+              flags |= View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+              flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+              window.setStatusBarColor(Color.TRANSPARENT);
+            } else {
+              flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+              flags &= ~View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+              flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+              window.setStatusBarColor(Color.BLACK);
+            }
+            decor.setSystemUiVisibility(flags);
+          }
+        };
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      update.run();
+    } else {
+      runOnUiThread(update);
+    }
   }
 
   @Override

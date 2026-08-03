@@ -39,7 +39,7 @@ set(MBW_SOURCES
   "${MBW_MOONBIT_C}"
   "${MBW_MOON_HOME}/lib/runtime.c"
   "${MBW_WORKSPACE_ROOT}/.mooncakes/moonbitlang/x/fs/fs_native.c"
-  "${MBW_WORKSPACE_ROOT}/moui/backend/android/skia/android_skia_presenter.cpp"
+  "${MBW_WORKSPACE_ROOT}/moui/backend/android/android_present.cpp"
   ${MBW_SKIA_STUB_SOURCES}
 )
 

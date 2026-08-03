@@ -9,6 +9,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <jni.h>
+#include <pthread.h>
 #endif
 
 #ifndef MBW_ANDROID_HOST_QUEUE_CAP
@@ -18,6 +19,40 @@
 static mbw_android_host_event g_queue[MBW_ANDROID_HOST_QUEUE_CAP];
 static int32_t g_head = 0;
 static int32_t g_tail = 0;
+
+#if defined(__ANDROID__)
+static JavaVM *g_android_vm = NULL;
+static jobject g_android_activity = NULL;
+static pthread_mutex_t g_android_activity_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void mbw_android_host_set_java_vm(JavaVM *vm) {
+  g_android_vm = vm;
+}
+
+static void mbw_android_host_set_activity(JNIEnv *env, jobject activity) {
+  if (env == NULL || activity == NULL) {
+    return;
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    (*env)->DeleteGlobalRef(env, g_android_activity);
+  }
+  g_android_activity = (*env)->NewGlobalRef(env, activity);
+  pthread_mutex_unlock(&g_android_activity_mutex);
+}
+
+static void mbw_android_host_clear_activity(JNIEnv *env) {
+  if (env == NULL) {
+    return;
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    (*env)->DeleteGlobalRef(env, g_android_activity);
+    g_android_activity = NULL;
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+}
+#endif
 
 static void mbw_android_host_enqueue(mbw_android_host_event event) {
   int32_t next = (g_tail + 1) % MBW_ANDROID_HOST_QUEUE_CAP;
@@ -227,6 +262,77 @@ int32_t mbw_android_window_clear_color(
   return rc;
 }
 
+int32_t mbw_android_set_status_bar_immersive(int32_t immersive) {
+#if defined(__ANDROID__)
+  JavaVM *vm = g_android_vm;
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  if (vm == NULL) {
+    return -1;
+  }
+
+  jint env_status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+  if (env_status == JNI_EDETACHED) {
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) {
+      return -2;
+    }
+    attached = 1;
+  } else if (env_status != JNI_OK || env == NULL) {
+    return -3;
+  }
+
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    activity = (*env)->NewLocalRef(env, g_android_activity);
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+  if (activity == NULL) {
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return -4;
+  }
+
+  jclass activity_class = (*env)->GetObjectClass(env, activity);
+  jmethodID apply = NULL;
+  if (activity_class != NULL) {
+    apply = (*env)->GetMethodID(
+        env, activity_class, "applyStatusBarImmersive", "(Z)V");
+  }
+  if (apply == NULL) {
+    if ((*env)->ExceptionCheck(env)) {
+      (*env)->ExceptionClear(env);
+    }
+    if (activity_class != NULL) {
+      (*env)->DeleteLocalRef(env, activity_class);
+    }
+    (*env)->DeleteLocalRef(env, activity);
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return -5;
+  }
+
+  (*env)->CallVoidMethod(
+      env, activity, apply, immersive != 0 ? JNI_TRUE : JNI_FALSE);
+  int32_t result = 0;
+  if ((*env)->ExceptionCheck(env)) {
+    (*env)->ExceptionClear(env);
+    result = -6;
+  }
+  (*env)->DeleteLocalRef(env, activity_class);
+  (*env)->DeleteLocalRef(env, activity);
+  if (attached) {
+    (*vm)->DetachCurrentThread(vm);
+  }
+  return result;
+#else
+  (void)immersive;
+  return 0;
+#endif
+}
+
 #if defined(__ANDROID__)
 
 /* Started from HostedActivity onCreate so the MoonBit EventLoop can drain HostCmd. */
@@ -278,8 +384,7 @@ static double mbw_android_density(JNIEnv *env, jobject activity) {
 JNIEXPORT void JNICALL
 Java_dev_wzzc_window_template_HostedActivity_nativeOnHostCreate(JNIEnv *env,
                                                                 jobject thiz) {
-  (void)env;
-  (void)thiz;
+  mbw_android_host_set_activity(env, thiz);
   mbw_android_host_on_create();
   if (mbw_android_start_event_loop() != 0) {
     __android_log_print(ANDROID_LOG_ERROR, MBW_ANDROID_LOG_TAG,
@@ -306,9 +411,9 @@ Java_dev_wzzc_window_template_HostedActivity_nativeOnHostPause(JNIEnv *env,
 JNIEXPORT void JNICALL
 Java_dev_wzzc_window_template_HostedActivity_nativeOnHostDestroy(JNIEnv *env,
                                                                  jobject thiz) {
-  (void)env;
   (void)thiz;
   mbw_android_host_on_destroy();
+  mbw_android_host_clear_activity(env);
 }
 
 JNIEXPORT void JNICALL

@@ -83,6 +83,9 @@ int32_t mbw_android_window_clear_color(
     uint8_t b,
     uint8_t a);
 
+/* Configure visible system bars from the MoonBit platform entry. */
+int32_t mbw_android_set_status_bar_immersive(int32_t immersive);
+
 #ifdef __cplusplus
 }
 #endif
