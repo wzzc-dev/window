@@ -139,6 +139,20 @@ typedef struct mbw_wayland_window {
   int pointer_y;
   int active_titlebar_button;
   int resizing;
+  // Pending pointer events buffered between wl_pointer.frame callbacks.
+  // Wayland delivers motion/button/axis as a stream terminated by a frame
+  // event; emitting each sub-event immediately causes the MoonBit runtime to
+  // be re-entered many times per physical input, which is the primary source
+  // of click/scroll jank on Linux. Buffer them and flush in pointer_frame.
+  int pending_pointer_move;       // boolean: a motion event is buffered
+  int pending_move_x;
+  int pending_move_y;
+  int pending_pointer_button;     // boolean: a button event is buffered
+  int pending_button_state;       // 0=up, 1=down
+  int pending_button_code;        // raw Wayland button code
+  int pending_wheel;              // boolean: a wheel event is buffered
+  double pending_wheel_dx;        // accumulated horizontal pixel delta
+  double pending_wheel_dy;        // accumulated vertical pixel delta (+up)
   struct wl_output *current_output;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
@@ -1275,8 +1289,11 @@ static void pointer_motion(void *data, struct wl_pointer *pointer,
   if (window) {
     window->pointer_x = wl_fixed_to_int(sx);
     window->pointer_y = wl_fixed_to_int(sy);
-    emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE, wl_fixed_to_int(sx),
-               wl_fixed_to_int(sy), 0, 0);
+    // Buffer until the next wl_pointer.frame; emitting per-motion re-enters
+    // the MoonBit runtime many times per physical pointer movement.
+    window->pending_pointer_move = 1;
+    window->pending_move_x = window->pointer_x;
+    window->pending_move_y = window->pointer_y;
   }
 }
 
@@ -1326,11 +1343,12 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
         return;
       }
     }
-    emit_input(window->raw_id,
-               state == WL_POINTER_BUTTON_STATE_PRESSED
-                   ? MBW_LINUX_INPUT_POINTER_DOWN
-                   : MBW_LINUX_INPUT_POINTER_UP,
-               window->pointer_x, window->pointer_y, (int32_t)button, 0);
+    // Buffer until the next wl_pointer.frame; emitting per-button re-enters
+    // the MoonBit runtime for every sub-event of a logical click.
+    window->pending_pointer_button = 1;
+    window->pending_button_state =
+        state == WL_POINTER_BUTTON_STATE_PRESSED ? 1 : 0;
+    window->pending_button_code = (int32_t)button;
   }
 }
 
@@ -1343,20 +1361,62 @@ static void pointer_axis(void *data, struct wl_pointer *pointer,
   if (!window) {
     return;
   }
-  int delta = wl_fixed_to_int(value);
+  // Buffer until the next wl_pointer.frame. Wayland delivers axis as a 24.8
+  // fixed-point pixel delta. The host (event.mbt) feeds this directly into
+  // MouseScrollDelta::PixelDelta, so we must preserve the pixel magnitude —
+  // do NOT scale to 1/120-notch units (that inflates scroll ~47x). Use
+  // wl_fixed_to_double to keep sub-pixel precision on touchpads instead of
+  // the old wl_fixed_to_int which truncated it.
+  double delta_px = wl_fixed_to_double(value);
+  window->pending_wheel = 1;
   if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
-    emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL, delta, 0, 0, 0);
+    // Horizontal: keep Wayland sign convention (positive = right).
+    window->pending_wheel_dx += delta_px;
   } else {
-    // Wayland/libinput report positive axis values for downward scroll. The
-    // window library convention (shared with the Windows/macOS backends) is
-    // positive for upward scroll, so invert the vertical component here.
-    emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL, 0, -delta, 0, 0);
+    // Vertical: Wayland reports positive for downward scroll; the window
+    // library convention (shared with Windows/macOS) is positive for
+    // upward, so invert.
+    window->pending_wheel_dy += -delta_px;
   }
 }
 
 static void pointer_frame(void *data, struct wl_pointer *pointer) {
-  (void)data;
   (void)pointer;
+  mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
+  mbw_wayland_window_t *window = context ? context->pointer_window : NULL;
+  if (!window) {
+    return;
+  }
+  // Flush all buffered sub-events in one pass. Order matters: motion first
+  // (update pointer position), then button, then wheel — this matches the
+  // Wayland protocol's per-frame delivery order and lets the MoonBit runtime
+  // process a complete logical input event without re-entry.
+  if (window->pending_pointer_move) {
+    emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE,
+               window->pending_move_x, window->pending_move_y, 0, 0);
+    window->pending_pointer_move = 0;
+  }
+  if (window->pending_pointer_button) {
+    emit_input(window->raw_id,
+               window->pending_button_state ? MBW_LINUX_INPUT_POINTER_DOWN
+                                            : MBW_LINUX_INPUT_POINTER_UP,
+               window->pointer_x, window->pointer_y,
+               window->pending_button_code, 0);
+    window->pending_pointer_button = 0;
+    window->pending_button_state = 0;
+    window->pending_button_code = 0;
+  }
+  if (window->pending_wheel) {
+    // emit_input takes int32 args; truncate the accumulated double pixel
+    // delta. Sub-pixel remainder is intentionally dropped here (the host
+    // treats MouseWheel as integer PixelDelta anyway).
+    emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL,
+               (int32_t)window->pending_wheel_dx,
+               (int32_t)window->pending_wheel_dy, 0, 0);
+    window->pending_wheel = 0;
+    window->pending_wheel_dx = 0;
+    window->pending_wheel_dy = 0;
+  }
 }
 
 static void pointer_axis_source(void *data, struct wl_pointer *pointer,
