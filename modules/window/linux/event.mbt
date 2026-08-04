@@ -11,6 +11,13 @@ let linux_event_configure : Int = 3
 let linux_event_redraw : Int = 5
 
 ///|
+/// VSync frame callback done. Dispatched as a direct RedrawRequested
+/// WindowEvent (not app_state_queue_redraw) so it bypasses
+/// pending_redraw_window_ids latency and renders on the same dispatch_events
+/// pass that received the VSync callback.
+let linux_event_frame_callback_done : Int = 8
+
+///|
 let linux_event_focus : Int = 6
 
 ///|
@@ -526,6 +533,17 @@ fn dispatch_native_window_event(
       )
     }
     k if k == linux_event_redraw => app_state_queue_redraw(raw_id)
+    // VSync frame callback: dispatch directly as RedrawRequested (not via
+    // app_state_queue_redraw, which only queues into
+    // pending_redraw_window_ids and wakes the eventfd). The direct path
+    // lets dispatch_events render on the same pass that received the
+    // compositor's frame callback, instead of waiting a full
+    // native_context_dispatch cycle for pending_redraw_window_ids to drain.
+    k if k == linux_event_frame_callback_done =>
+      app_state_queue_window_event(
+        raw_id,
+        @core.WindowEvent::RedrawRequested,
+      )
     k if k == linux_event_focus => {
       let focused = arg0 != 0
       app_state_set_window_focused(raw_id, focused)

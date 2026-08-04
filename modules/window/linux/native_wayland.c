@@ -37,6 +37,11 @@ enum {
   MBW_LINUX_EVENT_DESTROYED = 2,
   MBW_LINUX_EVENT_CONFIGURE = 3,
   MBW_LINUX_EVENT_REDRAW = 5,
+  // VSync frame callback done — fires when the compositor signals the next
+  // frame is ready. Dispatched as a direct RedrawRequested WindowEvent (not
+  // app_state_queue_redraw) so it bypasses pending_redraw_window_ids latency
+  // and renders on the same dispatch_events pass that received the callback.
+  MBW_LINUX_EVENT_FRAME_CALLBACK_DONE = 8,
   MBW_LINUX_EVENT_FOCUS = 6,
   MBW_LINUX_EVENT_PROXY_WAKE = 7,
   MBW_LINUX_INPUT_POINTER_ENTER = 10,
@@ -153,6 +158,14 @@ typedef struct mbw_wayland_window {
   int pending_wheel;              // boolean: a wheel event is buffered
   double pending_wheel_dx;        // accumulated horizontal pixel delta
   double pending_wheel_dy;        // accumulated vertical pixel delta (+up)
+  // VSync frame callback. Wayland has no DisplayLink like macOS; without a
+  // wl_surface_frame callback the host renders as fast as the eventfd wake
+  // loop allows, which races the compositor and produces scroll/animation
+  // jank. We request a frame callback after each present and only emit
+  // MBW_LINUX_EVENT_REDRAW when the compositor signals the next frame is
+  // ready — this paces rendering to the compositor's refresh rate, matching
+  // the macOS CVDisplayLink path.
+  struct wl_callback *frame_callback;
   struct wl_output *current_output;
   struct wl_surface *surface;
   struct xdg_surface *xdg_surface;
@@ -543,6 +556,32 @@ static const struct wl_buffer_listener present_buffer_listener = {
     .release = present_buffer_release,
 };
 
+// VSync frame callback: fired by the compositor when the next frame is ready
+// to be built. We emit MBW_LINUX_EVENT_REDRAW so the host dispatches another
+// redraw round, pacing rendering to the compositor refresh rate instead of
+// racing it on every eventfd wake.
+static void frame_callback_done(void *data, struct wl_callback *callback,
+                                uint32_t time) {
+  (void)time;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window) {
+    wl_callback_destroy(callback);
+    window->frame_callback = NULL;
+    // Emit FRAME_CALLBACK_DONE (not REDRAW): the host dispatches this as a
+    // direct RedrawRequested WindowEvent, bypassing pending_redraw_window_ids
+    // so the frame renders on the same dispatch_events pass that received the
+    // VSync callback instead of waiting a full native_context_dispatch cycle.
+    emit_window(MBW_LINUX_EVENT_FRAME_CALLBACK_DONE, window->raw_id, 0, 0, 0,
+                0.0);
+  } else {
+    wl_callback_destroy(callback);
+  }
+}
+
+static const struct wl_callback_listener frame_callback_listener = {
+    .done = frame_callback_done,
+};
+
 static void destroy_present_buffers(mbw_wayland_window_t *window) {
   if (!window) {
     return;
@@ -581,6 +620,10 @@ static void destroy_window_resources(mbw_wayland_window_t *window) {
   }
   destroy_present_buffers(window);
   destroy_placeholder_buffer(window);
+  if (window->frame_callback) {
+    wl_callback_destroy(window->frame_callback);
+    window->frame_callback = NULL;
+  }
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
     window->decoration = NULL;
@@ -1289,11 +1332,12 @@ static void pointer_motion(void *data, struct wl_pointer *pointer,
   if (window) {
     window->pointer_x = wl_fixed_to_int(sx);
     window->pointer_y = wl_fixed_to_int(sy);
-    // Buffer until the next wl_pointer.frame; emitting per-motion re-enters
-    // the MoonBit runtime many times per physical pointer movement.
-    window->pending_pointer_move = 1;
-    window->pending_move_x = window->pointer_x;
-    window->pending_move_y = window->pointer_y;
+    // Motion is emitted immediately; only wheel/axis events are buffered
+    // until wl_pointer.frame. Hover highlighting depends on timely motion
+    // delivery, and motion does not trigger redraw re-entry the way axis
+    // events do.
+    emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE,
+               wl_fixed_to_int(sx), wl_fixed_to_int(sy), 0, 0);
   }
 }
 
@@ -1343,12 +1387,14 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
         return;
       }
     }
-    // Buffer until the next wl_pointer.frame; emitting per-button re-enters
-    // the MoonBit runtime for every sub-event of a logical click.
-    window->pending_pointer_button = 1;
-    window->pending_button_state =
-        state == WL_POINTER_BUTTON_STATE_PRESSED ? 1 : 0;
-    window->pending_button_code = (int32_t)button;
+    // Button is emitted immediately; only wheel/axis events are buffered
+    // until wl_pointer.frame. Button press/release is already discrete
+    // (one event per click), so buffering adds no coalescing benefit.
+    emit_input(window->raw_id,
+               state == WL_POINTER_BUTTON_STATE_PRESSED
+                   ? MBW_LINUX_INPUT_POINTER_DOWN
+                   : MBW_LINUX_INPUT_POINTER_UP,
+               window->pointer_x, window->pointer_y, (int32_t)button, 0);
   }
 }
 
@@ -2086,6 +2132,10 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
   emit_window(MBW_LINUX_EVENT_DESTROYED, window->raw_id, 0, 0, 0, 0.0);
   destroy_present_buffers(window);
   destroy_placeholder_buffer(window);
+  if (window->frame_callback) {
+    wl_callback_destroy(window->frame_callback);
+    window->frame_callback = NULL;
+  }
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
   }
@@ -2335,6 +2385,16 @@ int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
   wl_buffer_add_listener(frame->buffer, &present_buffer_listener, frame);
   wl_surface_attach(window->surface, frame->buffer, 0, 0);
   wl_surface_damage_buffer(window->surface, 0, 0, width, height);
+  // Request a compositor frame callback before committing, so the next
+  // MBW_LINUX_EVENT_REDRAW fires on VSync instead of racing on eventfd wakes.
+  // See frame_callback_done / frame_callback_listener above.
+  if (!window->frame_callback) {
+    window->frame_callback = wl_surface_frame(window->surface);
+    if (window->frame_callback) {
+      wl_callback_add_listener(window->frame_callback,
+                               &frame_callback_listener, window);
+    }
+  }
   wl_surface_commit(window->surface);
   if (window->context->display) {
     wl_display_flush(window->context->display);
