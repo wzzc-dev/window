@@ -115,6 +115,54 @@ test "web dispatch maps ime composition lifecycle" {
 }
 
 ///|
+test "web wheel dispatch preserves native delta signs" {
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  // The browser host emits (x, y) deltas using the window library convention:
+  // positive vertical = scroll up. dispatch must pass them through unchanged.
+  web_dispatch_event(web_event_wheel, raw_id, 0, -120, 0.0, "")
+  web_dispatch_event(web_event_wheel, raw_id, 0, 120, 0.0, "")
+  web_dispatch_event(web_event_wheel, raw_id, -30, 0, 0.0, "")
+  assert_eq(app.events.length(), 3)
+  match app.events[0] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), 0.0)
+      assert_eq(position.y(), -120.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+  match app.events[1] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), 0.0)
+      assert_eq(position.y(), 120.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+  match app.events[2] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), -30.0)
+      assert_eq(position.y(), 0.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+}
+
+///|
 test "web dispatch maps browser file drag drop lifecycle" {
   let app = { events: [], proxy_wake_count: 0 }
   let active_loop = test_active_loop()

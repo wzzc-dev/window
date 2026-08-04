@@ -319,6 +319,22 @@ static char *read_fd_to_string(int fd, int timeout_ms) {
   return buffer;
 }
 
+static void flush_wayland_display(struct wl_display *display,
+                                  const char *reason) {
+  (void)reason;
+  if (!display) {
+    return;
+  }
+  int ret = wl_display_flush(display);
+  if (ret < 0 && errno == EAGAIN) {
+    struct pollfd pfd = {
+        .fd = wl_display_get_fd(display), .events = POLLOUT, .revents = 0};
+    if (poll(&pfd, 1, -1) > 0) {
+      (void)wl_display_flush(display);
+    }
+  }
+}
+
 static char *read_data_offer_text(mbw_wayland_context_t *context,
                                   mbw_wayland_data_offer_t *offer,
                                   const char *mime_type) {
@@ -1331,7 +1347,10 @@ static void pointer_axis(void *data, struct wl_pointer *pointer,
   if (axis == WL_POINTER_AXIS_HORIZONTAL_SCROLL) {
     emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL, delta, 0, 0, 0);
   } else {
-    emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL, 0, delta, 0, 0);
+    // Wayland/libinput report positive axis values for downward scroll. The
+    // window library convention (shared with the Windows/macOS backends) is
+    // positive for upward scroll, so invert the vertical component here.
+    emit_input(window->raw_id, MBW_LINUX_INPUT_WHEEL, 0, -delta, 0, 0);
   }
 }
 
@@ -1502,6 +1521,53 @@ static void seat_name(void *data, struct wl_seat *seat, const char *name) {
 static const struct wl_seat_listener seat_listener = {
     .capabilities = seat_capabilities,
     .name = seat_name,
+};
+
+static void output_geometry(void *data, struct wl_output *output, int32_t x,
+                            int32_t y, int32_t physical_width,
+                            int32_t physical_height, int32_t subpixel,
+                            const char *make, const char *model,
+                            int32_t transform) {
+  (void)output;
+  (void)physical_width;
+  (void)physical_height;
+  (void)subpixel;
+  (void)make;
+  (void)model;
+  (void)transform;
+  mbw_wayland_output_t *out = (mbw_wayland_output_t *)data;
+  out->x = x;
+  out->y = y;
+}
+
+static void output_mode(void *data, struct wl_output *output, uint32_t flags,
+                        int32_t width, int32_t height, int32_t refresh) {
+  (void)output;
+  (void)refresh;
+  mbw_wayland_output_t *out = (mbw_wayland_output_t *)data;
+  if (flags & WL_OUTPUT_MODE_CURRENT) {
+    out->width = width;
+    out->height = height;
+  }
+}
+
+static void output_done(void *data, struct wl_output *output) {
+  (void)data;
+  (void)output;
+}
+
+static void output_scale(void *data, struct wl_output *output,
+                         int32_t factor) {
+  (void)output;
+  mbw_wayland_output_t *out = (mbw_wayland_output_t *)data;
+  out->scale = factor;
+}
+
+static const struct wl_output_listener output_listener = {
+    .geometry = output_geometry,
+    .mode = output_mode,
+    .done = output_done,
+    .scale = output_scale,
 };
 
 static void registry_global(void *data, struct wl_registry *registry,

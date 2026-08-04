@@ -190,6 +190,55 @@ test "linux clipboard and drag-drop APIs are safe without a Wayland context" {
 }
 
 ///|
+test "linux wheel dispatch preserves native delta signs" {
+  reset_test_state()
+  let app = { events: [], proxy_wake_count: 0 }
+  let active_loop = test_active_loop()
+  app_state_set_running(true)
+  app_state_set_dispatch_handler(app, active_loop)
+  let raw_id = 42
+  // The native layer emits (x, y) deltas using the window library convention:
+  // positive vertical = scroll up. dispatch must pass them through unchanged.
+  dispatch_native_input_event(raw_id, linux_event_wheel, 0, -120, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_wheel, 0, 120, 0, 0L)
+  dispatch_native_input_event(raw_id, linux_event_wheel, -30, 0, 0, 0L)
+  assert_eq(app.events.length(), 3)
+  match app.events[0] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), 0.0)
+      assert_eq(position.y(), -120.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+  match app.events[1] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), 0.0)
+      assert_eq(position.y(), 120.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+  match app.events[2] {
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(position),
+      @core.TouchPhase::Moved,
+    ) => {
+      assert_eq(position.x(), -30.0)
+      assert_eq(position.y(), 0.0)
+    }
+    _ => fail("expected mouse wheel event")
+  }
+}
+
+///|
 test "linux dispatch maps drag lifecycle events" {
   reset_test_state()
   let app = { events: [], proxy_wake_count: 0 }

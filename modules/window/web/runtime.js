@@ -322,9 +322,43 @@ export function createWindowWebImports() {
         const p = pointerPosition(canvas, event);
         emit(24, rawId, p.x, p.y, event.button);
       });
+      // Normalize a DOM wheel event into the window library delta convention.
+      // This mirrors moui/backend/web/browser_runtime.js normalizeCanvasWheelDelta
+      // (same invert-deltaY, expand-deltaMode semantics); keep the two in sync.
+      // DOM reports positive deltaY for downward scroll (and line/page delta
+      // modes), while the library convention (shared with the Windows, macOS,
+      // and Linux backends) is positive for upward scroll. Invert the vertical
+      // component and expand deltaMode into pixels.
+      const wheelDelta = event => {
+        const deltaMode = Number(event?.deltaMode) || 0;
+        const rawX = Number(event?.deltaX) || 0;
+        const rawY = Number(event?.deltaY) || 0;
+        const lineHeight = Math.max(
+          1,
+          Number.parseFloat(
+            (typeof getComputedStyle === "function"
+              ? getComputedStyle(canvas.parentElement ?? canvas)?.lineHeight
+              : "") ?? "",
+          ) || 16,
+        );
+        const pageHeight = Math.max(
+          1,
+          canvas.parentElement?.getBoundingClientRect?.().height ||
+            canvas.parentElement?.clientHeight ||
+            canvas.clientHeight ||
+            1,
+        );
+        const multiplier =
+          deltaMode === 1 ? lineHeight : deltaMode === 2 ? pageHeight : 1;
+        return {
+          x: rawX * multiplier,
+          y: -rawY * multiplier,
+        };
+      };
       add(canvas, "wheel", event => {
         event.preventDefault();
-        emit(30, rawId, Math.round(event.deltaX), Math.round(event.deltaY));
+        const delta = wheelDelta(event);
+        emit(30, rawId, Math.round(delta.x), Math.round(delta.y));
       }, { passive: false });
       add(canvas, "dragenter", event => emitFileDrag(60, event, true));
       add(canvas, "dragover", event => emitFileDrag(61, event));
