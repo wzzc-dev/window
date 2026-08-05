@@ -207,7 +207,7 @@ test "linux wheel dispatch preserves native delta signs" {
     @core.WindowEvent::MouseWheel(
       _,
       @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved,
+      @core.TouchPhase::Moved
     ) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), -120.0)
@@ -218,7 +218,7 @@ test "linux wheel dispatch preserves native delta signs" {
     @core.WindowEvent::MouseWheel(
       _,
       @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved,
+      @core.TouchPhase::Moved
     ) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), 120.0)
@@ -229,7 +229,7 @@ test "linux wheel dispatch preserves native delta signs" {
     @core.WindowEvent::MouseWheel(
       _,
       @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved,
+      @core.TouchPhase::Moved
     ) => {
       assert_eq(position.x(), -30.0)
       assert_eq(position.y(), 0.0)

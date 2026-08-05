@@ -1,6 +1,7 @@
 import {
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
+  "wzzc-dev/window/internal/embedded_dispatch",
   "moonbitlang/core/encoding/utf8",
 }
 

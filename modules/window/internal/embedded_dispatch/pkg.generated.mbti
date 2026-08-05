@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "wzzc-dev/window/internal/embedded_dispatch"
+
+import {
+  "moonbitlang/core/debug",
+  "wzzc-dev/window/core",
+  "wzzc-dev/window/dpi",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum EmbeddedDispatchCommand {
+  Start
+  Resume
+  Pause
+  Stop
+  SurfaceInit(UInt64, UInt64, Int, Int, Double)
+  SurfaceTerm
+  SurfaceResize(Int, Int, Double)
+  WindowEvent(@core.WindowEvent)
+  MemoryWarning
+  Destroy
+}
+
+pub(all) enum EmbeddedDispatchEffect {
+  Resumed
+  CanCreateSurfaces
+  SurfaceChanged(EmbeddedDispatchSurface)
+  SurfaceInvalidated
+  DestroySurfaces
+  Suspended
+  WindowEvent(@core.WindowEvent)
+  MemoryWarning
+  Exit(Int)
+}
+
+pub struct EmbeddedDispatchQueue {
+  mut pending : Array[EmbeddedDispatchCommand]
+  mut surface : EmbeddedDispatchSurface?
+}
+pub fn EmbeddedDispatchQueue::drain(Self) -> Array[EmbeddedDispatchEffect]
+pub fn EmbeddedDispatchQueue::new() -> Self
+pub fn EmbeddedDispatchQueue::push(Self, EmbeddedDispatchCommand) -> Unit
+pub fn EmbeddedDispatchQueue::surface(Self) -> EmbeddedDispatchSurface?
+pub fn EmbeddedDispatchQueue::surfaces_allowed(Self) -> Bool
+
+pub(all) struct EmbeddedDispatchSurface {
+  handle : UInt64
+  token : UInt64
+  physical_size : @dpi.PhysicalSize
+  scale_factor : Double
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

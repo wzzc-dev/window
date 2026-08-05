@@ -96,7 +96,6 @@ pub fn Window::new_with_android_attributes(
     scale,
     handle,
     token,
-    host_generation(),
   )
   let window = {
     id_: @core.WindowId::from_raw(entry.raw_id),
@@ -708,14 +707,6 @@ pub fn Window::surface_token(self : Window) -> UInt64 {
   match app_state_window_entry(self.raw_id()) {
     Some(entry) => entry.surface_token
     None => self.surface_token_
-  }
-}
-
-///|
-pub fn Window::surface_generation(self : Window) -> Int {
-  match app_state_window_entry(self.raw_id()) {
-    Some(entry) => entry.generation
-    None => host_generation()
   }
 }
 

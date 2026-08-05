@@ -23,7 +23,6 @@ priv struct WindowEntry {
   mut height : Int
   mut surface_handle : UInt64
   mut surface_token : UInt64
-  mut generation : Int
 }
 
 ///|
@@ -102,9 +101,6 @@ fn app_state_unregister_window(raw_id : Int) -> Unit {
     }
   }
   app_state_runtime.val.window_entries = next
-  if host_primary_window_id() is Some(primary) && primary == raw_id {
-    host_set_primary_window_id(None)
-  }
 }
 
 ///|
@@ -224,7 +220,6 @@ fn app_state_create_window_entry(
   scale_factor : Double,
   surface_handle : UInt64,
   surface_token : UInt64,
-  generation : Int,
 ) -> WindowEntry {
   let raw_id = app_state_next_window_id()
   let entry : WindowEntry = {
@@ -239,12 +234,8 @@ fn app_state_create_window_entry(
     height,
     surface_handle,
     surface_token,
-    generation,
   }
   app_state_register_window_entry(entry)
-  if host_primary_window_id() is None {
-    host_set_primary_window_id(Some(raw_id))
-  }
   entry
 }
 
