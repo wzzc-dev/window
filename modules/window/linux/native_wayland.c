@@ -87,6 +87,13 @@ typedef struct mbw_wayland_present_buffer {
   struct wl_buffer *buffer;
   void *data;
   size_t size;
+  /* Backing fd for the mmap'd shm region; kept open so the pool can be
+   * recreated cheaply on reuse. -1 once handed to the compositor. */
+  int fd;
+  /* Cached geometry so a recycled buffer is only reused when it fits. */
+  int32_t width;
+  int32_t height;
+  int32_t stride;
   struct mbw_wayland_present_buffer *next;
 } mbw_wayland_present_buffer_t;
 
@@ -165,6 +172,10 @@ typedef struct mbw_wayland_window {
   int placeholder_height;
   char *pending_drag_paths;
   mbw_wayland_present_buffer_t *present_buffers;
+  /* Recycled SHM buffers: released by the compositor, kept here for reuse so
+   * we avoid the per-present mkstemp + ftruncate + mmap + wl_shm_create_pool
+   * churn. Each entry owns its wl_buffer, mmap'd data and backing fd. */
+  mbw_wayland_present_buffer_t *free_buffers;
   struct mbw_wayland_window *next;
 } mbw_wayland_window_t;
 
@@ -528,6 +539,10 @@ static void destroy_present_buffer(mbw_wayland_present_buffer_t *frame) {
     frame->data = NULL;
     frame->size = 0;
   }
+  if (frame->fd >= 0) {
+    close(frame->fd);
+    frame->fd = -1;
+  }
   free(frame);
 }
 
@@ -535,8 +550,19 @@ static void present_buffer_release(void *data, struct wl_buffer *buffer) {
   (void)buffer;
   mbw_wayland_present_buffer_t *frame =
       (mbw_wayland_present_buffer_t *)data;
+  mbw_wayland_window_t *window = frame->window;
   unlink_present_buffer(frame);
-  destroy_present_buffer(frame);
+  /* Recycle: hand the buffer to the window's free list for the next present.
+   * The wl_buffer is still alive; the compositor merely reports it is no
+   * longer in use. We keep the mmap/fd so the next frame only needs to
+   * memcpy pixels and re-attach. */
+  if (window) {
+    frame->window = NULL;
+    frame->next = window->free_buffers;
+    window->free_buffers = frame;
+  } else {
+    destroy_present_buffer(frame);
+  }
 }
 
 static const struct wl_buffer_listener present_buffer_listener = {
@@ -552,6 +578,20 @@ static void destroy_present_buffers(mbw_wayland_window_t *window) {
   while (frame) {
     mbw_wayland_present_buffer_t *next = frame->next;
     frame->window = NULL;
+    frame->next = NULL;
+    destroy_present_buffer(frame);
+    frame = next;
+  }
+}
+
+static void destroy_free_buffers(mbw_wayland_window_t *window) {
+  if (!window) {
+    return;
+  }
+  mbw_wayland_present_buffer_t *frame = window->free_buffers;
+  window->free_buffers = NULL;
+  while (frame) {
+    mbw_wayland_present_buffer_t *next = frame->next;
     frame->next = NULL;
     destroy_present_buffer(frame);
     frame = next;
@@ -580,6 +620,7 @@ static void destroy_window_resources(mbw_wayland_window_t *window) {
     return;
   }
   destroy_present_buffers(window);
+  destroy_free_buffers(window);
   destroy_placeholder_buffer(window);
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
@@ -2085,6 +2126,7 @@ void mbw_wayland_window_destroy(uint64_t raw_window) {
   }
   emit_window(MBW_LINUX_EVENT_DESTROYED, window->raw_id, 0, 0, 0, 0.0);
   destroy_present_buffers(window);
+  destroy_free_buffers(window);
   destroy_placeholder_buffer(window);
   if (window->decoration) {
     zxdg_toplevel_decoration_v1_destroy(window->decoration);
@@ -2281,63 +2323,166 @@ int32_t mbw_wayland_window_present_rgba_pixels(uint64_t raw_window,
     return MBW_WAYLAND_PRESENT_BAD_PIXELS;
   }
   size_t size = (size_t)packed_row_bytes * (size_t)height;
-  mbw_wayland_present_buffer_t *frame =
-      (mbw_wayland_present_buffer_t *)calloc(1, sizeof(*frame));
-  if (!frame) {
-    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  /* Timing instrumentation: stage-level micro-benchmarks.
+   * Gated by env var MBW_PRESENT_TIMING=1; prints one line per present. */
+  static int mbw_timing_enabled = -1;
+  if (mbw_timing_enabled < 0) {
+    const char *env = getenv("MBW_PRESENT_TIMING");
+    mbw_timing_enabled = (env && env[0] == '1') ? 1 : 0;
   }
-  int fd = create_tmpfile(size);
-  if (fd < 0) {
-    free(frame);
-    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  int do_timing = mbw_timing_enabled;
+  struct timespec t0, t1, t2, t3, t4, t5, t6;
+  if (do_timing) {
+    clock_gettime(CLOCK_MONOTONIC, &t0);
   }
-  void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (data == MAP_FAILED) {
-    close(fd);
-    free(frame);
-    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
-  }
-  uint8_t *dst_base = (uint8_t *)data;
-  for (int32_t y = 0; y < height; ++y) {
-    const uint8_t *src = pixels + (size_t)y * (size_t)row_bytes;
-    uint8_t *dst = dst_base + (size_t)y * (size_t)packed_row_bytes;
-    for (int32_t x = 0; x < width; ++x) {
-      size_t offset = (size_t)x * 4;
-      dst[offset] = src[offset + 2];
-      dst[offset + 1] = src[offset + 1];
-      dst[offset + 2] = src[offset];
-      dst[offset + 3] = src[offset + 3];
+  /* Prefer a recycled SHM buffer whose geometry exactly fits this frame.
+   * This skips the per-present mkstemp + ftruncate + mmap + wl_shm pool
+   * churn, which dominated present latency on pointer/scroll redraws. */
+  mbw_wayland_present_buffer_t *frame = NULL;
+  mbw_wayland_present_buffer_t **prev = &window->free_buffers;
+  for (frame = window->free_buffers; frame; prev = &frame->next, frame = frame->next) {
+    if (frame->width == width && frame->height == height &&
+        frame->stride == packed_row_bytes && frame->size >= size) {
+      *prev = frame->next;
+      frame->next = NULL;
+      break;
     }
   }
-  struct wl_shm_pool *pool =
-      wl_shm_create_pool(window->context->shm, fd, (int32_t)size);
-  if (!pool) {
-    munmap(data, size);
-    close(fd);
-    free(frame);
-    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  int recycle = (frame != NULL);
+  void *data = NULL;
+  int fd = -1;
+  if (recycle) {
+    /* wl_buffer was kept alive across release; reuse it directly. */
+    data = frame->data;
+    fd = frame->fd;
+  } else {
+    frame = (mbw_wayland_present_buffer_t *)calloc(1, sizeof(*frame));
+    if (!frame) {
+      return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+    }
+    fd = create_tmpfile(size);
+    if (fd < 0) {
+      free(frame);
+      return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+    }
+    if (do_timing) {
+      clock_gettime(CLOCK_MONOTONIC, &t1);
+    }
+    data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (data == MAP_FAILED) {
+      close(fd);
+      free(frame);
+      return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+    }
+    if (do_timing) {
+      clock_gettime(CLOCK_MONOTONIC, &t2);
+    }
   }
-  frame->buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-                                            packed_row_bytes,
-                                            WL_SHM_FORMAT_ARGB8888);
-  wl_shm_pool_destroy(pool);
-  close(fd);
-  if (!frame->buffer) {
-    munmap(data, size);
-    free(frame);
-    return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+  /* Source pixels are premultiplied BGRA (Skia/WGPU N32 on little-endian),
+   * which is exactly the in-memory layout Wayland's WL_SHM_FORMAT_ARGB8888
+   * expects on little-endian hosts (B,G,R,A bytes). A plain memcpy avoids
+   * the per-pixel channel swap that previously dominated present cost. */
+  {
+    static int mbw_dump_once = -1;
+    if (mbw_dump_once < 0) {
+      const char *env = getenv("MBW_PRESENT_DUMP");
+      mbw_dump_once = (env && env[0] == '1') ? 1 : 0;
+    }
+    if (mbw_dump_once == 1) {
+      /* Dump first 4 source pixels and the first 4 dst bytes to stderr so
+       * we can empirically confirm BGRA in == ARGB8888 out (no swap needed). */
+      fprintf(stderr,
+              "[mbw-dump] src[0..15]=%02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x\n",
+              pixels[0], pixels[1], pixels[2], pixels[3],
+              pixels[4], pixels[5], pixels[6], pixels[7],
+              pixels[8], pixels[9], pixels[10], pixels[11],
+              pixels[12], pixels[13], pixels[14], pixels[15]);
+      mbw_dump_once = 0; /* one shot */
+    }
+  }
+  if (row_bytes == packed_row_bytes) {
+    memcpy(data, pixels, size);
+  } else {
+    uint8_t *dst_base = (uint8_t *)data;
+    for (int32_t y = 0; y < height; ++y) {
+      memcpy(dst_base + (size_t)y * (size_t)packed_row_bytes,
+             pixels + (size_t)y * (size_t)row_bytes,
+             (size_t)packed_row_bytes);
+    }
+  }
+  if (do_timing) {
+    clock_gettime(CLOCK_MONOTONIC, &t3);
+  }
+  if (!recycle) {
+    struct wl_shm_pool *pool =
+        wl_shm_create_pool(window->context->shm, fd, (int32_t)size);
+    if (!pool) {
+      munmap(data, size);
+      close(fd);
+      free(frame);
+      return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+    }
+    frame->buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
+                                              packed_row_bytes,
+                                              WL_SHM_FORMAT_ARGB8888);
+    wl_shm_pool_destroy(pool);
+    if (!frame->buffer) {
+      munmap(data, size);
+      close(fd);
+      free(frame);
+      return MBW_WAYLAND_PRESENT_ALLOC_FAILED;
+    }
+    frame->data = data;
+    frame->size = size;
+    frame->fd = fd;
+    frame->width = width;
+    frame->height = height;
+    frame->stride = packed_row_bytes;
+    wl_buffer_add_listener(frame->buffer, &present_buffer_listener, frame);
+  }
+  /* fd ownership is transferred into the pool on first create; on recycle
+   * the wl_buffer already references the backing storage, so close our dup. */
+  if (recycle && fd >= 0) {
+    close(fd);
+    frame->fd = -1;
+  }
+  if (do_timing) {
+    clock_gettime(CLOCK_MONOTONIC, &t4);
   }
   frame->window = window;
-  frame->data = data;
-  frame->size = size;
   frame->next = window->present_buffers;
   window->present_buffers = frame;
-  wl_buffer_add_listener(frame->buffer, &present_buffer_listener, frame);
   wl_surface_attach(window->surface, frame->buffer, 0, 0);
   wl_surface_damage_buffer(window->surface, 0, 0, width, height);
   wl_surface_commit(window->surface);
   if (window->context->display) {
     wl_display_flush(window->context->display);
+  }
+  if (do_timing) {
+    clock_gettime(CLOCK_MONOTONIC, &t5);
+    long long ns_alloc =
+        recycle ? 0
+                : (long long)(t2.tv_sec - t0.tv_sec) * 1000000000LL +
+                      (t2.tv_nsec - t0.tv_nsec);
+    /* On recycle t2/t3 are unset (alloc path skipped); measure swap from
+     * t0 (recycle) or t2 (fresh alloc) to t3 instead. */
+    long long ns_swap =
+        (long long)(t3.tv_sec - (recycle ? t0.tv_sec : t2.tv_sec)) * 1000000000LL +
+        (t3.tv_nsec - (recycle ? t0.tv_nsec : t2.tv_nsec));
+    long long ns_pool =
+        (long long)(t4.tv_sec - t3.tv_sec) * 1000000000LL +
+        (t4.tv_nsec - t3.tv_nsec);
+    long long ns_commit =
+        (long long)(t5.tv_sec - t4.tv_sec) * 1000000000LL +
+        (t5.tv_nsec - t4.tv_nsec);
+    long long ns_total =
+        (long long)(t5.tv_sec - t0.tv_sec) * 1000000000LL +
+        (t5.tv_nsec - t0.tv_nsec);
+    fprintf(stderr,
+            "[mbw-present] %dx%d size=%zu recycle=%d alloc=%lldns "
+            "swap=%lldns pool=%lldns commit=%lldns total=%lldns\n",
+            width, height, size, recycle, ns_alloc, ns_swap, ns_pool,
+            ns_commit, ns_total);
   }
   return MBW_WAYLAND_PRESENT_OK;
 }
