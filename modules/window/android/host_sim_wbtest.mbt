@@ -2,12 +2,11 @@
 struct HostSimApp {
   log : Ref[Array[String]]
   window : Ref[Window?]
-  last_generation : Ref[Int]
 }
 
 ///|
 fn HostSimApp::new() -> HostSimApp {
-  { log: Ref([]), window: Ref(None), last_generation: Ref(0) }
+  { log: Ref([]), window: Ref(None) }
 }
 
 ///|
@@ -48,9 +47,8 @@ pub impl ApplicationHandler for HostSimApp with fn can_create_surfaces(
   if self.window.val is None {
     let attrs = @core.WindowAttributes::default().with_title("hosted")
     let window = event_loop.create_window(attrs)
-    self.last_generation.val = window.surface_generation()
     self.window.val = Some(window)
-    self.push("create_window_ok gen=\{self.last_generation.val}")
+    self.push("create_window_ok")
   }
 }
 
@@ -143,8 +141,6 @@ test "android_host_sim_lifecycle_and_pointer" {
   }
   assert_eq(window.native_window_handle(), 0xA100UL)
   assert_eq(window.surface_size().width, 720)
-  let gen1 = window.surface_generation()
-  assert_true(gen1 > 0)
 
   host_push(PointerMoved(10.0, 20.0))
   host_push(PointerButton(true, 10.0, 20.0))
@@ -166,8 +162,7 @@ test "android_host_sim_lifecycle_and_pointer" {
   host_push(SurfaceInit(0xA200UL, 0xB200UL, 720, 1280, 2.5))
   ignore(event_loop.pump_app_events(None, app))
   assert_eq(window.native_window_handle(), 0xA200UL)
-  let gen2 = window.surface_generation()
-  assert_true(gen2 > gen1)
+  assert_eq(window.surface_token(), 0xB200UL)
 
   host_push(Destroy)
   match event_loop.pump_app_events(None, app) {

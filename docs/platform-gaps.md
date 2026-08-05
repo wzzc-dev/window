@@ -183,5 +183,5 @@ with desktop APIs:
    `moui/backend/platform_bridge` for cross-platform event normalization.
    Instead, the `wechat_canvas_provider.mbt` directly creates host renderers
    from WeChat's `WechatEvent` → `WindowEvent` conversion. This is documented
-   as an explicit exception in the platform adapter duplication baseline
-   (ADR 0020).
+   as the fixed direct-canvas exception in the budget-free Platform Bridge
+   boundary validator (ADR 0020).
