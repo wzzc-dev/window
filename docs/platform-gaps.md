@@ -180,7 +180,7 @@ with desktop APIs:
    `handle_event`, `handle_resumed`, `handle_suspended`, etc. explicitly.
 
 7. **Direct-canvas-callback route**: WeChat does NOT integrate with
-   `moui/backend/platform_bridge` for cross-platform event normalization.
+   `moui/backend/common` for cross-platform event normalization.
    Instead, the `wechat_canvas_provider.mbt` directly creates host renderers
    from WeChat's `WechatEvent` → `WindowEvent` conversion. This is documented
    as the fixed direct-canvas exception in the budget-free Platform Bridge
