@@ -47,6 +47,10 @@ typedef void (*mbw_input_event_trampoline_t)(void *closure, int32_t raw_id,
                                              int64_t lparam);
 typedef int32_t (*mbw_sync_query_trampoline_t)(void *closure, int32_t raw_id,
                                                int32_t kind, int32_t arg0);
+typedef int32_t (*mbw_native_message_hook_t)(uint64_t hwnd, uint32_t message,
+                                             uint64_t wparam, int64_t lparam,
+                                             uint64_t *result,
+                                             void *context);
 
 static mbw_window_event_trampoline_t g_window_event_trampoline = NULL;
 static void *g_window_event_closure = NULL;
@@ -54,6 +58,8 @@ static mbw_input_event_trampoline_t g_input_event_trampoline = NULL;
 static void *g_input_event_closure = NULL;
 static mbw_sync_query_trampoline_t g_sync_query_trampoline = NULL;
 static void *g_sync_query_closure = NULL;
+static mbw_native_message_hook_t g_native_message_hook = NULL;
+static void *g_native_message_hook_context = NULL;
 
 static const wchar_t *g_class_name = L"MBWWindowClass";
 static ATOM g_class_atom = 0;
@@ -198,6 +204,15 @@ static LRESULT CALLBACK mbw_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
       SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)new_state);
     }
     return DefWindowProcW(hwnd, msg, wparam, lparam);
+  }
+
+  if (g_native_message_hook) {
+    uint64_t result = 0;
+    if (g_native_message_hook((uint64_t)(uintptr_t)hwnd, (uint32_t)msg,
+                              (uint64_t)wparam, (int64_t)lparam, &result,
+                              g_native_message_hook_context)) {
+      return (LRESULT)result;
+    }
   }
 
   if (msg == WM_DESTROY) {
@@ -551,6 +566,16 @@ void mbw_install_sync_query_callback(mbw_sync_query_trampoline_t trampoline,
   }
   g_sync_query_trampoline = trampoline;
   g_sync_query_closure = closure;
+}
+
+// Installs a process-local synchronous Win32 message hook. The window package
+// retains physical WndProc ownership; consumers may handle narrow protocols
+// such as WM_GETOBJECT without subclassing the HWND. Passing NULL detaches it.
+MOONBIT_FFI_EXPORT
+void mbw_install_native_message_hook(mbw_native_message_hook_t hook,
+                                     void *context) {
+  g_native_message_hook = hook;
+  g_native_message_hook_context = context;
 }
 
 MOONBIT_FFI_EXPORT
@@ -1111,6 +1136,10 @@ typedef void (*mbw_input_event_trampoline_t)(void *closure, int32_t raw_id,
                                              int64_t lparam);
 typedef int32_t (*mbw_sync_query_trampoline_t)(void *closure, int32_t raw_id,
                                                int32_t kind, int32_t arg0);
+typedef int32_t (*mbw_native_message_hook_t)(uint64_t hwnd, uint32_t message,
+                                             uint64_t wparam, int64_t lparam,
+                                             uint64_t *result,
+                                             void *context);
 
 MOONBIT_FFI_EXPORT
 int32_t mbw_register_window_class(void) { return 0; }
@@ -1169,6 +1198,13 @@ void mbw_install_sync_query_callback(mbw_sync_query_trampoline_t trampoline,
                                      void *closure) {
   (void)trampoline;
   (void)closure;
+}
+
+MOONBIT_FFI_EXPORT
+void mbw_install_native_message_hook(mbw_native_message_hook_t hook,
+                                     void *context) {
+  (void)hook;
+  (void)context;
 }
 
 MOONBIT_FFI_EXPORT
