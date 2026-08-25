@@ -35,7 +35,7 @@ fn web_string_to_extern(s : String) -> WebString {
 
 ///|
 fn web_string_from_id(id : Int) -> String {
-  let buf = StringBuilder::new()
+  let buf = StringBuilder()
   let handle = web_begin_read_string(id)
   while true {
     let ch = web_string_read_char(handle)
