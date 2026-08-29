@@ -148,6 +148,12 @@ uint64_t mbw_primary_monitor_handle(void) {
 }
 
 MOONBIT_FFI_EXPORT
+uint64_t mbw_current_monitor_handle(uint64_t hwnd) {
+  HMONITOR nearest = MonitorFromWindow((HWND)hwnd, MONITOR_DEFAULTTONEAREST);
+  return (uint64_t)nearest;
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_enum_display_modes(uint64_t hmonitor) {
   return 0;
 }

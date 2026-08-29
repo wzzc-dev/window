@@ -636,6 +636,11 @@ uint64_t mbw_get_module_handle(void) {
 }
 
 MOONBIT_FFI_EXPORT
+uint64_t mbw_hinstance_handle(void) {
+  return (uint64_t)GetModuleHandleW(NULL);
+}
+
+MOONBIT_FFI_EXPORT
 int32_t mbw_set_window_text(uint64_t hwnd, moonbit_bytes_t text) {
   int32_t text_len = (int32_t)Moonbit_array_length(text);
   int32_t wchars_len = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)text, text_len, NULL, 0);
