@@ -11,13 +11,21 @@ fail() {
 
 usage() {
   cat <<'EOF'
-Usage: scripts/check_moui_runtime_log.sh [--linux-input <strict|pending-ok>] <linux|windows> <logfile>
+Usage: scripts/check_moui_runtime_log.sh [--linux-input <strict|pending-ok>]
+                                     [--linux-monitor <strict|pending-ok>]
+                                     <linux|windows> <logfile>
 
 Validate a captured Linux or Windows MoUI runtime smoke transcript without
 rerunning the native executable. Use this after collecting matching-host logs
 from Linux Wayland/Weston or Windows Win32 CI before recording evidence. Linux
 logs require strict pointer/keyboard input by default; use pending-ok only for
 the core Linux smoke path where input automation is intentionally separate.
+
+--linux-monitor controls the current-monitor identity assertion. Strict (the
+default) requires current=true with a non-zero current_id. pending-ok accepts
+current=false when the compositor never delivers wl_surface.enter, which is the
+documented WSLg Weston RDP backend limitation (ADR 0032); monitor count and
+primary monitor identity stay mandatory in both modes.
 EOF
 }
 
@@ -292,6 +300,32 @@ require_current_monitor_id() {
   require_nonzero_hex "$prefix current_id" "$current_id"
 }
 
+# pending-ok variant for compositors that never deliver wl_surface.enter
+# (WSLg Weston RDP backend; see ADR 0032). Monitor enumeration and primary
+# monitor identity remain mandatory. The current-monitor identity is only
+# cross-checked when the compositor actually reports one.
+require_current_monitor_id_pending_ok() {
+  local output="$1"
+  local prefix="$2"
+  local line count primary_id current_id
+  line="$(require_single_prefixed_line "$output" "$prefix: monitors count=")"
+  count="$(extract_int_field "$line" "count")"
+  require_positive_int "$prefix monitor count" "$count"
+  [[ "$line" == *"primary=true"* ]] ||
+    fail "$prefix monitor line did not report primary=true: $line"
+  primary_id="$(extract_hex_field "$line" "primary_id")"
+  require_nonzero_hex "$prefix primary_id" "$primary_id"
+  [[ "$line" == *"current="* ]] ||
+    fail "$prefix monitor line did not report a current= field: $line"
+  if [[ "$line" == *"current=true"* ]]; then
+    current_id="$(extract_hex_field "$line" "current_id")"
+    require_nonzero_hex "$prefix current_id" "$current_id"
+  else
+    printf 'note: %s monitor line reported current=false; accepted because the compositor delivered no wl_surface.enter (ADR 0032)\n' \
+      "$prefix"
+  fi
+}
+
 require_surface_probe() {
   local output="$1"
   local prefix="$2"
@@ -406,9 +440,14 @@ check_linux_log() {
   require_output "$output" "MOUILinuxSmoke: monitors count="
   require_output "$output" "primary="
   require_output "$output" "primary_id=0x"
-  require_output "$output" "current=true"
-  require_output "$output" "current_id=0x"
-  require_current_monitor_id "$output" "MOUILinuxSmoke"
+  require_output "$output" "current="
+  if [[ "$linux_monitor_mode" == "strict" ]]; then
+    require_output "$output" "current=true"
+    require_output "$output" "current_id=0x"
+    require_current_monitor_id "$output" "MOUILinuxSmoke"
+  else
+    require_current_monitor_id_pending_ok "$output" "MOUILinuxSmoke"
+  fi
   require_single_exact_line "$output" "MOUILinuxSmoke: cursor Icon(Text)"
   require_single_exact_line "$output" "MOUILinuxSmoke: ime probe enabled=true hint=true surrounding=true cursor=true updated=true updated_hint=true updated_cursor=true disabled=true"
   require_resize_delivery "$output" "MOUILinuxSmoke"
@@ -503,11 +542,17 @@ check_windows_log() {
 }
 
 linux_input_mode="strict"
+linux_monitor_mode="strict"
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
     --linux-input)
       [[ "$#" -ge 2 ]] || fail "--linux-input requires a value"
       linux_input_mode="$2"
+      shift 2
+      ;;
+    --linux-monitor)
+      [[ "$#" -ge 2 ]] || fail "--linux-monitor requires a value"
+      linux_monitor_mode="$2"
       shift 2
       ;;
     -h|--help)
@@ -526,6 +571,14 @@ case "$linux_input_mode" in
     ;;
   *)
     fail "invalid --linux-input $linux_input_mode (expected strict or pending-ok)"
+    ;;
+esac
+
+case "$linux_monitor_mode" in
+  strict|pending-ok)
+    ;;
+  *)
+    fail "invalid --linux-monitor $linux_monitor_mode (expected strict or pending-ok)"
     ;;
 esac
 

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# docs/ffi-export-allowlist.txt is stored in C-locale order, and the checks
+# below compare it with `comm`. Force C collation so `sort -u` produces the
+# same order as the checked-in file; otherwise comm reports "input is not in
+# sorted order" and emits bogus differences.
+export LC_ALL=C
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WINDOW_ROOT="$ROOT/modules/window"
 ALLOWLIST="$ROOT/docs/ffi-export-allowlist.txt"

@@ -194,7 +194,20 @@ runtime_log_command_runs_verifier() {
 
   case "$log_backend" in
     linux)
+      # Both optional mode flags may appear, in this order; each must carry a
+      # valid value. --linux-monitor pending-ok is the ADR 0032 exemption for
+      # compositors that never deliver wl_surface.enter.
       if [[ "${args[$index]:-}" == "--linux-input" ]]; then
+        case "${args[$((index + 1))]:-}" in
+          strict|pending-ok)
+            index=$((index + 2))
+            ;;
+          *)
+            return 1
+            ;;
+        esac
+      fi
+      if [[ "${args[$index]:-}" == "--linux-monitor" ]]; then
         case "${args[$((index + 1))]:-}" in
           strict|pending-ok)
             index=$((index + 2))

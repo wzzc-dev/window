@@ -14,6 +14,7 @@ struct App {
   mut saw_destroyed : Bool
   require_input : Bool
   require_data_device : Bool
+  require_current_monitor : Bool
   mut core_ready_printed : Bool
   mut destroy_requested : Bool
   mut requested_resize : Bool
@@ -26,6 +27,9 @@ extern "C" fn native_require_input() -> Int = "mbw_moui_linux_smoke_require_inpu
 
 ///|
 extern "C" fn native_require_data_device() -> Int = "mbw_moui_linux_smoke_require_data_device"
+
+///|
+extern "C" fn native_require_current_monitor() -> Int = "mbw_moui_linux_smoke_require_current_monitor"
 
 ///|
 fn App::maybe_ready(self : App, event_loop : @linux.ActiveEventLoop) -> Unit {
@@ -111,7 +115,10 @@ fn present_probe(window : @linux.Window) -> Bool {
 }
 
 ///|
-fn log_monitor_probe(window : @linux.Window) -> Bool {
+fn log_monitor_probe(
+  window : @linux.Window,
+  require_current_monitor : Bool,
+) -> Bool {
   let monitors = window.available_monitors()
   let primary = window.primary_monitor()
   let current = window.current_monitor()
@@ -124,13 +131,18 @@ fn log_monitor_probe(window : @linux.Window) -> Bool {
     None => 0UL
   }
   println(
-    "MOUILinuxSmoke: monitors count=\{monitors.length()} primary=\{primary is Some(_)} primary_id=0x\{primary_id.to_string(radix=16)} current=\{current is Some(_)} current_id=0x\{current_id.to_string(radix=16)}",
+    "MOUILinuxSmoke: monitors count=\{monitors.length()} primary=\{primary is Some(_)} primary_id=0x\{primary_id.to_string(radix=16)} current=\{current is Some(_)} current_id=0x\{current_id.to_string(radix=16)} require_current=\{require_current_monitor}",
   )
-  monitors.length() > 0 &&
-  primary is Some(_) &&
-  current is Some(_) &&
-  primary_id != 0UL &&
-  current_id != 0UL
+  let enumerated = monitors.length() > 0 &&
+    primary is Some(_) &&
+    primary_id != 0UL
+  if require_current_monitor {
+    enumerated && current is Some(_) && current_id != 0UL
+  } else {
+    // Compositors that never emit wl_surface.enter cannot identify the current
+    // monitor; accept enumeration plus primary identity (ADR 0032).
+    enumerated
+  }
 }
 
 ///|
@@ -296,7 +308,7 @@ pub impl @linux.ApplicationHandler for App with fn can_create_surfaces(
       log_surface(window)
       self.saw_handle = log_handles(window)
       self.saw_present = present_probe(window)
-      self.saw_monitor = log_monitor_probe(window)
+      self.saw_monitor = log_monitor_probe(window, self.require_current_monitor)
       self.saw_cursor = log_cursor_probe(window)
       self.saw_ime_probe = log_ime_probe(window)
       self.saw_data_device_probe = log_data_device_probe(
@@ -408,6 +420,7 @@ fn main {
     saw_destroyed: false,
     require_input: native_require_input() != 0,
     require_data_device: native_require_data_device() != 0,
+    require_current_monitor: native_require_current_monitor() != 0,
     core_ready_printed: false,
     destroy_requested: false,
     requested_resize: false,

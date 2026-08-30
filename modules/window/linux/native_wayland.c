@@ -873,6 +873,33 @@ static const struct xdg_wm_base_listener wm_base_listener = {
     .ping = xdg_wm_base_ping,
 };
 
+// Wayland only reports which output a surface lives on through
+// wl_surface.enter/leave. Track it so Window::current_monitor() reports the
+// display the window is actually presented on instead of always returning
+// None (which left Linux L3 monitor probes unverifiable).
+static void surface_enter(void *data, struct wl_surface *surface,
+                          struct wl_output *output) {
+  (void)surface;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window) {
+    window->current_output = output;
+  }
+}
+
+static void surface_leave(void *data, struct wl_surface *surface,
+                          struct wl_output *output) {
+  (void)surface;
+  mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
+  if (window && window->current_output == output) {
+    window->current_output = NULL;
+  }
+}
+
+static const struct wl_surface_listener surface_listener = {
+    .enter = surface_enter,
+    .leave = surface_leave,
+};
+
 static void xdg_surface_configure(void *data, struct xdg_surface *surface,
                                   uint32_t serial) {
   mbw_wayland_window_t *window = (mbw_wayland_window_t *)data;
@@ -2015,6 +2042,7 @@ uint64_t mbw_wayland_window_create(uint64_t raw_context, int32_t raw_id,
     return 0;
   }
   wl_surface_set_user_data(window->surface, window);
+  wl_surface_add_listener(window->surface, &surface_listener, window);
   window->xdg_surface =
       xdg_wm_base_get_xdg_surface(context->wm_base, window->surface);
   window->xdg_toplevel = xdg_surface_get_toplevel(window->xdg_surface);

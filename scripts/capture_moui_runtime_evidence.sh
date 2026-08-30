@@ -83,6 +83,9 @@ default_notes() {
   case "$1" in
     linux)
       printf 'captured by scripts/capture_moui_runtime_evidence.sh on a matching Linux Wayland/Weston host; strict input smoke observed representative keyboard text a before ready with pointer evidence, and the transcript was accepted by scripts/check_moui_runtime_log.sh'
+      if [[ "${WINDOW_MOUI_LINUX_MONITOR_MODE:-strict}" == "pending-ok" ]]; then
+        printf ' --linux-monitor pending-ok; current-monitor identity exempted because the compositor delivers no wl_surface.enter (ADR 0032), monitor enumeration and primary identity still verified'
+      fi
       ;;
     windows)
       printf 'captured by scripts/capture_moui_runtime_evidence.sh on a matching Windows Win32 host; runtime smoke observed HWND/HINSTANCE/raw handle identity plus pointer/keyboard/ime text a before ready, and the transcript was accepted by scripts/check_moui_runtime_log.sh'
@@ -165,14 +168,24 @@ require_concrete_log_path "$log_file"
 ci_command=(env "WINDOW_CI_HOST=$backend" bash scripts/check_ci.sh)
 case "$backend" in
   linux)
-    runtime_command=(env WINDOW_MOUI_LINUX_REQUIRE_INPUT=1 scripts/check_moui_linux_smoke.sh --run)
+    runtime_command=(env WINDOW_MOUI_LINUX_REQUIRE_INPUT=1)
+    if [[ "${WINDOW_MOUI_LINUX_MONITOR_MODE:-strict}" == "pending-ok" ]]; then
+      runtime_command+=(WINDOW_MOUI_LINUX_REQUIRE_CURRENT_MONITOR=0)
+    fi
+    runtime_command+=(scripts/check_moui_linux_smoke.sh --run)
     ;;
   windows)
     runtime_command=(scripts/check_moui_windows_smoke.sh --run)
     ;;
 esac
-log_command=(scripts/check_moui_runtime_log.sh "$backend" "$log_file")
-log_exec_command=(bash scripts/check_moui_runtime_log.sh "$backend" "$log_file")
+# WSLg Weston never delivers wl_surface.enter, so the current-monitor identity
+# assertion is relaxed there; native Wayland hosts keep strict mode (ADR 0032).
+log_monitor_args=()
+if [[ "$backend" == "linux" && "${WINDOW_MOUI_LINUX_MONITOR_MODE:-strict}" == "pending-ok" ]]; then
+  log_monitor_args=(--linux-monitor pending-ok)
+fi
+log_command=(scripts/check_moui_runtime_log.sh "${log_monitor_args[@]}" "$backend" "$log_file")
+log_exec_command=(bash scripts/check_moui_runtime_log.sh "${log_monitor_args[@]}" "$backend" "$log_file")
 
 ci_command_text="$(format_command "${ci_command[@]}")"
 runtime_command_text="$(format_command "${runtime_command[@]}")"
