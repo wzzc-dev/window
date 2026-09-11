@@ -632,3 +632,15 @@ test "moved_event_is_queued_again_when_position_changes" {
     ["window_event", "window_event"],
   )
 }
+
+///|
+test "pump never stops the run loop while a modal session owns it" {
+  // A native open/save panel runs its own modal session on the main run loop.
+  // The bounded pump stops the loop before/after every wait, and doing that
+  // inside the session ends it immediately — the panel flashes and disappears
+  // before the user can pick a file.
+  assert_true(app_state_pump_may_stop_run_loop(true, false))
+  assert_false(app_state_pump_may_stop_run_loop(true, true))
+  assert_false(app_state_pump_may_stop_run_loop(false, false))
+  assert_false(app_state_pump_may_stop_run_loop(false, true))
+}

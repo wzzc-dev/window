@@ -597,6 +597,37 @@ fn native_callback_sync_query(raw_id : Int, kind : Int, _arg0 : UInt64) -> Int {
 }
 
 ///|
+/// Whether the bounded pump may stop the application run loop now, given its
+/// stop flag and whether AppKit is running a modal session.
+///
+/// A modal session — a native open/save panel or an alert — owns the main run
+/// loop for as long as it is open, so the pump has to leave the loop alone even
+/// though its flag is set: `configure_pump_wait` arms a stop before every wait
+/// and after every redraw, and a session opened from inside the loop (a menu
+/// command) is torn down by the very next one. The panel then flashes and
+/// disappears before the user can pick a file. A pointer-triggered dialog only
+/// works because it opens between pump invocations, where none of those stops
+/// is armed.
+fn app_state_pump_may_stop_run_loop(
+  stop_flag : Bool,
+  modal_window : Bool,
+) -> Bool {
+  stop_flag && !modal_window
+}
+
+///|
+/// Whether AppKit currently has a modal session's window up — the native
+/// `[NSApp modalWindow]`, which is nil when no session is running.
+fn native_application_has_modal_window() -> Bool {
+  let app = native_application_shared_handle()
+  if app == (0 : Int).to_uint64() {
+    return false
+  }
+  appkit_objc_msg_send_u64(app, objc_runtime_selector_handle("modalWindow")) !=
+    (0 : Int).to_uint64()
+}
+
+///|
 fn app_state_on_before_waiting() -> Unit {
   if app_state_handler_ready() == false {
     return ()
@@ -615,7 +646,10 @@ fn app_state_on_before_waiting() -> Unit {
     stop_app_immediately()
     notify_windows_of_exit()
   }
-  if app_state_stop_before_wait() {
+  if app_state_pump_may_stop_run_loop(
+    app_state_stop_before_wait(),
+    native_application_has_modal_window(),
+  ) {
     stop_app_immediately()
   }
   let start_time_ms = runtime_now_ms()
@@ -632,7 +666,10 @@ fn app_state_on_after_waiting() -> Unit {
   if app_state_handler_ready() == false {
     return ()
   }
-  if app_state_stop_after_wait() {
+  if app_state_pump_may_stop_run_loop(
+    app_state_stop_after_wait(),
+    native_application_has_modal_window(),
+  ) {
     stop_app_immediately()
   }
   app_state_maybe_dispatch_callback(NewEvents(app_state_wait_cause()))
@@ -983,7 +1020,11 @@ fn[A : ApplicationHandler] app_state_dispatch_callback(
       let stop_on_redraw = app_state_stop_on_redraw() &&
         event is RedrawRequested
       app.window_event(event_loop, window_id, event)
-      if stop_on_redraw {
+      if stop_on_redraw &&
+        app_state_pump_may_stop_run_loop(
+          true,
+          native_application_has_modal_window(),
+        ) {
         stop_app_immediately()
       }
     }
