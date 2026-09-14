@@ -14,6 +14,7 @@
 #include <moonbit.h>
 #include <wayland-client.h>
 #include "generated/xdg-decoration-client-protocol.h"
+#include "generated/cursor-shape-v1-client-protocol.h"
 #include "generated/xdg-shell-client-protocol.h"
 
 typedef void (*mbw_window_event_trampoline_t)(void *closure,
@@ -60,6 +61,7 @@ enum {
   MBW_WAYLAND_TITLEBAR_BUTTON_GAP = 8,
   MBW_WAYLAND_TITLEBAR_BUTTON_TOP = 7,
   MBW_WAYLAND_POINTER_LEFT_BUTTON = 0x110,
+  MBW_WAYLAND_RESIZE_BORDER_PX = 6,
 };
 
 struct mbw_wayland_window;
@@ -104,6 +106,9 @@ typedef struct mbw_wayland_context {
   mbw_wayland_data_offer_t *drag_offer;
   struct xdg_wm_base *wm_base;
   struct zxdg_decoration_manager_v1 *decoration_manager;
+  struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
+  struct wp_cursor_shape_device_v1 *cursor_shape_device;
+  uint32_t cursor_enter_serial;
   mbw_wayland_output_t *outputs;
   struct mbw_wayland_window *windows;
   struct wl_surface *cursor_surface;
@@ -139,6 +144,7 @@ typedef struct mbw_wayland_window {
   int pointer_y;
   int active_titlebar_button;
   int resizing;
+  int32_t hover_edge;
   // Pending pointer events buffered between wl_pointer.frame callbacks.
   // Wayland delivers motion/button/axis as a stream terminated by a frame
   // event; emitting each sub-event immediately causes the MoonBit runtime to
@@ -854,6 +860,11 @@ static int ensure_default_cursor(mbw_wayland_context_t *context) {
   return 1;
 }
 
+static void ensure_cursor_shape_device(mbw_wayland_context_t *context);
+static uint32_t window_edge_at_pointer(mbw_wayland_window_t *window);
+static void update_hover_cursor(mbw_wayland_context_t *context,
+                                mbw_wayland_window_t *window);
+
 static void set_default_cursor(mbw_wayland_context_t *context,
                                struct wl_pointer *pointer, uint32_t serial) {
   if (!context || !pointer || !ensure_default_cursor(context)) {
@@ -1268,6 +1279,100 @@ static void ensure_data_device(mbw_wayland_context_t *context) {
   }
 }
 
+// Create the cursor-shape device once both the manager and the pointer
+// exist. The device lets the compositor render standard resize cursors on
+// client-decorated windows (mutter offers no xdg-decoration manager).
+static void ensure_cursor_shape_device(mbw_wayland_context_t *context) {
+  if (!context || !context->cursor_shape_manager || !context->pointer ||
+      context->cursor_shape_device) {
+    return;
+  }
+  context->cursor_shape_device = wp_cursor_shape_manager_v1_get_pointer(
+      context->cursor_shape_manager, context->pointer);
+}
+
+// Map the pointer position to an xdg_toplevel_resize_edge for interactive
+// resize from the window edges (0 = not on an edge).
+static uint32_t window_edge_at_pointer(mbw_wayland_window_t *window) {
+  int32_t x = window->pointer_x;
+  int32_t y = window->pointer_y;
+  int32_t w = window->width;
+  int32_t h = window->height;
+  int32_t border = MBW_WAYLAND_RESIZE_BORDER_PX;
+  int left = x >= 0 && x < border;
+  int right = x <= w && x > w - border;
+  int top = y >= 0 && y < border;
+  int bottom = y <= h && y > h - border;
+  if (left && top) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT;
+  }
+  if (right && top) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT;
+  }
+  if (left && bottom) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT;
+  }
+  if (right && bottom) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT;
+  }
+  if (left) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_LEFT;
+  }
+  if (right) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_RIGHT;
+  }
+  if (top) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_TOP;
+  }
+  if (bottom) {
+    return XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM;
+  }
+  return XDG_TOPLEVEL_RESIZE_EDGE_NONE;
+}
+
+static uint32_t edge_cursor_shape(uint32_t edge) {
+  switch (edge) {
+    case XDG_TOPLEVEL_RESIZE_EDGE_LEFT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_W_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_RIGHT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_E_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_N_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_S_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP_LEFT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NW_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NE_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_LEFT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_SW_RESIZE;
+    case XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_SE_RESIZE;
+    default:
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
+  }
+}
+
+// Set the standard cursor for the current edge zone (no-op when the
+// compositor does not offer the cursor-shape protocol).
+static void update_hover_cursor(mbw_wayland_context_t *context,
+                                mbw_wayland_window_t *window) {
+  if (!context || !context->cursor_shape_device || !window) {
+    return;
+  }
+  uint32_t edge = 0;
+  if (!window->maximized && !window->requested_maximized) {
+    edge = window_edge_at_pointer(window);
+  }
+  if (edge == window->hover_edge) {
+    return;
+  }
+  window->hover_edge = (int32_t)edge;
+  wp_cursor_shape_device_v1_set_shape(
+      context->cursor_shape_device, context->cursor_enter_serial,
+      edge_cursor_shape(edge));
+}
+
 static void pointer_enter(void *data, struct wl_pointer *pointer,
                           uint32_t serial, struct wl_surface *surface,
                           wl_fixed_t sx, wl_fixed_t sy) {
@@ -1276,13 +1381,21 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
     return;
   }
   context->last_serial = serial;
+  context->cursor_enter_serial = serial;
   mbw_wayland_window_t *window =
       (mbw_wayland_window_t *)wl_surface_get_user_data(surface);
   context->pointer_window = window;
-  set_default_cursor(context, pointer, serial);
   if (window) {
     window->pointer_x = wl_fixed_to_int(sx);
     window->pointer_y = wl_fixed_to_int(sy);
+    window->hover_edge = 0;
+    if (context->cursor_shape_device) {
+      wp_cursor_shape_device_v1_set_shape(
+          context->cursor_shape_device, serial,
+          WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+    } else {
+      set_default_cursor(context, pointer, serial);
+    }
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_ENTER,
                wl_fixed_to_int(sx), wl_fixed_to_int(sy), 0, 0);
   }
@@ -1290,16 +1403,12 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
 
 static void pointer_leave(void *data, struct wl_pointer *pointer,
                           uint32_t serial, struct wl_surface *surface) {
-  (void)pointer;
-  (void)serial;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
-  if (!context) {
-    return;
-  }
   mbw_wayland_window_t *window =
       surface ? (mbw_wayland_window_t *)wl_surface_get_user_data(surface)
               : context->pointer_window;
   if (window) {
+    window->hover_edge = 0;
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_LEAVE, 0, 0, 0, 0);
   }
   if (context) {
@@ -1363,6 +1472,19 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
           wl_display_flush(context->display);
         }
         return;
+      } else if (window->client_decorated && !window->maximized &&
+                 !window->requested_maximized && window->xdg_toplevel &&
+                 context->seat && window_edge_at_pointer(window) !=
+                                      XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
+        // Client-decorated resize: hand the pointer to the compositor for an
+        // interactive edge/corner drag (mirrors the titlebar move path).
+        xdg_toplevel_resize(window->xdg_toplevel, context->seat, serial,
+                            window_edge_at_pointer(window));
+        wl_surface_commit(window->surface);
+        if (context->display) {
+          wl_display_flush(context->display);
+        }
+        return;
       } else if (titlebar_hit_drag(window, window->pointer_x,
                                    window->pointer_y) &&
                  window->xdg_toplevel && context && context->seat) {
@@ -1422,6 +1544,7 @@ static void pointer_frame(void *data, struct wl_pointer *pointer) {
     emit_input(window->raw_id, MBW_LINUX_INPUT_POINTER_MOVE,
                window->pending_move_x, window->pending_move_y, 0, 0);
     window->pending_pointer_move = 0;
+    update_hover_cursor(context, window);
   }
   if (window->pending_pointer_button) {
     emit_input(window->raw_id,
@@ -1583,6 +1706,7 @@ static void seat_capabilities(void *data, struct wl_seat *seat,
   if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && !context->pointer) {
     context->pointer = wl_seat_get_pointer(seat);
     wl_pointer_add_listener(context->pointer, &pointer_listener, context);
+    ensure_cursor_shape_device(context);
   } else if (!(capabilities & WL_SEAT_CAPABILITY_POINTER) &&
              context->pointer) {
     wl_pointer_destroy(context->pointer);
@@ -1700,6 +1824,11 @@ static void registry_global(void *data, struct wl_registry *registry,
     wl_output_add_listener(output->output, &output_listener, output);
     output->next = context->outputs;
     context->outputs = output;
+  } else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
+    context->cursor_shape_manager =
+        wl_registry_bind(registry, name, &wp_cursor_shape_manager_v1_interface,
+                         1);
+    ensure_cursor_shape_device(context);
   } else if (strcmp(interface, wl_data_device_manager_interface.name) == 0) {
     context->data_device_manager =
         wl_registry_bind(registry, name, &wl_data_device_manager_interface,
@@ -1795,6 +1924,14 @@ void mbw_wayland_context_destroy(uint64_t raw_context) {
   }
   if (context->decoration_manager) {
     zxdg_decoration_manager_v1_destroy(context->decoration_manager);
+  }
+  if (context->cursor_shape_device) {
+    wp_cursor_shape_device_v1_destroy(context->cursor_shape_device);
+    context->cursor_shape_device = NULL;
+  }
+  if (context->cursor_shape_manager) {
+    wp_cursor_shape_manager_v1_destroy(context->cursor_shape_manager);
+    context->cursor_shape_manager = NULL;
   }
   if (context->wm_base) {
     xdg_wm_base_destroy(context->wm_base);

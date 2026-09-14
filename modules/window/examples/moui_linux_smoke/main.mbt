@@ -100,10 +100,20 @@ fn log_handles(window : @linux.Window) -> Bool {
   println(
     "MOUILinuxSmoke: handles wl_display=0x\{wl_display.to_string(radix=16)} wl_surface=0x\{wl_surface.to_string(radix=16)} xdg_surface=0x\{xdg_surface.to_string(radix=16)} xdg_toplevel=0x\{xdg_toplevel.to_string(radix=16)}",
   )
-  wl_display != (0 : Int).to_uint64() &&
-  wl_surface != (0 : Int).to_uint64() &&
-  xdg_surface != (0 : Int).to_uint64() &&
-  xdg_toplevel != (0 : Int).to_uint64()
+  match window.windowing_backend() {
+    // X11: the surface handle is the Xlib `Window` XID and the xdg handle
+    // slots are intentionally empty.
+    @linux.WindowingBackend::X11 =>
+      wl_display != (0 : Int).to_uint64() &&
+      wl_surface != (0 : Int).to_uint64() &&
+      xdg_surface == (0 : Int).to_uint64() &&
+      xdg_toplevel == (0 : Int).to_uint64()
+    @linux.WindowingBackend::Wayland =>
+      wl_display != (0 : Int).to_uint64() &&
+      wl_surface != (0 : Int).to_uint64() &&
+      xdg_surface != (0 : Int).to_uint64() &&
+      xdg_toplevel != (0 : Int).to_uint64()
+  }
 }
 
 ///|

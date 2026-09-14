@@ -127,6 +127,12 @@ ensureWaylandProtocol(
   "xdg-decoration-client-protocol.h",
   "xdg-decoration-protocol.c",
 );
+ensureWaylandProtocol(
+  "cursor-shape",
+  [ "staging", "cursor-shape", "cursor-shape-v1.xml" ],
+  "cursor-shape-v1-client-protocol.h",
+  "cursor-shape-protocol.c",
+);
 
 const linkConfigs = [
   {
@@ -150,9 +156,13 @@ if (isLinux) {
   const waylandFlags =
     commandOutput("pkg-config", [ "--libs", "wayland-client" ]) ||
     "-lwayland-client";
+  const x11Libraries = [ "x11", "xext", "xrandr" ];
+  const x11Flags =
+    commandOutput("pkg-config", [ "--libs", ...x11Libraries ]) ||
+    x11Libraries.map((library) => `-l${library}`).join(" ");
   linkConfigs.push({
     package: linuxPackageName,
-    link_flags: waylandFlags,
+    link_flags: `${waylandFlags} ${x11Flags}`,
   });
 }
 

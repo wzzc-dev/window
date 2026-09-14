@@ -137,7 +137,9 @@ pub fn EventLoop::try_new_with_platform_attributes(
   }
   let context = native_context_new()
   if context == (0 : Int).to_uint64() {
-    raise @core.EventLoopError::os("OS error")
+    raise @core.EventLoopError::os(
+      "failed to connect to a Linux display server (tried Wayland and X11; set WAYLAND_DISPLAY or DISPLAY, or force one with MOUI_LINUX_WINDOWING)",
+    )
   }
   let wake_fd = native_context_wake_fd(context)
   app_state_set_context(context)
@@ -311,7 +313,16 @@ pub fn EventLoop::wl_display(self : EventLoop) -> UInt64 {
 pub fn EventLoop::raw_display_handle(
   self : EventLoop,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
-  Wayland(@windowing.WaylandDisplayHandle::new(self.native_display_handle()))
+  match self.windowing_backend() {
+    WindowingBackend::X11 =>
+      Xlib(
+        @windowing.XlibDisplayHandle::new(Some(self.native_display_handle()), 0),
+      )
+    WindowingBackend::Wayland =>
+      Wayland(
+        @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
+      )
+  }
 }
 
 ///|

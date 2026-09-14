@@ -12,13 +12,14 @@ for `wasm-gc`, and host-driven mobile event-loop adapters.
 
 - macOS: supported on the `native` target through AppKit (`wzzc-dev/window/macos`)
 - Windows: preview support on the `native` target through Win32 (`wzzc-dev/window/windows`)
-- Linux: preview support on the `native` target through Wayland + xdg-shell (`wzzc-dev/window/linux`)
+- Linux: preview support on the `native` target through Wayland + xdg-shell or
+  X11 (Xlib), selected at startup (`wzzc-dev/window/linux`)
 - Web: experimental browser support on the `wasm-gc` target (`wzzc-dev/window/web`)
 - Android, iOS, HarmonyOS: experimental host-driven adapters on the `native`
   target (`wzzc-dev/window/<platform>`); the host supplies lifecycle, surface,
   and input events while the package normalizes them as window events
-- Placeholder handle types: Xlib and Xcb
-- Not supported yet: X11 and other Unix backends
+- Placeholder handle types: Xcb
+- Not supported yet: XCB-only clients and other Unix backends
 
 ### Windows Support (Preview)
 
@@ -89,14 +90,21 @@ The application package must export `web_dispatch_event`; see
 
 ### Linux Support (Preview)
 
-Use the `wzzc-dev/window/linux` package for Wayland windows and event loops.
-The first Linux backend supports Wayland + `xdg-shell` only; X11 is not part of
-this backend.
+Use the `wzzc-dev/window/linux` package for Linux windows and event loops.
+Two windowing backends share one API and are selected at startup:
+
+- **Wayland** (xdg-shell) is preferred on Wayland sessions.
+- **X11** (Xlib) is used when only `DISPLAY` is available, and can be forced
+  with `MOUI_LINUX_WINDOWING=x11` (or `=wayland`; `=auto` is the default).
+
+`EventLoop::windowing_backend()` / `Window::windowing_backend()` report the
+active backend, and raw handles come back as `Xlib` or `Wayland` variants.
 
 Install the native development dependencies on Linux:
 
 ```bash
-sudo apt install libwayland-dev wayland-protocols wayland-scanner pkg-config
+sudo apt install libwayland-dev wayland-protocols wayland-scanner pkg-config \
+  libx11-dev libxext-dev libxrandr-dev
 ```
 
 Build and run the example inside a Wayland session or Weston environment:
@@ -273,9 +281,9 @@ Import only the subpackages you need:
   `Window`, `EventLoopProxy`, `ApplicationHandler`)
 - `@wzzc-dev/window/windows`: Windows runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`)
-- `@wzzc-dev/window/linux`: Linux Wayland runtime API (`EventLoop`,
-  `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
-  Wayland extension APIs exposing display/surface/xdg handles
+- `@wzzc-dev/window/linux`: Linux runtime API (`EventLoop`, `ActiveEventLoop`,
+  `Window`, `EventLoopProxy`, `ApplicationHandler`) plus Wayland extension APIs
+  exposing display/surface/xdg handles and the `WindowingBackend` selector
 - `@wzzc-dev/window/web`: browser `wasm-gc` runtime API (`EventLoop`,
   `ActiveEventLoop`, `Window`, `EventLoopProxy`, `ApplicationHandler`) plus
   Web extension APIs for canvas binding and poll strategy selection
@@ -313,17 +321,20 @@ Import only the subpackages you need:
 
 ## Linux Caveats
 
-- Linux support currently targets Wayland + `xdg-shell`; X11 is intentionally
-  left unsupported in this package.
-- The first backend attaches a small SHM placeholder buffer so windows map even
-  when the app has not provided a renderer yet.
+- Linux support targets Wayland + `xdg-shell` and X11 (Xlib); the backend is
+  selected at startup and both share the same API.
+- The Wayland backend attaches a small SHM placeholder buffer so windows map
+  even when the app has not provided a renderer yet. X11 uses window-manager
+  decorations, so client decorations never apply.
 - `Window::present_rgba_pixels(...)` presents renderer-owned RGBA pixel frames
-  through Wayland `wl_shm` for CPU raster renderers such as MoUI Skia.
-- Keyboard events currently expose native XKB key codes without text decoding;
-  text input and IME are future work.
-- Decorations, taskbar integration, system menus, native drag-window, exclusive
-  fullscreen, precise monitor metadata, custom cursors, and rich raw-handle
-  parity are currently unsupported, no-op, or placeholder behavior.
+  through Wayland `wl_shm`, or MIT-SHM / `XPutImage` on X11, for CPU raster
+  renderers such as MoUI Skia.
+- Keyboard events currently expose native XKB (evdev) key codes without text
+  decoding; text input and IME are future work. X11 additionally lacks IME and
+  XDND drag-and-drop in this slice.
+- Taskbar integration, system menus, native drag-window, exclusive fullscreen,
+  custom cursors, and rich raw-handle parity are currently unsupported, no-op,
+  or placeholder behavior on both backends.
 
 ## Rich Event Matching
 

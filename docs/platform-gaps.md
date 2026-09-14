@@ -15,6 +15,12 @@ macOS reference implementation. Each gap is classified with an explicit contract
 
 **Platforms**: macOS (reference), Windows, Linux, Web, Android, iOS, HarmonyOS, WeChat.
 
+The **Linux** column describes the Wayland backend. The X11 (Xlib) backend
+shares the API and is selected at startup; its deviations are tracked in the
+MoUI plan `docs/plans/active/linux-x11-backend.md` (no IME, no XDND
+drag-and-drop, clipboard limited to the `CLIPBOARD` selection with
+`UTF8_STRING` targets, monitor enumeration via XRandR, scale factor 1).
+
 ---
 
 ## Cursor

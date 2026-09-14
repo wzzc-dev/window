@@ -49,6 +49,7 @@ pub fn ActiveEventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
 pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
+pub fn ActiveEventLoop::windowing_backend(Self) -> WindowingBackend
 pub fn ActiveEventLoop::wl_display(Self) -> UInt64
 pub impl @windowing.DisplayHandleProvider for ActiveEventLoop
 pub impl @windowing.HasDisplayHandle for ActiveEventLoop
@@ -96,6 +97,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(Self, Int?, A) -> 
 pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @core.EventLoopError
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
+pub fn EventLoop::windowing_backend(Self) -> WindowingBackend
 pub fn EventLoop::wl_display(Self) -> UInt64
 pub impl @windowing.DisplayHandleProvider for EventLoop
 pub impl @windowing.HasDisplayHandle for EventLoop
@@ -248,6 +250,7 @@ pub fn Window::unified_titlebar(Self) -> Bool
 pub fn Window::uses_client_decorations(Self) -> Bool
 pub fn Window::window_handle(Self) -> @windowing.WindowHandle
 pub fn Window::window_level(Self) -> @core.WindowLevel
+pub fn Window::windowing_backend(Self) -> WindowingBackend
 pub fn Window::wl_display(Self) -> UInt64
 pub fn Window::wl_surface(Self) -> UInt64
 pub fn Window::xdg_surface(Self) -> UInt64
@@ -269,6 +272,11 @@ pub fn WindowAttributesLinux::default() -> Self
 pub fn WindowAttributesLinux::use_shm_placeholder(Self) -> Bool
 pub fn WindowAttributesLinux::with_app_id(Self, String) -> Self
 pub fn WindowAttributesLinux::with_shm_placeholder(Self, Bool) -> Self
+
+pub enum WindowingBackend {
+  Wayland
+  X11
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 
@@ -304,4 +312,3 @@ pub(open) trait WindowExtLinux {
   fn xdg_toplevel(Self) -> UInt64
   fn uses_client_decorations(Self) -> Bool
 }
-

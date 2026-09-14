@@ -110,7 +110,7 @@ pub fn Window::new_with_linux_attributes(
     native_window_destroy(handle)
     app_state_unregister_window(raw_id)
     raise @core.RequestError::os(
-      "Linux window did not receive an initial Wayland configure event",
+      "Linux window did not become ready before the timeout expired",
     )
   }
   native_window_set_visible(handle, attributes.visible())
@@ -714,13 +714,15 @@ pub fn Window::reset_dead_keys(self : Window) -> Unit {
 }
 
 ///|
-/// Return the raw Wayland `wl_surface*` handle for this window.
+/// Return the platform surface handle for this window: the Xlib `Window` XID
+/// on the X11 backend, or the raw `wl_surface*` on Wayland.
 pub fn Window::native_window_handle(self : Window) -> UInt64 {
   native_window_surface_handle(self.handle)
 }
 
 ///|
-/// Return the raw Wayland `wl_display*` handle for this window.
+/// Return the platform display handle for this window: the Xlib `Display*`
+/// on the X11 backend, or the raw `wl_display*` on Wayland.
 pub fn Window::native_display_handle(self : Window) -> UInt64 {
   native_window_display_handle(self.handle)
 }
@@ -739,14 +741,28 @@ pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
 fn Window::raw_display_handle(
   self : Window,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
-  Wayland(@windowing.WaylandDisplayHandle::new(self.native_display_handle()))
+  match self.windowing_backend() {
+    WindowingBackend::X11 =>
+      Xlib(
+        @windowing.XlibDisplayHandle::new(Some(self.native_display_handle()), 0),
+      )
+    WindowingBackend::Wayland =>
+      Wayland(
+        @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
+      )
+  }
 }
 
 ///|
 fn Window::raw_window_handle(
   self : Window,
 ) -> @windowing.RawWindowHandle raise @windowing.HandleError {
-  Wayland(@windowing.WaylandWindowHandle::new(self.native_window_handle()))
+  match self.windowing_backend() {
+    WindowingBackend::X11 =>
+      Xlib(@windowing.XlibWindowHandle::new(self.native_window_handle()))
+    WindowingBackend::Wayland =>
+      Wayland(@windowing.WaylandWindowHandle::new(self.native_window_handle()))
+  }
 }
 
 ///|
