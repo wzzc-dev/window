@@ -624,7 +624,7 @@ fn native_application_has_modal_window() -> Bool {
     return false
   }
   appkit_objc_msg_send_u64(app, objc_runtime_selector_handle("modalWindow")) !=
-    (0 : Int).to_uint64()
+  (0 : Int).to_uint64()
 }
 
 ///|
@@ -647,9 +647,9 @@ fn app_state_on_before_waiting() -> Unit {
     notify_windows_of_exit()
   }
   if app_state_pump_may_stop_run_loop(
-    app_state_stop_before_wait(),
-    native_application_has_modal_window(),
-  ) {
+      app_state_stop_before_wait(),
+      native_application_has_modal_window(),
+    ) {
     stop_app_immediately()
   }
   let start_time_ms = runtime_now_ms()
@@ -667,9 +667,9 @@ fn app_state_on_after_waiting() -> Unit {
     return ()
   }
   if app_state_pump_may_stop_run_loop(
-    app_state_stop_after_wait(),
-    native_application_has_modal_window(),
-  ) {
+      app_state_stop_after_wait(),
+      native_application_has_modal_window(),
+    ) {
     stop_app_immediately()
   }
   app_state_maybe_dispatch_callback(NewEvents(app_state_wait_cause()))

@@ -17,4 +17,3 @@ pub impl @android.ApplicationHandler for MobileHostedSmokeApp
 // Type aliases
 
 // Traits
-

@@ -17,4 +17,3 @@ pub impl @linux.ApplicationHandler for App
 // Type aliases
 
 // Traits
-
