@@ -30,7 +30,7 @@ pub fn EventLoop::builder() -> EventLoopBuilder {
 
 ///|
 pub fn EventLoopBuilder::new() -> EventLoopBuilder {
-  { platform_attributes_: @core.PlatformEventLoopAttributes::default() }
+  { platform_attributes_: @core.PlatformEventLoopAttributes::default(), }
 }
 
 ///|
@@ -98,7 +98,7 @@ pub fn EventLoop::EventLoop() -> EventLoop {
 ///|
 pub fn EventLoop::new() -> EventLoop {
   EventLoop::try_new() catch {
-    _ => { _unit: () }
+    _ => { _unit: (), }
   }
 }
 
@@ -114,7 +114,7 @@ pub fn EventLoop::new_with_platform_attributes(
   platform_attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop {
   EventLoop::try_new_with_platform_attributes(platform_attributes) catch {
-    _ => { _unit: () }
+    _ => { _unit: (), }
   }
 }
 
@@ -123,10 +123,10 @@ pub fn EventLoop::try_new_with_platform_attributes(
   _platform_attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop raise @core.EventLoopError {
   if event_loop_global_created.val {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   event_loop_global_created.val = true
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
@@ -137,12 +137,12 @@ pub fn EventLoop::drop(_self : EventLoop) -> Unit {
 
 ///|
 pub fn EventLoop::create_proxy(_self : EventLoop) -> EventLoopProxy {
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
 pub fn EventLoop::window_target(self : EventLoop) -> ActiveEventLoop {
-  { inner: self }
+  { inner: self, }
 }
 
 ///|
@@ -509,3 +509,27 @@ pub fn ActiveEventLoop::owned_display_handle(self : ActiveEventLoop) -> UInt64 {
 pub fn ActiveEventLoop::display_handle(self : ActiveEventLoop) -> UInt64 {
   self.inner.display_handle()
 }
+
+///|
+pub extend ActiveEventLoop with Debug::{to_repr}
+
+///|
+pub extend ActiveEventLoop with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoop with Debug::{to_repr}
+
+///|
+pub extend EventLoop with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoopBuilder with Debug::{to_repr}
+
+///|
+pub extend EventLoopBuilder with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoopProxy with Debug::{to_repr}
+
+///|
+pub extend EventLoopProxy with Eq::{not_equal, equal}

@@ -1,11 +1,11 @@
 ///|
-struct RecordingApp {
+priv struct RecordingApp {
   events : Array[@core.WindowEvent]
   mut proxy_wake_count : Int
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with fn window_event(
+impl ApplicationHandler for RecordingApp with fn window_event(
   self,
   _event_loop,
   _window_id,
@@ -15,7 +15,7 @@ pub impl ApplicationHandler for RecordingApp with fn window_event(
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
+impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
   self,
   _event_loop,
 ) {
@@ -30,7 +30,7 @@ fn reset_test_state() -> Unit {
 
 ///|
 fn test_active_loop() -> ActiveEventLoop {
-  { inner: { context: (0 : Int).to_uint64(), wake_fd: -1 } }
+  { inner: { context: (0 : Int).to_uint64(), wake_fd: -1, }, }
 }
 
 ///|
@@ -40,9 +40,9 @@ fn assert_keyboard_character_text(
   expected_text : String?,
 ) -> Unit raise {
   match event {
-    @core.WindowEvent::KeyboardInput(_, key_event, false) => {
+    KeyboardInput(_, key_event, false) => {
       match key_event.logical_key() {
-        @core.Key::Character(key) => inspect(key, content=expected_key)
+        Character(key) => inspect(key, content=expected_key)
         _ => fail("expected character logical key")
       }
       match (key_event.text(), expected_text) {
@@ -60,16 +60,16 @@ test "linux app state allocates window ids and stores control flow" {
   reset_test_state()
   assert_eq(app_state_next_window_id(), 1)
   assert_eq(app_state_next_window_id(), 2)
-  app_state_set_control_flow(@core.ControlFlow::Poll)
-  assert_eq(app_state_control_flow(), @core.ControlFlow::Poll)
-  app_state_set_control_flow(@core.ControlFlow::WaitUntil(1234L))
-  assert_eq(app_state_control_flow(), @core.ControlFlow::WaitUntil(1234L))
+  app_state_set_control_flow(Poll)
+  assert_eq(app_state_control_flow(), Poll)
+  app_state_set_control_flow(WaitUntil(1234L))
+  assert_eq(app_state_control_flow(), WaitUntil(1234L))
 }
 
 ///|
 test "linux dispatch maps resize pointer key and redraw" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -84,29 +84,23 @@ test "linux dispatch maps resize pointer key and redraw" {
   app_state_queue_redraw(raw_id)
   app_state_dispatch_redraws(app, active_loop)
   assert_eq(app.events.length(), 5)
-  assert_true(app.events[0] is @core.WindowEvent::SurfaceResized(_))
-  assert_true(app.events[1] is @core.WindowEvent::PointerMoved(_, _, _, _))
+  assert_true(app.events[0] is SurfaceResized(_))
+  assert_true(app.events[1] is PointerMoved(_, _, _, _))
   match app.events[2] {
-    @core.WindowEvent::PointerButton(
-      _,
-      @core.ElementState::Pressed,
-      position,
-      true,
-      @core.ButtonSource::Mouse(@core.MouseButton::Left)
-    ) => {
+    PointerButton(_, Pressed, position, true, Mouse(Left)) => {
       assert_eq(position.x(), 12.0)
       assert_eq(position.y(), 34.0)
     }
     _ => fail("expected pointer button with native coordinates")
   }
   assert_keyboard_character_text(app.events[3], "a", Some("a"))
-  assert_true(app.events[4] is @core.WindowEvent::RedrawRequested)
+  assert_true(app.events[4] is RedrawRequested)
 }
 
 ///|
 test "linux key dispatch includes basic text and shift state" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -115,7 +109,7 @@ test "linux key dispatch includes basic text and shift state" {
   dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 30L)
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::ModifiersChanged(modifiers) => {
+    ModifiersChanged(modifiers) => {
       assert_true(modifiers.shift_key())
       assert_false(modifiers.control_key())
     }
@@ -127,7 +121,7 @@ test "linux key dispatch includes basic text and shift state" {
 ///|
 test "linux control shortcuts do not emit insertable text" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -136,7 +130,7 @@ test "linux control shortcuts do not emit insertable text" {
   dispatch_native_input_event(raw_id, linux_event_key_down, 0, 0, 0, 46L)
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::ModifiersChanged(modifiers) => {
+    ModifiersChanged(modifiers) => {
       assert_true(modifiers.control_key())
       assert_false(modifiers.shift_key())
     }
@@ -148,7 +142,7 @@ test "linux control shortcuts do not emit insertable text" {
 ///|
 test "linux dispatch maps proxy wake" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -166,10 +160,10 @@ test "linux focus updates has_focus state" {
     title: "focus",
     visible: true,
     resizable: true,
-    cursor: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor: Icon(Default),
     fullscreen: None,
     focused: false,
-    surface_size: @dpi.PhysicalSize::PhysicalSize(1, 1),
+    surface_size: PhysicalSize(1, 1),
     scale_factor: 1.0,
   })
   assert_false(app_state_window_focused(raw_id))
@@ -192,7 +186,7 @@ test "linux clipboard and drag-drop APIs are safe without a Wayland context" {
 ///|
 test "linux wheel dispatch preserves native delta signs" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -204,33 +198,21 @@ test "linux wheel dispatch preserves native delta signs" {
   dispatch_native_input_event(raw_id, linux_event_wheel, -30, 0, 0, 0L)
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), -120.0)
     }
     _ => fail("expected mouse wheel event")
   }
   match app.events[1] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), 120.0)
     }
     _ => fail("expected mouse wheel event")
   }
   match app.events[2] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), -30.0)
       assert_eq(position.y(), 0.0)
     }
@@ -241,7 +223,7 @@ test "linux wheel dispatch preserves native delta signs" {
 ///|
 test "linux dispatch maps drag lifecycle events" {
   reset_test_state()
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -252,7 +234,7 @@ test "linux dispatch maps drag lifecycle events" {
   dispatch_native_input_event(raw_id, linux_event_drag_leave, 15, 37, 0, 0L)
   assert_eq(app.events.length(), 4)
   match app.events[0] {
-    @core.WindowEvent::DragEntered(paths, position) => {
+    DragEntered(paths, position) => {
       assert_eq(paths.length(), 0)
       assert_eq(position.x(), 12.0)
       assert_eq(position.y(), 34.0)
@@ -260,14 +242,14 @@ test "linux dispatch maps drag lifecycle events" {
     _ => fail("expected drag entered")
   }
   match app.events[1] {
-    @core.WindowEvent::DragMoved(position) => {
+    DragMoved(position) => {
       assert_eq(position.x(), 13.0)
       assert_eq(position.y(), 35.0)
     }
     _ => fail("expected drag moved")
   }
   match app.events[2] {
-    @core.WindowEvent::DragDropped(paths, position) => {
+    DragDropped(paths, position) => {
       assert_eq(paths.length(), 0)
       assert_eq(position.x(), 14.0)
       assert_eq(position.y(), 36.0)
@@ -275,7 +257,7 @@ test "linux dispatch maps drag lifecycle events" {
     _ => fail("expected drag dropped")
   }
   match app.events[3] {
-    @core.WindowEvent::DragLeft(Some(position)) => {
+    DragLeft(Some(position)) => {
       assert_eq(position.x(), 15.0)
       assert_eq(position.y(), 37.0)
     }

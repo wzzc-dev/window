@@ -30,7 +30,7 @@ pub fn EventLoop::builder() -> EventLoopBuilder {
 
 ///|
 pub fn EventLoopBuilder::new() -> EventLoopBuilder {
-  { platform_attributes_: @core.PlatformEventLoopAttributes::default() }
+  { platform_attributes_: @core.PlatformEventLoopAttributes::default(), }
 }
 
 ///|
@@ -130,16 +130,16 @@ pub fn EventLoop::try_new_with_platform_attributes(
   _attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop raise @core.EventLoopError {
   if event_loop_global_created.val {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   app_state_install_web_callbacks()
   event_loop_global_created.val = true
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
 fn EventLoop::as_active(self : EventLoop) -> ActiveEventLoop {
-  { inner: self }
+  { inner: self, }
 }
 
 ///|
@@ -189,7 +189,7 @@ pub fn EventLoop::try_create_window_with_web_attributes(
 ///|
 pub fn EventLoop::create_proxy(self : EventLoop) -> EventLoopProxy {
   let _ = self
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
@@ -458,7 +458,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   app : A,
 ) -> Unit raise @core.EventLoopError {
   if app_state_is_running() {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   app_state_set_running(true)
   app_state_clear_exit()
@@ -520,17 +520,41 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   }
   self.dispatch_events(app)
   if app_state_exit_requested() {
-    @core.PumpStatus::Exit(app_state_exit_code())
+    Exit(app_state_exit_code())
   } else {
-    @core.PumpStatus::Continue
+    Continue
   }
 }
 
 ///|
 fn theme_from_native(theme : Int) -> @core.Theme? {
   match theme {
-    1 => Some(@core.Theme::Dark)
-    0 => Some(@core.Theme::Light)
+    1 => Some(Dark)
+    0 => Some(Light)
     _ => None
   }
 }
+
+///|
+pub extend EventLoopProxy with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoopProxy with Debug::{to_repr}
+
+///|
+pub extend EventLoop with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoop with Debug::{to_repr}
+
+///|
+pub extend EventLoopBuilder with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoopBuilder with Debug::{to_repr}
+
+///|
+pub extend ActiveEventLoop with Eq::{not_equal, equal}
+
+///|
+pub extend ActiveEventLoop with Debug::{to_repr}

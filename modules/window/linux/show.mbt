@@ -30,3 +30,18 @@ pub impl Show for Window with fn output(self, logger) {
   logger.write_object(self.id)
   logger.write_string(")")
 }
+
+///|
+pub extend ActiveEventLoop with Show::{to_string, output}
+
+///|
+pub extend EventLoop with Show::{to_string, output}
+
+///|
+pub extend EventLoopBuilder with Show::{to_string, output}
+
+///|
+pub extend EventLoopProxy with Show::{to_string, output}
+
+///|
+pub extend Window with Show::{to_string, output}

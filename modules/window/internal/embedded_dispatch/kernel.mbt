@@ -51,7 +51,7 @@ pub struct EmbeddedDispatchQueue {
 
 ///|
 pub fn EmbeddedDispatchQueue::new() -> EmbeddedDispatchQueue {
-  { pending: [], surface: None }
+  { pending: [], surface: None, }
 }
 
 ///|
@@ -121,46 +121,37 @@ fn dispatch_embedded_command(
 ) -> Array[EmbeddedDispatchEffect] {
   match command {
     Start => []
-    Resume => [EmbeddedDispatchEffect::Resumed]
-    Pause | Stop =>
-      [
-        EmbeddedDispatchEffect::DestroySurfaces,
-        EmbeddedDispatchEffect::Suspended,
-      ]
+    Resume => [Resumed]
+    Pause | Stop => [DestroySurfaces, Suspended]
     SurfaceInit(handle, token, width, height, scale_factor) =>
       [
-        EmbeddedDispatchEffect::CanCreateSurfaces,
-        EmbeddedDispatchEffect::SurfaceChanged({
+        CanCreateSurfaces,
+        SurfaceChanged({
           handle,
           token,
           physical_size: normalized_size(width, height),
           scale_factor: normalized_scale(scale_factor, fallback=1.0),
         }),
       ]
-    SurfaceTerm =>
-      [
-        EmbeddedDispatchEffect::SurfaceInvalidated,
-        EmbeddedDispatchEffect::DestroySurfaces,
-      ]
+    SurfaceTerm => [SurfaceInvalidated, DestroySurfaces]
     SurfaceResize(width, height, scale_factor) =>
       [
-        EmbeddedDispatchEffect::SurfaceChanged({
+        SurfaceChanged({
           handle: 0UL,
           token: 0UL,
           physical_size: normalized_size(width, height),
           scale_factor: normalized_scale(scale_factor, fallback=1.0),
         }),
       ]
-    WindowEvent(event) => [EmbeddedDispatchEffect::WindowEvent(event)]
-    MemoryWarning => [EmbeddedDispatchEffect::MemoryWarning]
-    Destroy =>
-      [EmbeddedDispatchEffect::DestroySurfaces, EmbeddedDispatchEffect::Exit(0)]
+    WindowEvent(event) => [WindowEvent(event)]
+    MemoryWarning => [MemoryWarning]
+    Destroy => [DestroySurfaces, Exit(0)]
   }
 }
 
 ///|
 fn normalized_size(width : Int, height : Int) -> @dpi.PhysicalSize {
-  @dpi.PhysicalSize::PhysicalSize(width.max(1), height.max(1))
+  PhysicalSize(width.max(1), height.max(1))
 }
 
 ///|
@@ -171,3 +162,9 @@ fn normalized_scale(scale : Double, fallback~ : Double) -> Double {
     fallback
   }
 }
+
+///|
+pub extend EmbeddedDispatchSurface with Debug::{to_repr}
+
+///|
+pub extend EmbeddedDispatchSurface with Eq::{not_equal, equal}

@@ -5,7 +5,7 @@ pub fn monitor_ns_screen(_handle : @core.MonitorHandle) -> UInt64? {
 
 ///|
 fn default_monitor() -> @core.MonitorHandle {
-  @core.MonitorHandle::MonitorHandle(
+  MonitorHandle(
     1UL,
     Some("Primary"),
     PhysicalPosition(0, 0),

@@ -19,12 +19,12 @@ pub(all) struct EventLoop {
 
 ///|
 pub fn EventLoop::new() -> EventLoop {
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
 pub fn EventLoop::as_active(self : EventLoop) -> ActiveEventLoop {
-  { inner: self }
+  { inner: self, }
 }
 
 ///|
@@ -39,15 +39,11 @@ pub fn[A : ApplicationHandler] EventLoop::run_app(
 ) -> Unit {
   // Dispatch initial lifecycle events synchronously
   let active = self.as_active()
-  handler.new_events(active, @core.StartCause::Init)
+  handler.new_events(active, Init)
   handler.resumed(active)
   handler.can_create_surfaces(active)
-  handler.new_events(active, @core.StartCause::Poll)
-  handler.window_event(
-    active,
-    @core.WindowId::from_raw(0),
-    @core.WindowEvent::RedrawRequested,
-  )
+  handler.new_events(active, Poll)
+  handler.window_event(active, @core.WindowId::from_raw(0), RedrawRequested)
 }
 
 ///|
@@ -72,7 +68,7 @@ pub fn[A : ApplicationHandler] EventLoop::handle_resumed(
   self : EventLoop,
   handler : A,
 ) -> Unit {
-  handler.new_events(self.as_active(), @core.StartCause::Init)
+  handler.new_events(self.as_active(), Init)
   handler.resumed(self.as_active())
 }
 
@@ -113,7 +109,7 @@ pub fn EventLoop::set_control_flow(
 ///|
 pub fn EventLoop::control_flow(self : EventLoop) -> @core.ControlFlow {
   let _ = self
-  @core.ControlFlow::Poll
+  Poll
 }
 
 ///|
@@ -130,7 +126,7 @@ pub fn EventLoop::exiting(self : EventLoop) -> Bool {
 ///|
 pub fn EventLoop::create_proxy(self : EventLoop) -> EventLoopProxy {
   let _ = self
-  { _unit: () }
+  { _unit: (), }
 }
 
 // --- Monitor ---
@@ -149,11 +145,11 @@ pub fn EventLoop::primary_monitor(_self : EventLoop) -> @core.MonitorHandle? {
 
 ///|
 fn default_monitor() -> @core.MonitorHandle {
-  @core.MonitorHandle::MonitorHandle(
+  MonitorHandle(
     (0 : Int).to_uint64(),
     Some("WeChat viewport"),
-    @dpi.PhysicalPosition::PhysicalPosition(0, 0),
-    @dpi.PhysicalSize::PhysicalSize(0, 0),
+    PhysicalPosition(0, 0),
+    PhysicalSize(0, 0),
     1.0,
     None,
     [],
@@ -176,7 +172,7 @@ pub fn EventLoop::create_window(
 ) -> Window {
   let size = match window_attributes.inner_size() {
     Some(s) => s
-    None => @dpi.Size::from_logical(@dpi.LogicalSize::LogicalSize(375.0, 812.0))
+    None => @dpi.Size::from_logical(LogicalSize(375.0, 812.0))
   }
   Window::new(
     id=@core.WindowId::from_raw(0),

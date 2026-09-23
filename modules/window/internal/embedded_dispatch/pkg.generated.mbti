@@ -53,6 +53,9 @@ pub(all) struct EmbeddedDispatchSurface {
   physical_size : @dpi.PhysicalSize
   scale_factor : Double
 } derive(Eq, @debug.Debug)
+pub fn EmbeddedDispatchSurface::equal(Self, Self) -> Bool
+pub fn EmbeddedDispatchSurface::not_equal(Self, Self) -> Bool
+pub fn EmbeddedDispatchSurface::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

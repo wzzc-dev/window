@@ -62,14 +62,14 @@ fn app_state_register_window_handle(raw_id : Int, hwnd : UInt64) -> Unit {
   let mut replaced = false
   for entry in app_state_runtime.val.window_handles {
     if entry.raw_id == raw_id {
-      next_entries.push({ raw_id, hwnd })
+      next_entries.push({ raw_id, hwnd, })
       replaced = true
     } else {
       next_entries.push(entry)
     }
   }
   if replaced == false {
-    next_entries.push({ raw_id, hwnd })
+    next_entries.push({ raw_id, hwnd, })
   }
   app_state_runtime.val.window_handles = next_entries
 }

@@ -32,16 +32,16 @@ pub impl @windows.ApplicationHandler for App with fn window_event(
 ) {
   println("\{event}")
   match event {
-    @core.WindowEvent::CloseRequested => {
+    CloseRequested => {
       println("Close was requested; stopping")
       event_loop.exit()
     }
-    @core.WindowEvent::SurfaceResized(_) =>
+    SurfaceResized(_) =>
       match self.window {
         Some(window) => window.request_redraw()
         None => ()
       }
-    @core.WindowEvent::RedrawRequested =>
+    RedrawRequested =>
       match self.window {
         Some(window) => window.pre_present_notify()
         None => ()
@@ -53,5 +53,5 @@ pub impl @windows.ApplicationHandler for App with fn window_event(
 ///|
 fn main {
   let event_loop = @windows.EventLoop::new()
-  event_loop.run_app({ window: None })
+  event_loop.run_app({ window: None, })
 }

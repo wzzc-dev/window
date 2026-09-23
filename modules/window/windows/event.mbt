@@ -113,14 +113,14 @@ fn set_pending_windows_high_surrogate(raw_id : Int, code : Int) -> Unit {
   let mut replaced = false
   for entry in windows_pending_high_surrogates.val {
     if entry.raw_id == raw_id {
-      next.push({ raw_id, code })
+      next.push({ raw_id, code, })
       replaced = true
     } else {
       next.push(entry)
     }
   }
   if !replaced {
-    next.push({ raw_id, code })
+    next.push({ raw_id, code, })
   }
   windows_pending_high_surrogates.val = next
 }

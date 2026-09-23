@@ -112,7 +112,7 @@ pub fn Window::new_with_android_attributes(
     ime_allowed_state: false,
     ime_capabilities_state: None,
     ime_hints_state: @core.ImeHint::none(),
-    ime_purpose_state: @core.ImePurpose::Normal,
+    ime_purpose_state: Normal,
     ime_surrounding_text_state: None,
     ime_cursor_area_position_state: PhysicalPosition(0, 0),
     ime_cursor_area_size_state: PhysicalSize(1, 1),
@@ -965,3 +965,6 @@ pub fn Window::set_option_as_alt(
 pub fn Window::reset_dead_keys(___self : Window) -> Unit {
   ()
 }
+
+///|
+pub extend Window with Eq::{not_equal, equal}

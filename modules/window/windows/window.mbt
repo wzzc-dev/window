@@ -983,13 +983,13 @@ pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
 }
 
 ///|
-fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
+pub fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
   let _ = self
   Windows(@windowing.WindowsDisplayHandle::new())
 }
 
 ///|
-fn Window::raw_window_handle(
+pub fn Window::raw_window_handle(
   self : Window,
 ) -> @windowing.RawWindowHandle raise @windowing.HandleError {
   Win32(
@@ -1317,3 +1317,9 @@ fn cursor_icon_to_native(icon : @core.CursorIcon) -> UInt64 {
   }
   native_load_cursor((0 : Int).to_uint64(), name)
 }
+
+///|
+pub extend Window with Debug::{to_repr}
+
+///|
+pub extend Window with Eq::{not_equal, equal}

@@ -9,7 +9,7 @@ host="$(detect_window_ci_host)"
 
 moon fmt --check
 moon check
-moon check --warn-list +73
+moon check --warn-list +73 --deny-warn
 
 case "$host" in
   linux|windows)
@@ -28,7 +28,6 @@ case "$host" in
     moon build
     ;;
 esac
-
 scripts/check_examples_build.sh
 scripts/check_ffi_surface.sh
 scripts/check_event_loop_thread_boundary.sh

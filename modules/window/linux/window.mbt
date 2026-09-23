@@ -196,7 +196,7 @@ pub fn Window::surface_size(self : Window) -> @dpi.PhysicalSize {
 ///|
 pub fn Window::inner_position(self : Window) -> @dpi.PhysicalPosition {
   let _ = self
-  @dpi.PhysicalPosition::PhysicalPosition(0, 0)
+  PhysicalPosition(0, 0)
 }
 
 ///|
@@ -329,7 +329,7 @@ pub fn Window::set_cursor_icon(
   self : Window,
   cursor : @core.CursorIcon,
 ) -> Unit {
-  app_state_set_window_cursor(self.raw_id(), @core.Cursor::Icon(cursor))
+  app_state_set_window_cursor(self.raw_id(), Icon(cursor))
 }
 
 ///|
@@ -373,7 +373,7 @@ pub fn Window::set_cursor_grab(
 ) -> Unit raise @core.RequestError {
   let _ = self
   match mode {
-    @core.CursorGrabMode::None => ()
+    None => ()
     _ =>
       raise @core.RequestError::not_supported(
         "Linux cursor grab only supports CursorGrabMode::None",
@@ -738,15 +738,15 @@ pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
 }
 
 ///|
-fn Window::raw_display_handle(
+pub fn Window::raw_display_handle(
   self : Window,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
   match self.windowing_backend() {
-    WindowingBackend::X11 =>
+    X11 =>
       Xlib(
         @windowing.XlibDisplayHandle::new(Some(self.native_display_handle()), 0),
       )
-    WindowingBackend::Wayland =>
+    Wayland =>
       Wayland(
         @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
       )
@@ -754,13 +754,12 @@ fn Window::raw_display_handle(
 }
 
 ///|
-fn Window::raw_window_handle(
+pub fn Window::raw_window_handle(
   self : Window,
 ) -> @windowing.RawWindowHandle raise @windowing.HandleError {
   match self.windowing_backend() {
-    WindowingBackend::X11 =>
-      Xlib(@windowing.XlibWindowHandle::new(self.native_window_handle()))
-    WindowingBackend::Wayland =>
+    X11 => Xlib(@windowing.XlibWindowHandle::new(self.native_window_handle()))
+    Wayland =>
       Wayland(@windowing.WaylandWindowHandle::new(self.native_window_handle()))
   }
 }
@@ -823,7 +822,7 @@ pub fn Window::set_borderless_game(self : Window, _borderless : Bool) -> Unit {
 ///|
 pub fn Window::option_as_alt(self : Window) -> @core.OptionAsAlt {
   let _ = self
-  @core.OptionAsAlt::None
+  None
 }
 
 ///|
@@ -937,7 +936,7 @@ pub fn Window::set_surface_resize_increments(
 ///|
 pub fn Window::safe_area(self : Window) -> @dpi.PhysicalInsets {
   let _ = self
-  @dpi.PhysicalInsets::PhysicalInsets(0, 0, 0, 0)
+  PhysicalInsets(0, 0, 0, 0)
 }
 
 ///|
@@ -1037,3 +1036,6 @@ pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
   let _ = self
   primary_monitor()
 }
+
+///|
+pub extend Window with Eq::{not_equal, equal}

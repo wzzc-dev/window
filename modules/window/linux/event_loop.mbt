@@ -33,7 +33,7 @@ pub fn EventLoop::builder() -> EventLoopBuilder {
 
 ///|
 pub fn EventLoopBuilder::new() -> EventLoopBuilder {
-  { platform_attributes_: @core.PlatformEventLoopAttributes::default() }
+  { platform_attributes_: @core.PlatformEventLoopAttributes::default(), }
 }
 
 ///|
@@ -133,7 +133,7 @@ pub fn EventLoop::try_new_with_platform_attributes(
   _attributes : @core.PlatformEventLoopAttributes,
 ) -> EventLoop raise @core.EventLoopError {
   if event_loop_global_created.val {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   let context = native_context_new()
   if context == (0 : Int).to_uint64() {
@@ -145,12 +145,12 @@ pub fn EventLoop::try_new_with_platform_attributes(
   app_state_set_context(context)
   app_state_install_native_callbacks()
   event_loop_global_created.val = true
-  { context, wake_fd }
+  { context, wake_fd, }
 }
 
 ///|
 fn EventLoop::as_active(self : EventLoop) -> ActiveEventLoop {
-  { inner: self }
+  { inner: self, }
 }
 
 ///|
@@ -201,7 +201,7 @@ pub fn EventLoop::try_create_window_with_linux_attributes(
 
 ///|
 pub fn EventLoop::create_proxy(self : EventLoop) -> EventLoopProxy {
-  { context: self.context, wake_fd: self.wake_fd }
+  { context: self.context, wake_fd: self.wake_fd, }
 }
 
 ///|
@@ -314,11 +314,11 @@ pub fn EventLoop::raw_display_handle(
   self : EventLoop,
 ) -> @windowing.RawDisplayHandle raise @windowing.HandleError {
   match self.windowing_backend() {
-    WindowingBackend::X11 =>
+    X11 =>
       Xlib(
         @windowing.XlibDisplayHandle::new(Some(self.native_display_handle()), 0),
       )
-    WindowingBackend::Wayland =>
+    Wayland =>
       Wayland(
         @windowing.WaylandDisplayHandle::new(self.native_display_handle()),
       )
@@ -538,9 +538,9 @@ fn control_flow_timeout_ms(
   blocking : Bool,
 ) -> Int {
   match control_flow {
-    @core.ControlFlow::Poll => 0
-    @core.ControlFlow::Wait => if blocking { -1 } else { 0 }
-    @core.ControlFlow::WaitUntil(ms) => {
+    Poll => 0
+    Wait => if blocking { -1 } else { 0 }
+    WaitUntil(ms) => {
       let now = native_now_ms()
       let timeout = if ms <= now { 0 } else { (ms - now).to_int() }
       if blocking {
@@ -590,7 +590,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
   app : A,
 ) -> Unit raise @core.EventLoopError {
   if app_state_is_running() {
-    raise @core.EventLoopError::RecreationAttempt
+    raise RecreationAttempt
   }
   app_state_set_running(true)
   app_state_clear_exit()
@@ -646,8 +646,26 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   }
   self.dispatch_events(app)
   if app_state_exit_requested() {
-    @core.PumpStatus::Exit(app_state_exit_code())
+    Exit(app_state_exit_code())
   } else {
-    @core.PumpStatus::Continue
+    Continue
   }
 }
+
+///|
+pub extend ActiveEventLoop with Debug::{to_repr}
+
+///|
+pub extend EventLoop with Debug::{to_repr}
+
+///|
+pub extend EventLoopBuilder with Debug::{to_repr}
+
+///|
+pub extend EventLoopBuilder with Eq::{not_equal, equal}
+
+///|
+pub extend EventLoopProxy with Debug::{to_repr}
+
+///|
+pub extend EventLoopProxy with Eq::{not_equal, equal}

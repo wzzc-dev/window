@@ -103,12 +103,12 @@ fn log_handles(window : @linux.Window) -> Bool {
   match window.windowing_backend() {
     // X11: the surface handle is the Xlib `Window` XID and the xdg handle
     // slots are intentionally empty.
-    @linux.WindowingBackend::X11 =>
+    X11 =>
       wl_display != (0 : Int).to_uint64() &&
       wl_surface != (0 : Int).to_uint64() &&
       xdg_surface == (0 : Int).to_uint64() &&
       xdg_toplevel == (0 : Int).to_uint64()
-    @linux.WindowingBackend::Wayland =>
+    Wayland =>
       wl_display != (0 : Int).to_uint64() &&
       wl_surface != (0 : Int).to_uint64() &&
       xdg_surface != (0 : Int).to_uint64() &&

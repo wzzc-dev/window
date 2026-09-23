@@ -1,11 +1,11 @@
 ///|
-struct RecordingApp {
+priv struct RecordingApp {
   events : Array[@core.WindowEvent]
   mut proxy_wake_count : Int
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with fn window_event(
+impl ApplicationHandler for RecordingApp with fn window_event(
   self,
   _event_loop,
   _window_id,
@@ -15,7 +15,7 @@ pub impl ApplicationHandler for RecordingApp with fn window_event(
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
+impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
   self,
   _event_loop,
 ) {
@@ -24,12 +24,12 @@ pub impl ApplicationHandler for RecordingApp with fn proxy_wake_up(
 
 ///|
 fn test_active_loop() -> ActiveEventLoop {
-  { inner: { _unit: () } }
+  { inner: { _unit: (), }, }
 }
 
 ///|
 test "web dispatch maps resize pointer key and redraw" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -41,22 +41,22 @@ test "web dispatch maps resize pointer key and redraw" {
   app_state_queue_redraw(raw_id)
   app_state_dispatch_redraws(app, active_loop)
   assert_eq(app.events.length(), 4)
-  assert_true(app.events[0] is @core.WindowEvent::SurfaceResized(_))
-  assert_true(app.events[1] is @core.WindowEvent::PointerMoved(_, _, _, _))
+  assert_true(app.events[0] is SurfaceResized(_))
+  assert_true(app.events[1] is PointerMoved(_, _, _, _))
   match app.events[2] {
-    @core.WindowEvent::KeyboardInput(_, event, false) =>
+    KeyboardInput(_, event, false) =>
       match event.text() {
         Some("a") => ()
         _ => fail("expected character key text")
       }
     _ => fail("expected keyboard input")
   }
-  assert_true(app.events[3] is @core.WindowEvent::RedrawRequested)
+  assert_true(app.events[3] is RedrawRequested)
 }
 
 ///|
 test "web dispatch takes the browser supplied scale factor" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -66,7 +66,7 @@ test "web dispatch takes the browser supplied scale factor" {
     title: "",
     visible: true,
     resizable: true,
-    cursor: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor: Icon(Default),
     fullscreen: None,
     focused: false,
     scale_factor: 1.0,
@@ -83,7 +83,7 @@ test "web dispatch takes the browser supplied scale factor" {
 
 ///|
 test "web dispatch maps proxy wake" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -93,7 +93,7 @@ test "web dispatch maps proxy wake" {
 
 ///|
 test "web dispatch maps ime composition lifecycle" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -102,21 +102,20 @@ test "web dispatch maps ime composition lifecycle" {
   web_dispatch_event(web_event_ime_preedit, raw_id, 0, 2, 0.0, "ni")
   web_dispatch_event(web_event_ime_commit, raw_id, 0, 0, 0.0, "你")
   assert_eq(app.events.length(), 3)
-  assert_true(app.events[0] is @core.WindowEvent::Ime(@core.Ime::Enabled))
+  assert_true(app.events[0] is Ime(Enabled))
   match app.events[1] {
-    @core.WindowEvent::Ime(@core.Ime::Preedit("ni", Some({ start: 0, end: 2 }))) =>
-      ()
+    Ime(Preedit("ni", Some({ start: 0, end: 2, }))) => ()
     _ => fail("expected ime preedit")
   }
   match app.events[2] {
-    @core.WindowEvent::Ime(@core.Ime::Commit("你")) => ()
+    Ime(Commit("你")) => ()
     _ => fail("expected ime commit")
   }
 }
 
 ///|
 test "web wheel dispatch preserves native delta signs" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -128,33 +127,21 @@ test "web wheel dispatch preserves native delta signs" {
   web_dispatch_event(web_event_wheel, raw_id, -30, 0, 0.0, "")
   assert_eq(app.events.length(), 3)
   match app.events[0] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), -120.0)
     }
     _ => fail("expected mouse wheel event")
   }
   match app.events[1] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), 0.0)
       assert_eq(position.y(), 120.0)
     }
     _ => fail("expected mouse wheel event")
   }
   match app.events[2] {
-    @core.WindowEvent::MouseWheel(
-      _,
-      @core.MouseScrollDelta::PixelDelta(position),
-      @core.TouchPhase::Moved
-    ) => {
+    MouseWheel(_, PixelDelta(position), Moved) => {
       assert_eq(position.x(), -30.0)
       assert_eq(position.y(), 0.0)
     }
@@ -164,7 +151,7 @@ test "web wheel dispatch preserves native delta signs" {
 
 ///|
 test "web dispatch maps browser file drag drop lifecycle" {
-  let app = { events: [], proxy_wake_count: 0 }
+  let app = { events: [], proxy_wake_count: 0, }
   let active_loop = test_active_loop()
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, active_loop)
@@ -177,7 +164,7 @@ test "web dispatch maps browser file drag drop lifecycle" {
   web_dispatch_event(web_event_drag_leave, raw_id, 22, 44, 0.0, "")
   assert_eq(app.events.length(), 4)
   match app.events[0] {
-    @core.WindowEvent::DragEntered(paths, { x: 12.0, y: 24.0 }) => {
+    DragEntered(paths, { x: 12.0, y: 24.0, }) => {
       inspect(paths.length(), content="2")
       inspect(paths[0], content="note.md")
       inspect(paths[1], content="image.png")
@@ -185,18 +172,18 @@ test "web dispatch maps browser file drag drop lifecycle" {
     _ => fail("expected drag enter")
   }
   match app.events[1] {
-    @core.WindowEvent::DragMoved({ x: 16.0, y: 32.0 }) => ()
+    DragMoved({ x: 16.0, y: 32.0, }) => ()
     _ => fail("expected drag move")
   }
   match app.events[2] {
-    @core.WindowEvent::DragDropped(paths, { x: 20.0, y: 40.0 }) => {
+    DragDropped(paths, { x: 20.0, y: 40.0, }) => {
       inspect(paths.length(), content="1")
       inspect(paths[0], content="note.md")
     }
     _ => fail("expected drag drop")
   }
   match app.events[3] {
-    @core.WindowEvent::DragLeft(Some({ x: 22.0, y: 44.0 })) => ()
+    DragLeft(Some({ x: 22.0, y: 44.0, })) => ()
     _ => fail("expected drag leave")
   }
 }

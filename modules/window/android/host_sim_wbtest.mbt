@@ -1,12 +1,12 @@
 ///|
-struct HostSimApp {
+priv struct HostSimApp {
   log : Ref[Array[String]]
   window : Ref[Window?]
 }
 
 ///|
 fn HostSimApp::new() -> HostSimApp {
-  { log: Ref([]), window: Ref(None) }
+  { log: Ref([]), window: Ref(None), }
 }
 
 ///|
@@ -25,7 +25,7 @@ fn HostSimApp::has_prefix(self : HostSimApp, prefix : String) -> Bool {
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn new_events(
+impl ApplicationHandler for HostSimApp with fn new_events(
   self,
   _event_loop,
   cause,
@@ -34,12 +34,12 @@ pub impl ApplicationHandler for HostSimApp with fn new_events(
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn resumed(self, _event_loop) {
+impl ApplicationHandler for HostSimApp with fn resumed(self, _event_loop) {
   self.push("resumed")
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn can_create_surfaces(
+impl ApplicationHandler for HostSimApp with fn can_create_surfaces(
   self,
   event_loop,
 ) {
@@ -53,7 +53,7 @@ pub impl ApplicationHandler for HostSimApp with fn can_create_surfaces(
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn destroy_surfaces(
+impl ApplicationHandler for HostSimApp with fn destroy_surfaces(
   self,
   _event_loop,
 ) {
@@ -66,20 +66,17 @@ pub impl ApplicationHandler for HostSimApp with fn destroy_surfaces(
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn suspended(self, _event_loop) {
+impl ApplicationHandler for HostSimApp with fn suspended(self, _event_loop) {
   self.push("suspended")
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn memory_warning(
-  self,
-  _event_loop,
-) {
+impl ApplicationHandler for HostSimApp with fn memory_warning(self, _event_loop) {
   self.push("memory_warning")
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn window_event(
+impl ApplicationHandler for HostSimApp with fn window_event(
   self,
   _event_loop,
   _id,
@@ -96,10 +93,7 @@ pub impl ApplicationHandler for HostSimApp with fn window_event(
 }
 
 ///|
-pub impl ApplicationHandler for HostSimApp with fn about_to_wait(
-  self,
-  _event_loop,
-) {
+impl ApplicationHandler for HostSimApp with fn about_to_wait(self, _event_loop) {
   self.push("about_to_wait")
 }
 

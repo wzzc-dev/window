@@ -12,7 +12,7 @@ pub struct WindowAttributesWeb {
 
 ///|
 pub fn WindowAttributesWeb::default() -> WindowAttributesWeb {
-  { canvas_id_: None, append_to_body_: true }
+  { canvas_id_: None, append_to_body_: true, }
 }
 
 ///|
@@ -72,3 +72,9 @@ pub fn ActiveEventLoop::poll_strategy(self : ActiveEventLoop) -> PollStrategy {
   let _ = self
   app_state_poll_strategy()
 }
+
+///|
+pub extend WindowAttributesWeb with Eq::{not_equal, equal}
+
+///|
+pub extend WindowAttributesWeb with Debug::{to_repr}

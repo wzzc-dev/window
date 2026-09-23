@@ -3,7 +3,7 @@ test "embedded dispatch preserves command order without lifecycle state" {
   let queue = EmbeddedDispatchQueue::new()
   queue.push(Resume)
   queue.push(SurfaceInit(1UL, 2UL, 100, 200, 2.0))
-  queue.push(WindowEvent(@core.WindowEvent::RedrawRequested))
+  queue.push(WindowEvent(RedrawRequested))
   let effects = queue.drain()
   inspect(effects.length(), content="4")
   match effects[0] {
@@ -15,7 +15,7 @@ test "embedded dispatch preserves command order without lifecycle state" {
     _ => fail("expected can_create_surfaces")
   }
   match effects[3] {
-    WindowEvent(@core.WindowEvent::RedrawRequested) => ()
+    WindowEvent(RedrawRequested) => ()
     _ => fail("expected window event")
   }
   inspect(queue.drain().length(), content="0")

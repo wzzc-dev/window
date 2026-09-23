@@ -1,6 +1,6 @@
 ///|
 /// MoUI cutover sketch: ApplicationHandler on window/android hosted backend.
-struct MobileHostedSmokeApp {
+priv struct MobileHostedSmokeApp {
   log : Ref[Array[String]]
   window : Ref[@android.Window?]
   presented : Ref[Bool]
@@ -8,7 +8,7 @@ struct MobileHostedSmokeApp {
 
 ///|
 fn MobileHostedSmokeApp::new() -> MobileHostedSmokeApp {
-  { log: Ref([]), window: Ref(None), presented: Ref(false) }
+  { log: Ref([]), window: Ref(None), presented: Ref(false), }
 }
 
 ///|
@@ -20,7 +20,7 @@ fn MobileHostedSmokeApp::push(
 }
 
 ///|
-pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn resumed(
+impl @android.ApplicationHandler for MobileHostedSmokeApp with fn resumed(
   self,
   _event_loop,
 ) {
@@ -28,7 +28,7 @@ pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn resumed(
 }
 
 ///|
-pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn can_create_surfaces(
+impl @android.ApplicationHandler for MobileHostedSmokeApp with fn can_create_surfaces(
   self,
   event_loop,
 ) {
@@ -44,7 +44,7 @@ pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn can_create
 }
 
 ///|
-pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn destroy_surfaces(
+impl @android.ApplicationHandler for MobileHostedSmokeApp with fn destroy_surfaces(
   self,
   _event_loop,
 ) {
@@ -57,7 +57,7 @@ pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn destroy_su
 }
 
 ///|
-pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn suspended(
+impl @android.ApplicationHandler for MobileHostedSmokeApp with fn suspended(
   self,
   _event_loop,
 ) {
@@ -65,7 +65,7 @@ pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn suspended(
 }
 
 ///|
-pub impl @android.ApplicationHandler for MobileHostedSmokeApp with fn window_event(
+impl @android.ApplicationHandler for MobileHostedSmokeApp with fn window_event(
   self,
   event_loop,
   _id,
@@ -97,9 +97,9 @@ test "mobile_hosted_smoke_application_handler_path" {
   @android.host_reset_for_test()
   let event_loop = @android.EventLoop::new()
   let app = MobileHostedSmokeApp::new()
-  @android.host_push(@android.HostCmd::Start)
-  @android.host_push(@android.HostCmd::Resume)
-  @android.host_push(@android.HostCmd::SurfaceInit(0x55UL, 0UL, 320, 640, 2.0))
+  @android.host_push(Start)
+  @android.host_push(Resume)
+  @android.host_push(SurfaceInit(0x55UL, 0UL, 320, 640, 2.0))
   ignore(event_loop.pump_app_events(None, app))
   assert_true(app.log.val.search_by(s => s == "resumed") is Some(_))
   assert_true(app.log.val.search_by(s => s == "can_create_surfaces") is Some(_))
@@ -112,8 +112,8 @@ test "mobile_hosted_smoke_application_handler_path" {
   }
   ignore(event_loop.pump_app_events(None, app))
   assert_true(app.presented.val)
-  @android.host_push(@android.HostCmd::SurfaceTerm)
-  @android.host_push(@android.HostCmd::Stop)
+  @android.host_push(SurfaceTerm)
+  @android.host_push(Stop)
   ignore(event_loop.pump_app_events(None, app))
   assert_true(app.log.val.search_by(s => s == "destroy_surfaces") is Some(_))
   assert_true(app.log.val.search_by(s => s == "suspended") is Some(_))

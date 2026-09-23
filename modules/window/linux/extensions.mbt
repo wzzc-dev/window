@@ -6,7 +6,7 @@ pub struct WindowAttributesLinux {
 
 ///|
 pub fn WindowAttributesLinux::default() -> WindowAttributesLinux {
-  { app_id_: None, use_shm_placeholder_: true }
+  { app_id_: None, use_shm_placeholder_: true, }
 }
 
 ///|
@@ -138,3 +138,9 @@ pub impl WindowExtLinux for Window with fn xdg_toplevel(self) {
 pub impl WindowExtLinux for Window with fn uses_client_decorations(self) {
   self.uses_client_decorations()
 }
+
+///|
+pub extend WindowAttributesLinux with Debug::{to_repr}
+
+///|
+pub extend WindowAttributesLinux with Eq::{not_equal, equal}

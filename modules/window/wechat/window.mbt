@@ -40,12 +40,12 @@ pub fn Window::new(
     scale_factor,
     cursor_visible_state: true,
     cursor_hittest_state: true,
-    cursor_state: @core.Cursor::Icon(@core.CursorIcon::Default),
+    cursor_state: Icon(Default),
     decorated_state: true,
     fullscreen_state: None,
     ime_allowed_state: false,
     ime_hints_state: @core.ImeHint::none(),
-    ime_purpose_state: @core.ImePurpose::Normal,
+    ime_purpose_state: Normal,
     ime_surrounding_text_state: None,
   }
 }
@@ -75,7 +75,7 @@ pub fn Window::logical_height(self : Window) -> Double {
 ///|
 pub fn Window::inner_size(self : Window) -> @dpi.PhysicalSize {
   let logical = self.logical_size.to_logical(self.scale_factor)
-  @dpi.PhysicalSize::PhysicalSize(
+  PhysicalSize(
     (logical.width() * self.scale_factor).to_int(),
     (logical.height() * self.scale_factor).to_int(),
   )
@@ -131,7 +131,7 @@ pub fn Window::set_cursor_icon(
   self : Window,
   cursor : @core.CursorIcon,
 ) -> Unit {
-  self.cursor_state = @core.Cursor::Icon(cursor)
+  self.cursor_state = Icon(cursor)
 }
 
 ///|
@@ -175,7 +175,7 @@ pub fn Window::set_cursor_grab(
 ) -> Unit raise @core.RequestError {
   let _ = self
   match mode {
-    @core.CursorGrabMode::None => ()
+    None => ()
     _ =>
       raise @core.RequestError::not_supported(
         "WeChat Mini Program cursor grab only supports CursorGrabMode::None",

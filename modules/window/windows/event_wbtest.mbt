@@ -1,10 +1,10 @@
 ///|
-struct RecordingApp {
+priv struct RecordingApp {
   events : Array[@core.WindowEvent]
 }
 
 ///|
-pub impl ApplicationHandler for RecordingApp with fn window_event(
+impl ApplicationHandler for RecordingApp with fn window_event(
   self,
   _event_loop,
   _window_id,
@@ -23,13 +23,13 @@ fn reset_event_test_state() -> Unit {
 
 ///|
 fn test_active_loop() -> ActiveEventLoop {
-  { inner: { msg_window: 0UL, thread_id: 0 } }
+  { inner: { msg_window: 0UL, thread_id: 0, }, }
 }
 
 ///|
 fn begin_recording() -> RecordingApp {
   reset_event_test_state()
-  let app = { events: [] }
+  let app = { events: [], }
   app_state_set_running(true)
   app_state_set_dispatch_handler(app, test_active_loop())
   app

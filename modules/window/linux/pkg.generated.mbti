@@ -40,6 +40,7 @@ pub fn ActiveEventLoop::hide_application(Self) -> Unit
 pub fn ActiveEventLoop::hide_other_applications(Self) -> Unit
 pub fn ActiveEventLoop::listen_device_events(Self, @core.DeviceEvents) -> Unit
 pub fn ActiveEventLoop::native_display_handle(Self) -> UInt64
+pub fn ActiveEventLoop::output(Self, &Logger) -> Unit
 pub fn ActiveEventLoop::owned_display_handle(Self) -> UInt64
 pub fn ActiveEventLoop::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn ActiveEventLoop::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
@@ -47,6 +48,8 @@ pub fn ActiveEventLoop::rwh_06_handle(Self) -> UInt64
 pub fn ActiveEventLoop::set_allows_automatic_window_tabbing(Self, Bool) -> Unit
 pub fn ActiveEventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
 pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
+pub fn ActiveEventLoop::to_repr(Self) -> @debug.Repr
+pub fn ActiveEventLoop::to_string(Self) -> String
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
 pub fn ActiveEventLoop::windowing_backend(Self) -> WindowingBackend
@@ -79,6 +82,7 @@ pub fn EventLoop::listen_device_events(Self, @core.DeviceEvents) -> Unit
 pub fn EventLoop::native_display_handle(Self) -> UInt64
 pub fn EventLoop::new() -> Self
 pub fn EventLoop::new_with_platform_attributes(@core.PlatformEventLoopAttributes) -> Self
+pub fn EventLoop::output(Self, &Logger) -> Unit
 pub fn EventLoop::owned_display_handle(Self) -> UInt64
 pub fn EventLoop::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(Self, Int?, A) -> @core.PumpStatus
@@ -89,6 +93,8 @@ pub fn EventLoop::rwh_06_handle(Self) -> UInt64
 pub fn EventLoop::set_allows_automatic_window_tabbing(Self, Bool) -> Unit
 pub fn EventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
 pub fn EventLoop::system_theme(Self) -> @core.Theme?
+pub fn EventLoop::to_repr(Self) -> @debug.Repr
+pub fn EventLoop::to_string(Self) -> String
 pub fn EventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
 pub fn EventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
 pub fn EventLoop::try_new() -> Self raise @core.EventLoopError
@@ -110,8 +116,13 @@ pub struct EventLoopBuilder {
 pub fn EventLoopBuilder::EventLoopBuilder() -> Self
 pub fn EventLoopBuilder::build(Self) -> EventLoop
 pub fn EventLoopBuilder::default() -> Self
+pub fn EventLoopBuilder::equal(Self, Self) -> Bool
 pub fn EventLoopBuilder::new() -> Self
+pub fn EventLoopBuilder::not_equal(Self, Self) -> Bool
+pub fn EventLoopBuilder::output(Self, &Logger) -> Unit
 pub fn EventLoopBuilder::platform_attributes(Self) -> @core.PlatformEventLoopAttributes
+pub fn EventLoopBuilder::to_repr(Self) -> @debug.Repr
+pub fn EventLoopBuilder::to_string(Self) -> String
 pub fn EventLoopBuilder::try_build(Self) -> EventLoop raise @core.EventLoopError
 pub fn EventLoopBuilder::with_activate_ignoring_other_apps(Self, Bool) -> Self
 pub fn EventLoopBuilder::with_activation_policy(Self, @core.ActivationPolicy) -> Self
@@ -123,6 +134,11 @@ pub impl Show for EventLoopBuilder
 pub struct EventLoopProxy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn EventLoopProxy::equal(Self, Self) -> Bool
+pub fn EventLoopProxy::not_equal(Self, Self) -> Bool
+pub fn EventLoopProxy::output(Self, &Logger) -> Unit
+pub fn EventLoopProxy::to_repr(Self) -> @debug.Repr
+pub fn EventLoopProxy::to_string(Self) -> String
 pub fn EventLoopProxy::wake_up(Self) -> Unit
 pub impl Show for EventLoopProxy
 
@@ -138,6 +154,7 @@ pub fn Window::drag_resize_window(Self, @core.ResizeDirection) -> Unit raise @co
 pub fn Window::drag_window(Self) -> Unit raise @core.RequestError
 pub fn Window::drop(Self) -> Unit
 pub fn Window::enabled_buttons(Self) -> @core.WindowButtons
+pub fn Window::equal(Self, Self) -> Bool
 pub fn Window::focus_window(Self) -> Unit
 pub fn Window::fullscreen(Self) -> @core.Fullscreen?
 pub fn Window::has_focus(Self) -> Bool
@@ -174,13 +191,17 @@ pub fn Window::native_display_handle(Self) -> UInt64
 pub fn Window::native_window_handle(Self) -> UInt64
 pub fn Window::new(EventLoop, @core.WindowAttributes) -> Self raise @core.RequestError
 pub fn Window::new_with_linux_attributes(EventLoop, @core.WindowAttributes, WindowAttributesLinux) -> Self raise @core.RequestError
+pub fn Window::not_equal(Self, Self) -> Bool
 pub fn Window::num_tabs(Self) -> Int
 pub fn Window::option_as_alt(Self) -> @core.OptionAsAlt
 pub fn Window::outer_position(Self) -> @dpi.PhysicalPosition raise @core.RequestError
 pub fn Window::outer_size(Self) -> @dpi.PhysicalSize
+pub fn Window::output(Self, &Logger) -> Unit
 pub fn Window::pre_present_notify(Self) -> Unit
 pub fn Window::present_rgba_pixels(Self, Int, Int, Int, Bytes) -> Int
 pub fn Window::primary_monitor(Self) -> @core.MonitorHandle?
+pub fn Window::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
+pub fn Window::raw_window_handle(Self) -> @windowing.RawWindowHandle raise @windowing.HandleError
 pub fn Window::request_ime_update(Self, @core.ImeRequest) -> Unit raise @core.ImeRequestError
 pub fn Window::request_inner_size(Self, @dpi.Size) -> @dpi.PhysicalSize?
 pub fn Window::request_redraw(Self) -> Unit
@@ -246,6 +267,7 @@ pub fn Window::surface_size(Self) -> @dpi.PhysicalSize
 pub fn Window::tabbing_identifier(Self) -> String
 pub fn Window::theme(Self) -> @core.Theme?
 pub fn Window::title(Self) -> String
+pub fn Window::to_string(Self) -> String
 pub fn Window::unified_titlebar(Self) -> Bool
 pub fn Window::uses_client_decorations(Self) -> Bool
 pub fn Window::window_handle(Self) -> @windowing.WindowHandle
@@ -269,6 +291,9 @@ pub struct WindowAttributesLinux {
 } derive(Eq, @debug.Debug)
 pub fn WindowAttributesLinux::app_id(Self) -> String?
 pub fn WindowAttributesLinux::default() -> Self
+pub fn WindowAttributesLinux::equal(Self, Self) -> Bool
+pub fn WindowAttributesLinux::not_equal(Self, Self) -> Bool
+pub fn WindowAttributesLinux::to_repr(Self) -> @debug.Repr
 pub fn WindowAttributesLinux::use_shm_placeholder(Self) -> Bool
 pub fn WindowAttributesLinux::with_app_id(Self, String) -> Self
 pub fn WindowAttributesLinux::with_shm_placeholder(Self, Bool) -> Self
@@ -277,6 +302,9 @@ pub enum WindowingBackend {
   Wayland
   X11
 } derive(Eq, @debug.Debug)
+pub fn WindowingBackend::equal(Self, Self) -> Bool
+pub fn WindowingBackend::not_equal(Self, Self) -> Bool
+pub fn WindowingBackend::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

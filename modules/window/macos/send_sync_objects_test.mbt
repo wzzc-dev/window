@@ -7,12 +7,12 @@
 // normal value paths.
 
 ///|
-fn consume_event_loop_proxy(_proxy : EventLoopProxy) -> Unit {
+fn consume_event_loop_proxy(_proxy : @macos.EventLoopProxy) -> Unit {
   ()
 }
 
 ///|
-fn consume_window(_window : Window) -> Unit {
+fn consume_window(_window : @macos.Window) -> Unit {
   ()
 }
 
@@ -48,12 +48,12 @@ fn consume_custom_cursor(_cursor : @core.CustomCursor) -> Unit {
 
 ///|
 test "event_loop_proxy_send" {
-  let _ : (EventLoopProxy) -> Unit = consume_event_loop_proxy
+  let _ : (@macos.EventLoopProxy) -> Unit = consume_event_loop_proxy
 }
 
 ///|
 test "window_send" {
-  let _ : (Window) -> Unit = consume_window
+  let _ : (@macos.Window) -> Unit = consume_window
 }
 
 ///|
@@ -83,12 +83,12 @@ test "custom_cursor_send" {
 
 ///|
 test "event_loop_proxy_sync" {
-  let _ : (EventLoopProxy) -> Unit = consume_event_loop_proxy
+  let _ : (@macos.EventLoopProxy) -> Unit = consume_event_loop_proxy
 }
 
 ///|
 test "window_sync" {
-  let _ : (Window) -> Unit = consume_window
+  let _ : (@macos.Window) -> Unit = consume_window
 }
 
 ///|

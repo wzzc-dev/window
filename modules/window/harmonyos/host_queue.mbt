@@ -37,48 +37,41 @@ fn host_command_to_embedded(
   cmd : HostCmd,
 ) -> @embedded_dispatch.EmbeddedDispatchCommand {
   match cmd {
-    Start => @embedded_dispatch.EmbeddedDispatchCommand::Start
-    Resume => @embedded_dispatch.EmbeddedDispatchCommand::Resume
-    Pause => @embedded_dispatch.EmbeddedDispatchCommand::Pause
-    Stop => @embedded_dispatch.EmbeddedDispatchCommand::Stop
+    Start => Start
+    Resume => Resume
+    Pause => Pause
+    Stop => Stop
     SurfaceInit(handle, token, width, height, scale_factor) =>
-      @embedded_dispatch.EmbeddedDispatchCommand::SurfaceInit(
-        handle, token, width, height, scale_factor,
-      )
-    SurfaceTerm => @embedded_dispatch.EmbeddedDispatchCommand::SurfaceTerm
+      SurfaceInit(handle, token, width, height, scale_factor)
+    SurfaceTerm => SurfaceTerm
     SurfaceResize(width, height, scale_factor) =>
-      @embedded_dispatch.EmbeddedDispatchCommand::SurfaceResize(
-        width, height, scale_factor,
-      )
+      SurfaceResize(width, height, scale_factor)
     PointerMoved(x, y) =>
-      @embedded_dispatch.EmbeddedDispatchCommand::WindowEvent(
-        @core.WindowEvent::PointerMoved(
+      WindowEvent(
+        PointerMoved(
           None,
-          @dpi.PhysicalPositionF64::PhysicalPositionF64(x, y),
+          PhysicalPositionF64(x, y),
           true,
-          @core.PointerSource::Touch(@core.FingerId::from_raw(0), None),
+          Touch(@core.FingerId::from_raw(0), None),
         ),
       )
     PointerButton(pressed, x, y) =>
-      @embedded_dispatch.EmbeddedDispatchCommand::WindowEvent(
-        @core.WindowEvent::PointerButton(
+      WindowEvent(
+        PointerButton(
           None,
           if pressed {
-            @core.ElementState::Pressed
+            Pressed
           } else {
-            @core.ElementState::Released
+            Released
           },
-          @dpi.PhysicalPositionF64::PhysicalPositionF64(x, y),
+          PhysicalPositionF64(x, y),
           true,
-          @core.ButtonSource::Touch(@core.FingerId::from_raw(0), None),
+          Touch(@core.FingerId::from_raw(0), None),
         ),
       )
-    KeyboardText(text) =>
-      @embedded_dispatch.EmbeddedDispatchCommand::WindowEvent(
-        @core.WindowEvent::Ime(@core.Ime::Commit(text)),
-      )
-    MemoryWarning => @embedded_dispatch.EmbeddedDispatchCommand::MemoryWarning
-    Destroy => @embedded_dispatch.EmbeddedDispatchCommand::Destroy
+    KeyboardText(text) => WindowEvent(Ime(Commit(text)))
+    MemoryWarning => MemoryWarning
+    Destroy => Destroy
   }
 }
 
@@ -101,13 +94,13 @@ fn host_apply_surface_to_windows(
     entry.scale_factor = surface.scale_factor
     app_state_queue_window_event(
       @core.WindowId::from_raw(entry.raw_id),
-      @core.WindowEvent::SurfaceResized(surface.physical_size),
+      SurfaceResized(surface.physical_size),
     )
     app_state_queue_window_event(
       @core.WindowId::from_raw(entry.raw_id),
-      @core.WindowEvent::ScaleFactorChanged(
+      ScaleFactorChanged(
         surface.scale_factor,
-        @core.SurfaceSizeWriter::SurfaceSizeWriter(surface.physical_size),
+        SurfaceSizeWriter(surface.physical_size),
       ),
     )
     app_state_request_redraw(entry.raw_id)
@@ -127,31 +120,31 @@ fn host_apply_effect(
   effect : @embedded_dispatch.EmbeddedDispatchEffect,
 ) -> Bool {
   match effect {
-    @embedded_dispatch.EmbeddedDispatchEffect::Resumed => {
-      app_state_queue_lifecycle(DeferredCallback::Resumed)
+    Resumed => {
+      app_state_queue_lifecycle(Resumed)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::CanCreateSurfaces => {
-      app_state_queue_lifecycle(DeferredCallback::CanCreateSurfaces)
+    CanCreateSurfaces => {
+      app_state_queue_lifecycle(CanCreateSurfaces)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::SurfaceChanged(surface) => {
+    SurfaceChanged(surface) => {
       host_apply_surface_to_windows(surface)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::SurfaceInvalidated => {
+    SurfaceInvalidated => {
       host_invalidate_window_handles()
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::DestroySurfaces => {
-      app_state_queue_lifecycle(DeferredCallback::DestroySurfaces)
+    DestroySurfaces => {
+      app_state_queue_lifecycle(DestroySurfaces)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::Suspended => {
-      app_state_queue_lifecycle(DeferredCallback::Suspended)
+    Suspended => {
+      app_state_queue_lifecycle(Suspended)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::WindowEvent(event) => {
+    WindowEvent(event) => {
       for entry in app_state_runtime.val.window_entries {
         app_state_queue_window_event(
           @core.WindowId::from_raw(entry.raw_id),
@@ -161,11 +154,11 @@ fn host_apply_effect(
       }
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::MemoryWarning => {
-      app_state_queue_lifecycle(DeferredCallback::MemoryWarning)
+    MemoryWarning => {
+      app_state_queue_lifecycle(MemoryWarning)
       false
     }
-    @embedded_dispatch.EmbeddedDispatchEffect::Exit(code) => {
+    Exit(code) => {
       app_state_request_exit(code)
       true
     }
