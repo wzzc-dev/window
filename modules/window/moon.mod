@@ -1,6 +1,6 @@
 name = "wzzc-dev/window"
 
-version = "0.5.4-0.1.7"
+version = "0.5.4-0.2.0"
 
 import {
   "Milky2018/windowing@0.1.1",
