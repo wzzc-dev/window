@@ -805,3 +805,26 @@ double mbw_objc_msg_send_edge_insets_right(uint64_t target_handle, uint64_t sele
   }
   return (double)insets.right;
 }
+
+MOONBIT_FFI_EXPORT
+int32_t mbw_appkit_set_application_icon_data(const uint8_t *data, int32_t data_len) {
+  if (data == NULL || data_len <= 0) {
+    return 0;
+  }
+  NSData *icon_data = [NSData dataWithBytes:data length:(NSUInteger)data_len];
+  if (icon_data == nil) {
+    return 0;
+  }
+  NSImage *image = [[NSImage alloc] initWithData:icon_data];
+  if (image == nil) {
+    return 0;
+  }
+  NSApplication *app = [NSApplication sharedApplication];
+  if (app == nil) {
+    [image release];
+    return 0;
+  }
+  [app setApplicationIconImage:image];
+  [image release];
+  return 1;
+}

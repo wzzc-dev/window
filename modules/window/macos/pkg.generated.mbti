@@ -9,7 +9,13 @@ import {
 }
 
 // Values
+pub fn application_is_bundled() -> Bool
+
 pub fn monitor_ns_screen(@core.MonitorHandle) -> NSScreenHandle?
+
+pub fn set_application_icon_data(Bytes) -> Bool
+
+pub fn set_application_icon_path(String) -> Bool
 
 pub fn set_system_menu_action_handler((Int) -> Unit) -> Unit
 
