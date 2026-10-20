@@ -1,61 +1,61 @@
 ///|
-let modifiers_state_shift_bit : Int = 0b100
+let modifiers_state_shift_bit : Int32 = 0b100
 
 ///|
-let modifiers_state_control_bit : Int = 0b100 << 3
+let modifiers_state_control_bit : Int32 = 0b100 << 3
 
 ///|
-let modifiers_state_alt_bit : Int = 0b100 << 6
+let modifiers_state_alt_bit : Int32 = 0b100 << 6
 
 ///|
-let modifiers_state_meta_bit : Int = 0b100 << 9
+let modifiers_state_meta_bit : Int32 = 0b100 << 9
 
 ///|
-let modifiers_state_mask : Int = modifiers_state_shift_bit |
+let modifiers_state_mask : Int32 = modifiers_state_shift_bit |
   modifiers_state_control_bit |
   modifiers_state_alt_bit |
   modifiers_state_meta_bit
 
 ///|
-let modifiers_keys_mask : Int = 0xFF
+let modifiers_keys_mask : Int32 = 0xFF
 
 ///|
 pub struct ModifiersState {
-  priv bits : Int
+  priv bits : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn ModifiersState::none() -> ModifiersState {
-  { bits: 0 }
+  { bits: 0, }
 }
 
 ///|
 pub fn ModifiersState::shift() -> ModifiersState {
-  { bits: modifiers_state_shift_bit }
+  { bits: modifiers_state_shift_bit, }
 }
 
 ///|
 pub fn ModifiersState::control() -> ModifiersState {
-  { bits: modifiers_state_control_bit }
+  { bits: modifiers_state_control_bit, }
 }
 
 ///|
 pub fn ModifiersState::alt() -> ModifiersState {
-  { bits: modifiers_state_alt_bit }
+  { bits: modifiers_state_alt_bit, }
 }
 
 ///|
 pub fn ModifiersState::meta() -> ModifiersState {
-  { bits: modifiers_state_meta_bit }
+  { bits: modifiers_state_meta_bit, }
 }
 
 ///|
-pub fn ModifiersState::from_bits(bits : Int) -> ModifiersState {
-  { bits: bits & modifiers_state_mask }
+pub fn ModifiersState::from_bits(bits : Int32) -> ModifiersState {
+  { bits: bits & modifiers_state_mask, }
 }
 
 ///|
-pub fn ModifiersState::bits(self : ModifiersState) -> Int {
+pub fn ModifiersState::bits(self : ModifiersState) -> Int32 {
   self.bits
 }
 
@@ -108,61 +108,61 @@ pub(all) enum ModifiersKeyState {
 
 ///|
 pub struct ModifiersKeys {
-  priv bits : Int
+  priv bits : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn ModifiersKeys::none() -> ModifiersKeys {
-  { bits: 0 }
+  { bits: 0, }
 }
 
 ///|
 pub fn ModifiersKeys::lshift() -> ModifiersKeys {
-  { bits: 0b0000_0001 }
+  { bits: 0b0000_0001, }
 }
 
 ///|
 pub fn ModifiersKeys::rshift() -> ModifiersKeys {
-  { bits: 0b0000_0010 }
+  { bits: 0b0000_0010, }
 }
 
 ///|
 pub fn ModifiersKeys::lcontrol() -> ModifiersKeys {
-  { bits: 0b0000_0100 }
+  { bits: 0b0000_0100, }
 }
 
 ///|
 pub fn ModifiersKeys::rcontrol() -> ModifiersKeys {
-  { bits: 0b0000_1000 }
+  { bits: 0b0000_1000, }
 }
 
 ///|
 pub fn ModifiersKeys::lalt() -> ModifiersKeys {
-  { bits: 0b0001_0000 }
+  { bits: 0b0001_0000, }
 }
 
 ///|
 pub fn ModifiersKeys::ralt() -> ModifiersKeys {
-  { bits: 0b0010_0000 }
+  { bits: 0b0010_0000, }
 }
 
 ///|
 pub fn ModifiersKeys::lmeta() -> ModifiersKeys {
-  { bits: 0b0100_0000 }
+  { bits: 0b0100_0000, }
 }
 
 ///|
 pub fn ModifiersKeys::rmeta() -> ModifiersKeys {
-  { bits: 0b1000_0000 }
+  { bits: 0b1000_0000, }
 }
 
 ///|
-pub fn ModifiersKeys::from_bits(bits : Int) -> ModifiersKeys {
-  { bits: bits & modifiers_keys_mask }
+pub fn ModifiersKeys::from_bits(bits : Int32) -> ModifiersKeys {
+  { bits: bits & modifiers_keys_mask, }
 }
 
 ///|
-pub fn ModifiersKeys::bits(self : ModifiersKeys) -> Int {
+pub fn ModifiersKeys::bits(self : ModifiersKeys) -> Int32 {
   self.bits
 }
 
@@ -229,7 +229,7 @@ pub fn Modifiers::from_state(
   state : ModifiersState,
   pressed_mods : ModifiersKeys,
 ) -> Modifiers {
-  { state, pressed_mods: sanitize_pressed_modifiers(state, pressed_mods) }
+  { state, pressed_mods: sanitize_pressed_modifiers(state, pressed_mods), }
 }
 
 ///|
@@ -348,3 +348,27 @@ fn sanitize_pressed_modifiers(
   }
   sanitized
 }
+
+///|
+pub extend Modifiers with Debug::{to_repr}
+
+///|
+pub extend Modifiers with Eq::{not_equal, equal}
+
+///|
+pub extend ModifiersKeyState with Debug::{to_repr}
+
+///|
+pub extend ModifiersKeyState with Eq::{not_equal, equal}
+
+///|
+pub extend ModifiersKeys with Debug::{to_repr}
+
+///|
+pub extend ModifiersKeys with Eq::{not_equal, equal}
+
+///|
+pub extend ModifiersState with Debug::{to_repr}
+
+///|
+pub extend ModifiersState with Eq::{not_equal, equal}

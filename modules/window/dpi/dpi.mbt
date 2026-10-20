@@ -1,12 +1,12 @@
 ///|
 pub fn validate_scale_factor(scale_factor : Double) -> Bool {
-  let exponent_mask = (0x7ff : Int).to_uint64()
+  let exponent_mask = (0x7ff : Int32).to_uint64()
   let exponent = (Double::reinterpret_as_uint64(scale_factor) >> 52) &
     exponent_mask
   scale_factor > 0.0 &&
   Double::is_nan(scale_factor) == false &&
   Double::is_inf(scale_factor) == false &&
-  exponent != (0 : Int).to_uint64()
+  exponent != (0 : Int32).to_uint64()
 }
 
 ///|
@@ -17,7 +17,7 @@ pub struct LogicalSize {
 
 ///|
 pub fn LogicalSize::LogicalSize(width : Double, height : Double) -> LogicalSize {
-  { width, height }
+  { width, height, }
 }
 
 ///|
@@ -46,22 +46,25 @@ pub fn LogicalSize::to_physical(
 
 ///|
 pub struct PhysicalSize {
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn PhysicalSize::PhysicalSize(width : Int, height : Int) -> PhysicalSize {
-  { width, height }
+pub fn PhysicalSize::PhysicalSize(
+  width : Int32,
+  height : Int32,
+) -> PhysicalSize {
+  { width, height, }
 }
 
 ///|
-pub fn PhysicalSize::width(self : PhysicalSize) -> Int {
+pub fn PhysicalSize::width(self : PhysicalSize) -> Int32 {
   self.width
 }
 
 ///|
-pub fn PhysicalSize::height(self : PhysicalSize) -> Int {
+pub fn PhysicalSize::height(self : PhysicalSize) -> Int32 {
   self.height
 }
 
@@ -90,7 +93,7 @@ pub fn LogicalPosition::LogicalPosition(
   x : Double,
   y : Double,
 ) -> LogicalPosition {
-  { x, y }
+  { x, y, }
 }
 
 ///|
@@ -124,22 +127,25 @@ pub fn LogicalPosition::into_position(self : LogicalPosition) -> Position {
 
 ///|
 pub struct PhysicalPosition {
-  x : Int
-  y : Int
+  x : Int32
+  y : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn PhysicalPosition::PhysicalPosition(x : Int, y : Int) -> PhysicalPosition {
-  { x, y }
+pub fn PhysicalPosition::PhysicalPosition(
+  x : Int32,
+  y : Int32,
+) -> PhysicalPosition {
+  { x, y, }
 }
 
 ///|
-pub fn PhysicalPosition::x(self : PhysicalPosition) -> Int {
+pub fn PhysicalPosition::x(self : PhysicalPosition) -> Int32 {
   self.x
 }
 
 ///|
-pub fn PhysicalPosition::y(self : PhysicalPosition) -> Int {
+pub fn PhysicalPosition::y(self : PhysicalPosition) -> Int32 {
   self.y
 }
 
@@ -173,7 +179,7 @@ pub fn PhysicalPositionF64::PhysicalPositionF64(
   x : Double,
   y : Double,
 ) -> PhysicalPositionF64 {
-  { x, y }
+  { x, y, }
 }
 
 ///|
@@ -226,39 +232,39 @@ pub fn Position::to_logical(
 
 ///|
 pub struct PhysicalInsets {
-  top : Int
-  left : Int
-  bottom : Int
-  right : Int
+  top : Int32
+  left : Int32
+  bottom : Int32
+  right : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn PhysicalInsets::PhysicalInsets(
-  top : Int,
-  left : Int,
-  bottom : Int,
-  right : Int,
+  top : Int32,
+  left : Int32,
+  bottom : Int32,
+  right : Int32,
 ) -> PhysicalInsets {
-  { top, left, bottom, right }
+  { top, left, bottom, right, }
 }
 
 ///|
-pub fn PhysicalInsets::top(self : PhysicalInsets) -> Int {
+pub fn PhysicalInsets::top(self : PhysicalInsets) -> Int32 {
   self.top
 }
 
 ///|
-pub fn PhysicalInsets::left(self : PhysicalInsets) -> Int {
+pub fn PhysicalInsets::left(self : PhysicalInsets) -> Int32 {
   self.left
 }
 
 ///|
-pub fn PhysicalInsets::bottom(self : PhysicalInsets) -> Int {
+pub fn PhysicalInsets::bottom(self : PhysicalInsets) -> Int32 {
   self.bottom
 }
 
 ///|
-pub fn PhysicalInsets::right(self : PhysicalInsets) -> Int {
+pub fn PhysicalInsets::right(self : PhysicalInsets) -> Int32 {
   self.right
 }
 
@@ -303,3 +309,51 @@ pub fn Size::to_logical(self : Size, scale_factor : Double) -> LogicalSize {
     Physical(size) => size.to_logical(scale_factor)
   }
 }
+
+///|
+pub extend LogicalPosition with Debug::{to_repr}
+
+///|
+pub extend LogicalPosition with Eq::{not_equal, equal}
+
+///|
+pub extend LogicalSize with Debug::{to_repr}
+
+///|
+pub extend LogicalSize with Eq::{not_equal, equal}
+
+///|
+pub extend PhysicalInsets with Debug::{to_repr}
+
+///|
+pub extend PhysicalInsets with Eq::{not_equal, equal}
+
+///|
+pub extend PhysicalPosition with Debug::{to_repr}
+
+///|
+pub extend PhysicalPosition with Eq::{not_equal, equal}
+
+///|
+pub extend PhysicalPositionF64 with Debug::{to_repr}
+
+///|
+pub extend PhysicalPositionF64 with Eq::{not_equal, equal}
+
+///|
+pub extend PhysicalSize with Debug::{to_repr}
+
+///|
+pub extend PhysicalSize with Eq::{not_equal, equal}
+
+///|
+pub extend Position with Debug::{to_repr}
+
+///|
+pub extend Position with Eq::{not_equal, equal}
+
+///|
+pub extend Size with Debug::{to_repr}
+
+///|
+pub extend Size with Eq::{not_equal, equal}

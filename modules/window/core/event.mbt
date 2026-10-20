@@ -7,7 +7,7 @@ pub struct SurfaceSizeWriter {
 pub fn SurfaceSizeWriter::SurfaceSizeWriter(
   size : @dpi.PhysicalSize,
 ) -> SurfaceSizeWriter {
-  { size: Ref(size) }
+  { size: Ref(size), }
 }
 
 ///|
@@ -81,7 +81,7 @@ pub(all) enum MouseButton {
 } derive(Eq, Debug)
 
 ///|
-pub fn MouseButton::try_from_u8(button : Int) -> MouseButton? {
+pub fn MouseButton::try_from_u8(button : Int32) -> MouseButton? {
   match button {
     0 => Some(Left)
     1 => Some(Right)
@@ -121,46 +121,46 @@ pub fn MouseButton::try_from_u8(button : Int) -> MouseButton? {
 
 ///|
 pub struct FingerId {
-  raw : Int
+  raw : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn FingerId::from_raw(raw : Int) -> FingerId {
+pub fn FingerId::from_raw(raw : Int32) -> FingerId {
   { raw, }
 }
 
 ///|
-pub fn FingerId::into_raw(self : FingerId) -> Int {
+pub fn FingerId::into_raw(self : FingerId) -> Int32 {
   self.raw
 }
 
 ///|
 pub struct AxisId {
-  raw : Int
+  raw : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn AxisId::from_raw(raw : Int) -> AxisId {
+pub fn AxisId::from_raw(raw : Int32) -> AxisId {
   { raw, }
 }
 
 ///|
-pub fn AxisId::into_raw(self : AxisId) -> Int {
+pub fn AxisId::into_raw(self : AxisId) -> Int32 {
   self.raw
 }
 
 ///|
 pub struct ButtonId {
-  raw : Int
+  raw : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn ButtonId::from_raw(raw : Int) -> ButtonId {
+pub fn ButtonId::from_raw(raw : Int32) -> ButtonId {
   { raw, }
 }
 
 ///|
-pub fn ButtonId::into_raw(self : ButtonId) -> Int {
+pub fn ButtonId::into_raw(self : ButtonId) -> Int32 {
   self.raw
 }
 
@@ -219,7 +219,7 @@ pub fn TabletToolKind::default() -> TabletToolKind {
 pub struct TabletToolData {
   force : Force?
   tangential_force : Double?
-  twist : Int?
+  twist : Int32?
   tilt : TabletToolTilt?
   angle : TabletToolAngle?
 } derive(Eq, Debug)
@@ -228,11 +228,11 @@ pub struct TabletToolData {
 pub fn TabletToolData::TabletToolData(
   force : Force?,
   tangential_force : Double?,
-  twist : Int?,
+  twist : Int32?,
   tilt : TabletToolTilt?,
   angle : TabletToolAngle?,
 ) -> TabletToolData {
-  { force, tangential_force, twist, tilt, angle }
+  { force, tangential_force, twist, tilt, angle, }
 }
 
 ///|
@@ -246,7 +246,7 @@ pub fn TabletToolData::tangential_force(self : TabletToolData) -> Double? {
 }
 
 ///|
-pub fn TabletToolData::twist(self : TabletToolData) -> Int? {
+pub fn TabletToolData::twist(self : TabletToolData) -> Int32? {
   self.twist
 }
 
@@ -276,22 +276,22 @@ pub fn TabletToolData::angle(self : TabletToolData) -> TabletToolAngle? {
 
 ///|
 pub struct TabletToolTilt {
-  x : Int
-  y : Int
+  x : Int32
+  y : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn TabletToolTilt::TabletToolTilt(x : Int, y : Int) -> TabletToolTilt {
-  { x, y }
+pub fn TabletToolTilt::TabletToolTilt(x : Int32, y : Int32) -> TabletToolTilt {
+  { x, y, }
 }
 
 ///|
-pub fn TabletToolTilt::x(self : TabletToolTilt) -> Int {
+pub fn TabletToolTilt::x(self : TabletToolTilt) -> Int32 {
   self.x
 }
 
 ///|
-pub fn TabletToolTilt::y(self : TabletToolTilt) -> Int {
+pub fn TabletToolTilt::y(self : TabletToolTilt) -> Int32 {
   self.y
 }
 
@@ -347,12 +347,12 @@ pub fn TabletToolAngle::TabletToolAngle(
   altitude : Double,
   azimuth : Double,
 ) -> TabletToolAngle {
-  { altitude, azimuth }
+  { altitude, azimuth, }
 }
 
 ///|
 pub fn TabletToolAngle::default() -> TabletToolAngle {
-  { altitude: 2.0 / @math.PI, azimuth: 0.0 }
+  { altitude: 2.0 / @math.PI, azimuth: 0.0, }
 }
 
 ///|
@@ -410,7 +410,7 @@ pub fn TabletToolAngle::tilt(self : TabletToolAngle) -> TabletToolTilt {
 pub(all) enum TabletToolButton {
   Contact
   Barrel
-  Other(Int)
+  Other(Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -446,7 +446,7 @@ pub(all) enum ButtonSource {
   Mouse(MouseButton)
   Touch(FingerId, Force?)
   TabletTool(TabletToolKind, TabletToolButton, TabletToolData)
-  Unknown(Int)
+  Unknown(Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -470,7 +470,7 @@ fn radians_to_degrees(radians : Double) -> Double {
 }
 
 ///|
-fn int_abs(value : Int) -> Int {
+fn int_abs(value : Int32) -> Int32 {
   if value < 0 {
     -value
   } else {
@@ -489,22 +489,25 @@ fn double_abs(value : Double) -> Double {
 
 ///|
 pub struct ImeCursorRange {
-  end : Int
-  start : Int
+  end : Int32
+  start : Int32
 } derive(Eq, Debug)
 
 ///|
-pub fn ImeCursorRange::ImeCursorRange(start : Int, end : Int) -> ImeCursorRange {
-  { start, end }
+pub fn ImeCursorRange::ImeCursorRange(
+  start : Int32,
+  end : Int32,
+) -> ImeCursorRange {
+  { start, end, }
 }
 
 ///|
-pub fn ImeCursorRange::start(self : ImeCursorRange) -> Int {
+pub fn ImeCursorRange::start(self : ImeCursorRange) -> Int32 {
   self.start
 }
 
 ///|
-pub fn ImeCursorRange::end(self : ImeCursorRange) -> Int {
+pub fn ImeCursorRange::end(self : ImeCursorRange) -> Int32 {
   self.end
 }
 
@@ -513,7 +516,7 @@ pub(all) enum Ime {
   Enabled
   Preedit(String, ImeCursorRange?)
   Commit(String)
-  DeleteSurrounding(Int, Int)
+  DeleteSurrounding(Int32, Int32)
   Disabled
 } derive(Eq, Debug)
 
@@ -543,7 +546,7 @@ pub fn RawKeyEvent::RawKeyEvent(
   physical_key : PhysicalKey,
   state : ElementState,
 ) -> RawKeyEvent {
-  { physical_key, state }
+  { physical_key, state, }
 }
 
 ///|
@@ -611,7 +614,7 @@ pub(all) enum WindowEvent {
   PanGesture(DeviceId?, @dpi.PhysicalPositionF64, TouchPhase)
   DoubleTapGesture(DeviceId?)
   RotationGesture(DeviceId?, Double, TouchPhase)
-  TouchpadPressure(DeviceId?, Double, Int)
+  TouchpadPressure(DeviceId?, Double, Int32)
   MouseWheel(DeviceId?, MouseScrollDelta, TouchPhase)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
@@ -642,7 +645,7 @@ pub(all) enum WinitWindowEvent {
   PanGesture(DeviceId?, @dpi.PhysicalPositionF64, TouchPhase)
   DoubleTapGesture(DeviceId?)
   RotationGesture(DeviceId?, Double, TouchPhase)
-  TouchpadPressure(DeviceId?, Double, Int)
+  TouchpadPressure(DeviceId?, Double, Int32)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
   Occluded(Bool)
@@ -707,3 +710,150 @@ pub fn WindowEvent::into_winit_events(
     RedrawRequested => [RedrawRequested]
   }
 }
+
+///|
+pub extend AxisId with Debug::{to_repr}
+
+///|
+pub extend AxisId with Eq::{not_equal, equal}
+
+///|
+pub extend ButtonId with Debug::{to_repr}
+
+///|
+pub extend ButtonId with Eq::{not_equal, equal}
+
+///|
+pub extend ButtonSource with Debug::{to_repr}
+
+///|
+pub extend ButtonSource with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceEvent with Debug::{to_repr}
+
+///|
+pub extend DeviceEvent with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceId with Debug::{to_repr}
+
+///|
+pub extend DeviceId with Eq::{not_equal, equal}
+
+///|
+pub extend ElementState with Debug::{to_repr}
+
+///|
+pub extend ElementState with Eq::{not_equal, equal}
+
+///|
+pub extend FingerId with Debug::{to_repr}
+
+///|
+pub extend FingerId with Eq::{not_equal, equal}
+
+///|
+pub extend Force with Debug::{to_repr}
+
+///|
+pub extend Force with Eq::{not_equal, equal}
+
+///|
+pub extend Ime with Debug::{to_repr}
+
+///|
+pub extend Ime with Eq::{not_equal, equal}
+
+///|
+pub extend ImeCursorRange with Debug::{to_repr}
+
+///|
+pub extend ImeCursorRange with Eq::{not_equal, equal}
+
+///|
+pub extend MouseButton with Debug::{to_repr}
+
+///|
+pub extend MouseButton with Eq::{not_equal, equal}
+
+///|
+pub extend MouseScrollDelta with Debug::{to_repr}
+
+///|
+pub extend MouseScrollDelta with Eq::{not_equal, equal}
+
+///|
+pub extend PointerKind with Debug::{to_repr}
+
+///|
+pub extend PointerKind with Eq::{not_equal, equal}
+
+///|
+pub extend PointerSource with Debug::{to_repr}
+
+///|
+pub extend PointerSource with Eq::{not_equal, equal}
+
+///|
+pub extend RawKeyEvent with Debug::{to_repr}
+
+///|
+pub extend RawKeyEvent with Eq::{not_equal, equal}
+
+///|
+pub extend StartCause with Debug::{to_repr}
+
+///|
+pub extend StartCause with Eq::{not_equal, equal}
+
+///|
+pub extend SurfaceSizeWriter with Debug::{to_repr}
+
+///|
+pub extend TabletToolAngle with Debug::{to_repr}
+
+///|
+pub extend TabletToolAngle with Eq::{not_equal, equal}
+
+///|
+pub extend TabletToolButton with Debug::{to_repr}
+
+///|
+pub extend TabletToolButton with Eq::{not_equal, equal}
+
+///|
+pub extend TabletToolData with Debug::{to_repr}
+
+///|
+pub extend TabletToolData with Eq::{not_equal, equal}
+
+///|
+pub extend TabletToolKind with Debug::{to_repr}
+
+///|
+pub extend TabletToolKind with Eq::{not_equal, equal}
+
+///|
+pub extend TabletToolTilt with Debug::{to_repr}
+
+///|
+pub extend TabletToolTilt with Eq::{not_equal, equal}
+
+///|
+pub extend TouchPhase with Debug::{to_repr}
+
+///|
+pub extend TouchPhase with Eq::{not_equal, equal}
+
+///|
+pub extend WindowEvent with Debug::{to_repr}
+
+///|
+pub extend WinitDeviceEvent with Debug::{to_repr}
+
+///|
+pub extend WinitDeviceEvent with Eq::{not_equal, equal}
+
+///|
+pub extend WinitWindowEvent with Debug::{to_repr}

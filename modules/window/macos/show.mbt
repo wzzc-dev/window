@@ -1,6 +1,6 @@
 ///|
 fn[T : Debug] debug_output(value : T, logger : &Logger) -> Unit {
-  logger.write_object(to_repr(value))
+  logger.write_object(Repr(value))
 }
 
 ///|
@@ -42,3 +42,27 @@ pub impl Show for ActiveEventLoop with fn output(self, logger) {
 pub impl Show for Window with fn output(self, logger) {
   debug_output(self, logger)
 }
+
+///|
+pub extend ActiveEventLoop with Show::{to_string, output}
+
+///|
+pub extend EventLoop with Show::{to_string, output}
+
+///|
+pub extend EventLoopBuilder with Show::{to_string, output}
+
+///|
+pub extend EventLoopProxy with Show::{to_string, output}
+
+///|
+pub extend KeyEquivalent with Show::{to_string, output}
+
+///|
+pub extend MenuAction with Show::{to_string, output}
+
+///|
+pub extend MenuItemDescriptor with Show::{to_string, output}
+
+///|
+pub extend Window with Show::{to_string, output}

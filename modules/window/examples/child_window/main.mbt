@@ -8,16 +8,16 @@ struct App {
 ///|
 struct WindowData {
   window : @macos.Window
-  color : Int
+  color : Int32
 }
 
 ///|
 fn App::App() -> App {
-  { parent_window_id: None, windows: [] }
+  { parent_window_id: None, windows: [], }
 }
 
 ///|
-fn int_pow(base : Int, exp : Int) -> Int {
+fn int_pow(base : Int32, exp : Int32) -> Int32 {
   let mut value = 1
   let mut i = 0
   while i < exp {
@@ -28,12 +28,12 @@ fn int_pow(base : Int, exp : Int) -> Int {
 }
 
 ///|
-fn child_color(child_index : Int) -> Int {
-  (0xff000000 : Int) + int_pow(3, (child_index + 2) % 16)
+fn child_color(child_index : Int32) -> Int32 {
+  (0xff000000 : Int32) + int_pow(3, (child_index + 2) % 16)
 }
 
 ///|
-fn App::window_data_index(self : App, window_id : @core.WindowId) -> Int? {
+fn App::window_data_index(self : App, window_id : @core.WindowId) -> Int32? {
   self.windows.search_by(entry => entry.window.id() == window_id)
 }
 
@@ -99,7 +99,7 @@ pub impl @macos.ApplicationHandler for App with fn can_create_surfaces(
   let parent_window = event_loop.create_window(parent_attrs)
   let parent_window_id = parent_window.id()
   self.parent_window_id = Some(parent_window_id)
-  self.windows.push({ window: parent_window, color: 0xffbbbbbb })
+  self.windows.push({ window: parent_window, color: 0xffbbbbbb, })
   println("Parent window id: \{parent_window_id}")
 }
 

@@ -1,5 +1,5 @@
 ///|
-pub fn ImeSurroundingText::max_text_bytes() -> Int {
+pub fn ImeSurroundingText::max_text_bytes() -> Int32 {
   4000
 }
 
@@ -239,7 +239,7 @@ pub fn ImeEnableRequest::from_capabilities(
   if capabilities.surrounding_text() != request_data.has_surrounding_text() {
     return None
   }
-  Some({ capabilities, request_data })
+  Some({ capabilities, request_data, })
 }
 
 ///|
@@ -267,3 +267,15 @@ pub fn ImeEnableRequest::into_raw(
 pub fn ImeEnableRequest::into_request(self : ImeEnableRequest) -> ImeRequest {
   Enable(self)
 }
+
+///|
+pub extend ImeEnableRequest with Debug::{to_repr}
+
+///|
+pub extend ImeEnableRequest with Eq::{not_equal, equal}
+
+///|
+pub extend ImeRequestData with Debug::{to_repr}
+
+///|
+pub extend ImeRequestData with Eq::{not_equal, equal}

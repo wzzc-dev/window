@@ -1,7 +1,7 @@
 ///|
 // Port target: winit-reference/winit/examples/run_on_demand.rs
 struct App {
-  mut run_index : Int
+  mut run_index : Int32
   mut window_id : @core.WindowId?
   mut window : @macos.Window?
 }
@@ -76,7 +76,7 @@ pub impl @macos.ApplicationHandler for App with fn window_event(
 fn main {
   @util.tracing_init()
   let event_loop = @macos.EventLoop::EventLoop()
-  let app : App = { run_index: 1, window_id: None, window: None }
+  let app : App = { run_index: 1, window_id: None, window: None, }
 
   event_loop.run_app_on_demand(app)
   println(

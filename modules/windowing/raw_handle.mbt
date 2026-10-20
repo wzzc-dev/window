@@ -8,7 +8,7 @@ pub fn AppKitWindowHandle::new(
   ns_view : UInt64,
 ) -> AppKitWindowHandle raise HandleError {
   guard ns_view != 0UL else { raise Unavailable }
-  { ns_view_: ns_view }
+  { ns_view_: ns_view, }
 }
 
 ///|
@@ -23,7 +23,7 @@ pub struct AppKitDisplayHandle {
 
 ///|
 pub fn AppKitDisplayHandle::new() -> AppKitDisplayHandle {
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
@@ -38,7 +38,7 @@ pub fn Win32WindowHandle::new(
   hinstance? : UInt64,
 ) -> Win32WindowHandle raise HandleError {
   guard hwnd != 0UL else { raise Unavailable }
-  { hwnd_: hwnd, hinstance_: hinstance }
+  { hwnd_: hwnd, hinstance_: hinstance, }
 }
 
 ///|
@@ -58,7 +58,7 @@ pub struct WindowsDisplayHandle {
 
 ///|
 pub fn WindowsDisplayHandle::new() -> WindowsDisplayHandle {
-  { _unit: () }
+  { _unit: (), }
 }
 
 ///|
@@ -71,7 +71,7 @@ pub fn WaylandWindowHandle::new(
   surface : UInt64,
 ) -> WaylandWindowHandle raise HandleError {
   guard surface != 0UL else { raise Unavailable }
-  { surface_: surface }
+  { surface_: surface, }
 }
 
 ///|
@@ -89,7 +89,7 @@ pub fn WaylandDisplayHandle::new(
   display : UInt64,
 ) -> WaylandDisplayHandle raise HandleError {
   guard display != 0UL else { raise Unavailable }
-  { display_: display }
+  { display_: display, }
 }
 
 ///|
@@ -106,10 +106,10 @@ pub struct XlibWindowHandle {
 ///|
 pub fn XlibWindowHandle::new(
   window : UInt64,
-  visual_id? : UInt64 = 0UL,
+  visual_id~ : UInt64 = 0UL,
 ) -> XlibWindowHandle raise HandleError {
   guard window != 0UL else { raise Unavailable }
-  { window_: window, visual_id_: visual_id }
+  { window_: window, visual_id_: visual_id, }
 }
 
 ///|
@@ -125,15 +125,15 @@ pub fn XlibWindowHandle::visual_id(self : XlibWindowHandle) -> UInt64 {
 ///|
 pub struct XlibDisplayHandle {
   priv display_ : UInt64?
-  priv screen_ : Int
+  priv screen_ : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn XlibDisplayHandle::new(
   display : UInt64?,
-  screen : Int,
+  screen : Int32,
 ) -> XlibDisplayHandle {
-  { display_: display, screen_: screen }
+  { display_: display, screen_: screen, }
 }
 
 ///|
@@ -142,47 +142,47 @@ pub fn XlibDisplayHandle::display(self : XlibDisplayHandle) -> UInt64? {
 }
 
 ///|
-pub fn XlibDisplayHandle::screen(self : XlibDisplayHandle) -> Int {
+pub fn XlibDisplayHandle::screen(self : XlibDisplayHandle) -> Int32 {
   self.screen_
 }
 
 ///|
 pub struct XcbWindowHandle {
-  priv window_ : UInt
-  priv visual_id_ : UInt?
+  priv window_ : UInt32
+  priv visual_id_ : UInt32?
 } derive(Eq, Debug)
 
 ///|
 pub fn XcbWindowHandle::new(
-  window : UInt,
-  visual_id? : UInt,
+  window : UInt32,
+  visual_id? : UInt32,
 ) -> XcbWindowHandle raise HandleError {
   guard window != 0U else { raise Unavailable }
-  { window_: window, visual_id_: visual_id }
+  { window_: window, visual_id_: visual_id, }
 }
 
 ///|
-pub fn XcbWindowHandle::window(self : XcbWindowHandle) -> UInt {
+pub fn XcbWindowHandle::window(self : XcbWindowHandle) -> UInt32 {
   self.window_
 }
 
 ///|
-pub fn XcbWindowHandle::visual_id(self : XcbWindowHandle) -> UInt? {
+pub fn XcbWindowHandle::visual_id(self : XcbWindowHandle) -> UInt32? {
   self.visual_id_
 }
 
 ///|
 pub struct XcbDisplayHandle {
   priv connection_ : UInt64?
-  priv screen_ : Int
+  priv screen_ : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn XcbDisplayHandle::new(
   connection : UInt64?,
-  screen : Int,
+  screen : Int32,
 ) -> XcbDisplayHandle {
-  { connection_: connection, screen_: screen }
+  { connection_: connection, screen_: screen, }
 }
 
 ///|
@@ -191,7 +191,7 @@ pub fn XcbDisplayHandle::connection(self : XcbDisplayHandle) -> UInt64? {
 }
 
 ///|
-pub fn XcbDisplayHandle::screen(self : XcbDisplayHandle) -> Int {
+pub fn XcbDisplayHandle::screen(self : XcbDisplayHandle) -> Int32 {
   self.screen_
 }
 
@@ -212,3 +212,75 @@ pub(all) enum RawDisplayHandle {
   Xlib(XlibDisplayHandle)
   Xcb(XcbDisplayHandle)
 } derive(Eq, Debug)
+
+///|
+pub extend AppKitDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend AppKitDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend AppKitWindowHandle with Debug::{to_repr}
+
+///|
+pub extend AppKitWindowHandle with Eq::{not_equal, equal}
+
+///|
+pub extend RawDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend RawDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend RawWindowHandle with Debug::{to_repr}
+
+///|
+pub extend RawWindowHandle with Eq::{not_equal, equal}
+
+///|
+pub extend WaylandDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend WaylandDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend WaylandWindowHandle with Debug::{to_repr}
+
+///|
+pub extend WaylandWindowHandle with Eq::{not_equal, equal}
+
+///|
+pub extend Win32WindowHandle with Debug::{to_repr}
+
+///|
+pub extend Win32WindowHandle with Eq::{not_equal, equal}
+
+///|
+pub extend WindowsDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend WindowsDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend XcbDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend XcbDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend XcbWindowHandle with Debug::{to_repr}
+
+///|
+pub extend XcbWindowHandle with Eq::{not_equal, equal}
+
+///|
+pub extend XlibDisplayHandle with Debug::{to_repr}
+
+///|
+pub extend XlibDisplayHandle with Eq::{not_equal, equal}
+
+///|
+pub extend XlibWindowHandle with Debug::{to_repr}
+
+///|
+pub extend XlibWindowHandle with Eq::{not_equal, equal}

@@ -1,6 +1,6 @@
 name = "Milky2018/windowing"
 
-version = "0.1.0"
+version = "0.1.2"
 
 readme = "README.mbt.md"
 

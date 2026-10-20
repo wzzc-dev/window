@@ -47,13 +47,13 @@ pub fn Window::id(self : Window) -> @core.WindowId {
 }
 
 ///|
-fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
+pub fn Window::raw_display_handle(self : Window) -> @windowing.RawDisplayHandle {
   let _ = self
   AppKit(@windowing.AppKitDisplayHandle::new())
 }
 
 ///|
-fn Window::raw_window_handle(
+pub fn Window::raw_window_handle(
   self : Window,
 ) -> @windowing.RawWindowHandle raise @windowing.HandleError {
   let raw_view = self.maybe_wait_on_main(fn(window) {
@@ -104,7 +104,7 @@ pub impl @windowing.HasWindowHandle for Window with fn window_handle(self) {
 fn content_view_handle_from_raw(
   raw_view_handle : UInt64,
 ) -> UInt64 raise @core.RequestError {
-  guard raw_view_handle != (0 : Int).to_uint64() else {
+  guard raw_view_handle != (0 : Int32).to_uint64() else {
     raise @core.RequestError::os(
       "Window content view handle is unavailable",
       domain=appkit_window_error_domain,
@@ -575,3 +575,9 @@ fn Window::ime_supports_cursor_area(self : Window) -> Bool {
     None => false
   }
 }
+
+///|
+pub extend Window with Debug::{to_repr}
+
+///|
+pub extend Window with Eq::{not_equal, equal}
