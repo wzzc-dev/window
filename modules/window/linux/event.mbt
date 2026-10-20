@@ -1,59 +1,59 @@
 ///|
-let linux_event_close : Int = 1
+let linux_event_close : Int32 = 1
 
 ///|
-let linux_event_destroyed : Int = 2
+let linux_event_destroyed : Int32 = 2
 
 ///|
-let linux_event_configure : Int = 3
+let linux_event_configure : Int32 = 3
 
 ///|
-let linux_event_redraw : Int = 5
+let linux_event_redraw : Int32 = 5
 
 ///|
-let linux_event_focus : Int = 6
+let linux_event_focus : Int32 = 6
 
 ///|
-let linux_event_proxy_wake : Int = 7
+let linux_event_proxy_wake : Int32 = 7
 
 ///|
-let linux_event_pointer_enter : Int = 10
+let linux_event_pointer_enter : Int32 = 10
 
 ///|
-let linux_event_pointer_move : Int = 11
+let linux_event_pointer_move : Int32 = 11
 
 ///|
-let linux_event_pointer_leave : Int = 12
+let linux_event_pointer_leave : Int32 = 12
 
 ///|
-let linux_event_pointer_down : Int = 13
+let linux_event_pointer_down : Int32 = 13
 
 ///|
-let linux_event_pointer_up : Int = 14
+let linux_event_pointer_up : Int32 = 14
 
 ///|
-let linux_event_wheel : Int = 15
+let linux_event_wheel : Int32 = 15
 
 ///|
-let linux_event_key_down : Int = 20
+let linux_event_key_down : Int32 = 20
 
 ///|
-let linux_event_key_up : Int = 21
+let linux_event_key_up : Int32 = 21
 
 ///|
-let linux_event_drag_enter : Int = 30
+let linux_event_drag_enter : Int32 = 30
 
 ///|
-let linux_event_drag_move : Int = 31
+let linux_event_drag_move : Int32 = 31
 
 ///|
-let linux_event_drag_drop : Int = 32
+let linux_event_drag_drop : Int32 = 32
 
 ///|
-let linux_event_drag_leave : Int = 33
+let linux_event_drag_leave : Int32 = 33
 
 ///|
-fn linux_mouse_button(button : Int) -> @core.MouseButton {
+fn linux_mouse_button(button : Int32) -> @core.MouseButton {
   match button {
     0x110 => Left
     0x111 => Right
@@ -74,7 +74,7 @@ fn linux_element_state(pressed : Bool) -> @core.ElementState {
 }
 
 ///|
-fn linux_decode_drag_paths(raw_id : Int) -> Array[String] {
+fn linux_decode_drag_paths(raw_id : Int32) -> Array[String] {
   match app_state_window_handle(raw_id) {
     Some(handle) =>
       if app_state_context() == 0UL {
@@ -100,7 +100,7 @@ fn linux_decode_drag_paths(raw_id : Int) -> Array[String] {
 }
 
 ///|
-fn linux_key_event(key_code : Int, pressed : Bool) -> @core.KeyEvent {
+fn linux_key_event(key_code : Int32, pressed : Bool) -> @core.KeyEvent {
   let native_code = @core.NativeKeyCode::Xkb(key_code)
   let native_key = @core.NativeKey::Xkb(key_code)
   let physical_key = linux_physical_key(key_code, native_code)
@@ -120,7 +120,7 @@ fn linux_key_event(key_code : Int, pressed : Bool) -> @core.KeyEvent {
 
 ///|
 fn linux_physical_key(
-  key_code : Int,
+  key_code : Int32,
   native_code : @core.NativeKeyCode,
 ) -> @core.PhysicalKey {
   match linux_key_code(key_code) {
@@ -131,7 +131,7 @@ fn linux_physical_key(
 
 ///|
 fn linux_key_without_modifiers(
-  key_code : Int,
+  key_code : Int32,
   native_key : @core.NativeKey,
 ) -> @core.Key {
   match linux_key_code(key_code) {
@@ -150,7 +150,7 @@ fn linux_key_without_modifiers(
 
 ///|
 fn linux_logical_key(
-  key_code : Int,
+  key_code : Int32,
   native_key : @core.NativeKey,
   modifiers : @core.Modifiers,
 ) -> @core.Key {
@@ -170,7 +170,7 @@ fn linux_logical_key(
 
 ///|
 fn linux_key_text(
-  key_code : Int,
+  key_code : Int32,
   modifiers : @core.Modifiers,
   pressed : Bool,
 ) -> String? {
@@ -348,7 +348,7 @@ fn linux_named_key(code : @core.KeyCode) -> @core.NamedKey? {
 }
 
 ///|
-fn linux_key_code(key_code : Int) -> @core.KeyCode? {
+fn linux_key_code(key_code : Int32) -> @core.KeyCode? {
   match key_code {
     16 => Some(KeyQ)
     17 => Some(KeyW)
@@ -439,7 +439,7 @@ fn linux_key_code(key_code : Int) -> @core.KeyCode? {
 
 ///|
 fn linux_modifier_for_key_code(
-  key_code : Int,
+  key_code : Int32,
 ) -> (@core.ModifiersState, @core.ModifiersKeys)? {
   match key_code {
     42 => Some((@core.ModifiersState::shift(), @core.ModifiersKeys::lshift()))
@@ -501,11 +501,11 @@ fn linux_modifiers_without(
 
 ///|
 fn dispatch_native_window_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
-  _arg2 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
+  _arg2 : Int32,
   argd : Double,
 ) -> Unit {
   match kind {
@@ -535,11 +535,11 @@ fn dispatch_native_window_event(
 
 ///|
 fn dispatch_native_input_event(
-  raw_id : Int,
-  kind : Int,
-  arg0 : Int,
-  arg1 : Int,
-  arg2 : Int,
+  raw_id : Int32,
+  kind : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
+  arg2 : Int32,
   argi : Int64,
 ) -> Unit {
   match kind {

@@ -6,8 +6,8 @@ pub struct WindowAttributesAndroid {
   priv mut surface_handle_ : UInt64
   priv mut surface_token_ : UInt64
   priv mut scale_factor_ : Double
-  priv mut width_ : Int
-  priv mut height_ : Int
+  priv mut width_ : Int32
+  priv mut height_ : Int32
 }
 
 ///|
@@ -72,8 +72,8 @@ pub fn WindowAttributesAndroid::scale_factor(
 ///|
 pub fn WindowAttributesAndroid::with_size(
   self : WindowAttributesAndroid,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
 ) -> WindowAttributesAndroid {
   self.width_ = width
   self.height_ = height
@@ -81,11 +81,11 @@ pub fn WindowAttributesAndroid::with_size(
 }
 
 ///|
-pub fn WindowAttributesAndroid::width(self : WindowAttributesAndroid) -> Int {
+pub fn WindowAttributesAndroid::width(self : WindowAttributesAndroid) -> Int32 {
   self.width_
 }
 
 ///|
-pub fn WindowAttributesAndroid::height(self : WindowAttributesAndroid) -> Int {
+pub fn WindowAttributesAndroid::height(self : WindowAttributesAndroid) -> Int32 {
   self.height_
 }

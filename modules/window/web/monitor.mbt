@@ -4,7 +4,7 @@ fn available_monitors() -> Array[@core.MonitorHandle] {
   let size = @dpi.PhysicalSize::PhysicalSize(0, 0)
   [
     MonitorHandle(
-      (0 : Int).to_uint64(),
+      (0 : Int32).to_uint64(),
       Some("browser viewport"),
       PhysicalPosition(0, 0),
       size,

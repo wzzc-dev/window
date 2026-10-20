@@ -77,10 +77,10 @@ impl @android.ApplicationHandler for MobileHostedSmokeApp with fn window_event(
         Some(window) => {
           window.pre_present_notify()
           let rc = window.clear_color(
-            (32 : Int).to_byte(),
-            (32 : Int).to_byte(),
-            (48 : Int).to_byte(),
-            (255 : Int).to_byte(),
+            (32 : Int32).to_byte(),
+            (32 : Int32).to_byte(),
+            (48 : Int32).to_byte(),
+            (255 : Int32).to_byte(),
           )
           self.push("present_rc=\{rc}")
           self.presented.val = rc == 0

@@ -91,7 +91,7 @@ pub fn Window::new_with_linux_attributes(
     attributes.decorations(),
     linux_attributes.use_shm_placeholder(),
   )
-  if handle == (0 : Int).to_uint64() {
+  if handle == (0 : Int32).to_uint64() {
     raise @core.RequestError::os("Linux window creation returned a null handle")
   }
   app_state_register_window_entry({
@@ -140,7 +140,7 @@ pub fn Window::new_with_linux_attributes(
 }
 
 ///|
-fn Window::raw_id(self : Window) -> Int {
+fn Window::raw_id(self : Window) -> Int32 {
   self.id.into_raw()
 }
 
@@ -256,11 +256,11 @@ pub fn Window::pre_present_notify(self : Window) -> Unit {
 ///|
 pub fn Window::present_rgba_pixels(
   self : Window,
-  width : Int,
-  height : Int,
-  row_bytes : Int,
+  width : Int32,
+  height : Int32,
+  row_bytes : Int32,
   pixels : Bytes,
-) -> Int {
+) -> Int32 {
   native_window_present_rgba_pixels(
     self.handle,
     width,
@@ -964,12 +964,12 @@ pub fn Window::select_previous_tab(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+pub fn Window::select_tab_at_index(self : Window, _index : Int32) -> Unit {
   let _ = self
 }
 
 ///|
-pub fn Window::num_tabs(self : Window) -> Int {
+pub fn Window::num_tabs(self : Window) -> Int32 {
   let _ = self
   0
 }

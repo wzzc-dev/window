@@ -123,7 +123,7 @@ pub fn Window::new_with_ios_attributes(
 }
 
 ///|
-fn Window::raw_id(self : Window) -> Int {
+fn Window::raw_id(self : Window) -> Int32 {
   self.id_.into_raw()
 }
 
@@ -255,32 +255,32 @@ pub fn Window::pre_present_notify(self : Window) -> Unit {
 #borrow(pixels)
 extern "C" fn mbw_ios_window_present_rgba_pixels(
   window_handle : UInt64,
-  width : Int,
-  height : Int,
-  stride_bytes : Int,
+  width : Int32,
+  height : Int32,
+  stride_bytes : Int32,
   pixels : Bytes,
-  pixel_len : Int,
-) -> Int = "mbw_ios_window_present_rgba_pixels"
+  pixel_len : Int32,
+) -> Int32 = "mbw_ios_window_present_rgba_pixels"
 
 ///|
 extern "C" fn mbw_ios_window_clear_color(
   window_handle : UInt64,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   r : Byte,
   g : Byte,
   b : Byte,
   a : Byte,
-) -> Int = "mbw_ios_window_clear_color"
+) -> Int32 = "mbw_ios_window_clear_color"
 
 ///|
 pub fn Window::present_rgba_pixels(
   self : Window,
-  width : Int,
-  height : Int,
-  stride_bytes : Int,
+  width : Int32,
+  height : Int32,
+  stride_bytes : Int32,
   pixels : Bytes,
-) -> Int {
+) -> Int32 {
   let handle = self.view_handle()
   if handle == 0UL {
     return -10
@@ -302,7 +302,7 @@ pub fn Window::clear_color(
   g : Byte,
   b : Byte,
   a : Byte,
-) -> Int {
+) -> Int32 {
   let handle = self.view_handle()
   if handle == 0UL {
     return -10
@@ -933,7 +933,7 @@ pub fn Window::tabbing_identifier(___self : Window) -> String {
 }
 
 ///|
-pub fn Window::num_tabs(___self : Window) -> Int {
+pub fn Window::num_tabs(___self : Window) -> Int32 {
   1
 }
 
@@ -948,7 +948,7 @@ pub fn Window::select_previous_tab(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+pub fn Window::select_tab_at_index(self : Window, _index : Int32) -> Unit {
   let _ = self
 }
 

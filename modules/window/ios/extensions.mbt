@@ -6,8 +6,8 @@ pub struct WindowAttributesiOS {
   priv mut surface_handle_ : UInt64
   priv mut surface_token_ : UInt64
   priv mut scale_factor_ : Double
-  priv mut width_ : Int
-  priv mut height_ : Int
+  priv mut width_ : Int32
+  priv mut height_ : Int32
 }
 
 ///|
@@ -68,8 +68,8 @@ pub fn WindowAttributesiOS::scale_factor(self : WindowAttributesiOS) -> Double {
 ///|
 pub fn WindowAttributesiOS::with_size(
   self : WindowAttributesiOS,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
 ) -> WindowAttributesiOS {
   self.width_ = width
   self.height_ = height
@@ -77,11 +77,11 @@ pub fn WindowAttributesiOS::with_size(
 }
 
 ///|
-pub fn WindowAttributesiOS::width(self : WindowAttributesiOS) -> Int {
+pub fn WindowAttributesiOS::width(self : WindowAttributesiOS) -> Int32 {
   self.width_
 }
 
 ///|
-pub fn WindowAttributesiOS::height(self : WindowAttributesiOS) -> Int {
+pub fn WindowAttributesiOS::height(self : WindowAttributesiOS) -> Int32 {
   self.height_
 }

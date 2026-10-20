@@ -1,5 +1,5 @@
 ///|
-extern "C" fn native_register_window_class() -> Int = "mbw_register_window_class"
+extern "C" fn native_register_window_class() -> Int32 = "mbw_register_window_class"
 
 ///|
 extern "C" fn native_hinstance_handle() -> UInt64 = "mbw_hinstance_handle"
@@ -9,17 +9,17 @@ extern "C" fn native_create_msg_window() -> UInt64 = "mbw_create_msg_window"
 
 ///|
 extern "C" fn native_create_window(
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   ex_style : UInt64,
   style : UInt64,
-  x : Int,
-  y : Int,
+  x : Int32,
+  y : Int32,
   parent_hwnd : UInt64,
 ) -> UInt64 = "mbw_create_window"
 
 ///|
-extern "C" fn native_set_window_raw_id(hwnd : UInt64, raw_id : Int) -> Unit = "mbw_set_window_raw_id"
+extern "C" fn native_set_window_raw_id(hwnd : UInt64, raw_id : Int32) -> Unit = "mbw_set_window_raw_id"
 
 ///|
 extern "C" fn native_destroy_window(hwnd : UInt64) -> Unit = "mbw_destroy_window"
@@ -29,9 +29,17 @@ extern "C" fn native_destroy_window(hwnd : UInt64) -> Unit = "mbw_destroy_window
 #owned(callback)
 extern "C" fn native_install_window_event_callback(
   call_closure : FuncRef[
-    ((Int, Int, Int, Int, Int, Double) -> Unit, Int, Int, Int, Int, Int, Double) -> Unit,
+    (
+      (Int32, Int32, Int32, Int32, Int32, Double) -> Unit,
+      Int32,
+      Int32,
+      Int32,
+      Int32,
+      Int32,
+      Double,
+    ) -> Unit,
   ],
-  callback : (Int, Int, Int, Int, Int, Double) -> Unit,
+  callback : (Int32, Int32, Int32, Int32, Int32, Double) -> Unit,
 ) -> Unit = "mbw_install_window_event_callback"
 
 ///|
@@ -39,36 +47,38 @@ extern "C" fn native_install_window_event_callback(
 #owned(callback)
 extern "C" fn native_install_input_event_callback(
   call_closure : FuncRef[
-    ((Int, Int, UInt64, Int64) -> Unit, Int, Int, UInt64, Int64) -> Unit,
+    ((Int32, Int32, UInt64, Int64) -> Unit, Int32, Int32, UInt64, Int64) -> Unit,
   ],
-  callback : (Int, Int, UInt64, Int64) -> Unit,
+  callback : (Int32, Int32, UInt64, Int64) -> Unit,
 ) -> Unit = "mbw_install_input_event_callback"
 
 ///|
 #borrow(call_closure)
 #owned(callback)
 extern "C" fn native_install_sync_query_callback(
-  call_closure : FuncRef[((Int, Int, Int) -> Int, Int, Int, Int) -> Int],
-  callback : (Int, Int, Int) -> Int,
+  call_closure : FuncRef[
+    ((Int32, Int32, Int32) -> Int32, Int32, Int32, Int32) -> Int32,
+  ],
+  callback : (Int32, Int32, Int32) -> Int32,
 ) -> Unit = "mbw_install_sync_query_callback"
 
 ///|
 extern "C" fn native_process_one_message(
   hwnd : UInt64,
-  min_msg : UInt,
-  max_msg : UInt,
-  remove_msg : UInt,
-) -> Int = "mbw_process_one_message"
+  min_msg : UInt32,
+  max_msg : UInt32,
+  remove_msg : UInt32,
+) -> Int32 = "mbw_process_one_message"
 
 ///|
 extern "C" fn native_wait_and_process_message(
   hwnd : UInt64,
-  min_msg : UInt,
-  max_msg : UInt,
-) -> Int = "mbw_wait_and_process_message"
+  min_msg : UInt32,
+  max_msg : UInt32,
+) -> Int32 = "mbw_wait_and_process_message"
 
 ///|
-extern "C" fn native_wait_timeout_and_process(timeout_ms : UInt) -> Int = "mbw_wait_timeout_and_process"
+extern "C" fn native_wait_timeout_and_process(timeout_ms : UInt32) -> Int32 = "mbw_wait_timeout_and_process"
 
 ///|
 #borrow(key_path, value_name)
@@ -79,75 +89,83 @@ extern "C" fn native_read_registry_dword_bytes(
 
 ///|
 extern "C" fn native_post_thread_message(
-  thread_id : UInt,
-  msg : UInt,
+  thread_id : UInt32,
+  msg : UInt32,
   wparam : UInt64,
   lparam : Int64,
-) -> Int = "mbw_post_thread_message"
+) -> Int32 = "mbw_post_thread_message"
 
 ///|
-extern "C" fn native_get_current_thread_id() -> UInt = "mbw_get_current_thread_id"
+extern "C" fn native_get_current_thread_id() -> UInt32 = "mbw_get_current_thread_id"
 
 ///|
 #borrow(text)
 extern "C" fn native_set_window_text(
   hwnd : UInt64,
   text : Bytes,
-  text_len : Int,
-) -> Int = "mbw_set_window_text"
+  text_len : Int32,
+) -> Int32 = "mbw_set_window_text"
 
 ///|
 extern "C" fn native_set_window_pos(
   hwnd : UInt64,
   insert_after : UInt64,
-  x : Int,
-  y : Int,
-  width : Int,
-  height : Int,
+  x : Int32,
+  y : Int32,
+  width : Int32,
+  height : Int32,
   flags : UInt64,
-) -> Int = "mbw_set_window_pos"
+) -> Int32 = "mbw_set_window_pos"
 
 ///|
-extern "C" fn native_show_window(hwnd : UInt64, cmd : Int) -> Int = "mbw_show_window"
+extern "C" fn native_show_window(hwnd : UInt64, cmd : Int32) -> Int32 = "mbw_show_window"
 
 ///|
-extern "C" fn native_get_window_rect_left(hwnd : UInt64) -> Int = "mbw_get_window_rect_left"
+extern "C" fn native_get_window_rect_left(hwnd : UInt64) -> Int32 = "mbw_get_window_rect_left"
 
 ///|
-extern "C" fn native_get_window_rect_top(hwnd : UInt64) -> Int = "mbw_get_window_rect_top"
+extern "C" fn native_get_window_rect_top(hwnd : UInt64) -> Int32 = "mbw_get_window_rect_top"
 
 ///|
-extern "C" fn native_get_window_rect_right(hwnd : UInt64) -> Int = "mbw_get_window_rect_right"
+extern "C" fn native_get_window_rect_right(hwnd : UInt64) -> Int32 = "mbw_get_window_rect_right"
 
 ///|
-extern "C" fn native_get_window_rect_bottom(hwnd : UInt64) -> Int = "mbw_get_window_rect_bottom"
+extern "C" fn native_get_window_rect_bottom(hwnd : UInt64) -> Int32 = "mbw_get_window_rect_bottom"
 
 ///|
-extern "C" fn native_get_client_rect_left(hwnd : UInt64) -> Int = "mbw_get_client_rect_left"
+extern "C" fn native_get_client_rect_left(hwnd : UInt64) -> Int32 = "mbw_get_client_rect_left"
 
 ///|
-extern "C" fn native_get_client_rect_top(hwnd : UInt64) -> Int = "mbw_get_client_rect_top"
+extern "C" fn native_get_client_rect_top(hwnd : UInt64) -> Int32 = "mbw_get_client_rect_top"
 
 ///|
-extern "C" fn native_get_client_rect_right(hwnd : UInt64) -> Int = "mbw_get_client_rect_right"
+extern "C" fn native_get_client_rect_right(hwnd : UInt64) -> Int32 = "mbw_get_client_rect_right"
 
 ///|
-extern "C" fn native_get_client_rect_bottom(hwnd : UInt64) -> Int = "mbw_get_client_rect_bottom"
+extern "C" fn native_get_client_rect_bottom(hwnd : UInt64) -> Int32 = "mbw_get_client_rect_bottom"
 
 ///|
-extern "C" fn native_client_to_screen_x(hwnd : UInt64, x : Int, y : Int) -> Int = "mbw_client_to_screen_x"
+extern "C" fn native_client_to_screen_x(
+  hwnd : UInt64,
+  x : Int32,
+  y : Int32,
+) -> Int32 = "mbw_client_to_screen_x"
 
 ///|
-extern "C" fn native_client_to_screen_y(hwnd : UInt64, x : Int, y : Int) -> Int = "mbw_client_to_screen_y"
+extern "C" fn native_client_to_screen_y(
+  hwnd : UInt64,
+  x : Int32,
+  y : Int32,
+) -> Int32 = "mbw_client_to_screen_y"
 
 ///|
-extern "C" fn native_get_key_state(vk : Int) -> Int = "mbw_get_key_state"
+extern "C" fn native_get_key_state(vk : Int32) -> Int32 = "mbw_get_key_state"
 
 ///|
-extern "C" fn native_consume_utf8_text(ptr : UInt64, len : Int) -> Bytes = "mbw_consume_utf8_text"
+extern "C" fn native_consume_utf8_text(ptr : UInt64, len : Int32) -> Bytes = "mbw_consume_utf8_text"
 
 ///|
-extern "C" fn native_invalidate_rect(hwnd : UInt64, erase : Bool) -> Int = "mbw_invalidate_rect"
+extern "C" fn native_invalidate_rect(hwnd : UInt64, erase : Bool) -> Int32 = "mbw_invalidate_rect"
 
 ///|
 extern "C" fn native_set_window_cursor(
@@ -163,38 +181,38 @@ extern "C" fn native_load_cursor(
 
 ///|
 extern "C" fn native_clip_cursor(
-  left : Int,
-  top : Int,
-  right : Int,
-  bottom : Int,
-) -> Int = "mbw_clip_cursor"
+  left : Int32,
+  top : Int32,
+  right : Int32,
+  bottom : Int32,
+) -> Int32 = "mbw_clip_cursor"
 
 ///|
-extern "C" fn native_set_cursor_pos(x : Int, y : Int) -> Int = "mbw_set_cursor_pos"
+extern "C" fn native_set_cursor_pos(x : Int32, y : Int32) -> Int32 = "mbw_set_cursor_pos"
 
 ///|
-extern "C" fn native_set_cursor_visible(visible : Bool) -> Int = "mbw_set_cursor_visible"
+extern "C" fn native_set_cursor_visible(visible : Bool) -> Int32 = "mbw_set_cursor_visible"
 
 ///|
-extern "C" fn native_enable_modern_dpi_awareness() -> Int = "mbw_enable_modern_dpi_awareness"
+extern "C" fn native_enable_modern_dpi_awareness() -> Int32 = "mbw_enable_modern_dpi_awareness"
 
 ///|
-extern "C" fn native_get_dpi_for_window(hwnd : UInt64) -> UInt = "mbw_get_dpi_for_window"
+extern "C" fn native_get_dpi_for_window(hwnd : UInt64) -> UInt32 = "mbw_get_dpi_for_window"
 
 ///|
-extern "C" fn native_is_iconic(hwnd : UInt64) -> Int = "mbw_is_iconic"
+extern "C" fn native_is_iconic(hwnd : UInt64) -> Int32 = "mbw_is_iconic"
 
 ///|
-extern "C" fn native_is_zoomed(hwnd : UInt64) -> Int = "mbw_is_zoomed"
+extern "C" fn native_is_zoomed(hwnd : UInt64) -> Int32 = "mbw_is_zoomed"
 
 ///|
-extern "C" fn native_is_window_visible(hwnd : UInt64) -> Int = "mbw_is_window_visible"
+extern "C" fn native_is_window_visible(hwnd : UInt64) -> Int32 = "mbw_is_window_visible"
 
 ///|
 extern "C" fn native_get_foreground_window() -> UInt64 = "mbw_get_foreground_window"
 
 ///|
-extern "C" fn native_set_foreground_window(hwnd : UInt64) -> Int = "mbw_set_foreground_window"
+extern "C" fn native_set_foreground_window(hwnd : UInt64) -> Int32 = "mbw_set_foreground_window"
 
 ///|
 extern "C" fn native_get_window_long_style(hwnd : UInt64) -> UInt64 = "mbw_get_window_long_style"
@@ -220,13 +238,13 @@ extern "C" fn native_release_capture() -> Unit = "mbw_release_capture"
 ///|
 extern "C" fn native_send_message(
   hwnd : UInt64,
-  msg : UInt,
+  msg : UInt32,
   wparam : UInt64,
   lparam : Int64,
 ) -> UInt64 = "mbw_send_message"
 
 ///|
-extern "C" fn native_get_system_metrics(index : Int) -> Int = "mbw_get_system_metrics"
+extern "C" fn native_get_system_metrics(index : Int32) -> Int32 = "mbw_get_system_metrics"
 
 ///|
-extern "C" fn native_track_mouse_event(hwnd : UInt64, flags : UInt) -> Int = "mbw_track_mouse_event"
+extern "C" fn native_track_mouse_event(hwnd : UInt64, flags : UInt32) -> Int32 = "mbw_track_mouse_event"

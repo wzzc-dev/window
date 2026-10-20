@@ -6,12 +6,12 @@
 ///|
 /// Dispatch a window event from the JS runtime.
 pub fn wechat_dispatch_event(
-  _kind : Int,
-  _raw_id : Int,
-  _arg0 : Int,
-  _arg1 : Int,
+  _kind : Int32,
+  _raw_id : Int32,
+  _arg0 : Int32,
+  _arg1 : Int32,
   _argd : Double,
-  _text_id : Int,
+  _text_id : Int32,
 ) -> Unit {
   // Event dispatch for Mini Program → MoUI
   // The actual dispatch is handled by the host runtime
@@ -20,15 +20,15 @@ pub fn wechat_dispatch_event(
 ///|
 /// Dispatch a pointer/touch input event from the JS runtime.
 pub fn wechat_dispatch_pointer_input(
-  _raw_id : Int,
-  _kind : Int,
+  _raw_id : Int32,
+  _kind : Int32,
   _x_px : Double,
   _y_px : Double,
   _delta_x_px : Double,
   _delta_y_px : Double,
-  _button : Int,
-  _modifiers : Int,
-) -> Int {
+  _button : Int32,
+  _modifiers : Int32,
+) -> Int32 {
   // Pointer input dispatch for Mini Program → MoUI
   // The actual dispatch is handled by the host runtime
   0

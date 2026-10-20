@@ -4,7 +4,7 @@ test "custom cursor rejects extreme negative dimensions without overflow" {
   let rejected_safely = try {
     ignore(
       @core.CustomCursorSource::from_rgba(
-        Bytes::make(4, (0 : Int).to_byte()),
+        Bytes::make(4, (0 : Int32).to_byte()),
         min_int,
         -1,
         0,
@@ -21,7 +21,11 @@ test "custom cursor rejects extreme negative dimensions without overflow" {
 }
 
 ///|
-fn is_cursor_bad_position(text : String, cursor : Int, anchor : Int) -> Bool {
+fn is_cursor_bad_position(
+  text : String,
+  cursor : Int32,
+  anchor : Int32,
+) -> Bool {
   try {
     ignore(@core.ImeSurroundingText::ImeSurroundingText(text, cursor, anchor))
     false
@@ -98,7 +102,7 @@ test "ime_initial_request_caps_match" {
   )
 
   let long_text = try! @utf8.decode(
-    Bytes::make(8000, (97 : Int).to_byte())[:],
+    Bytes::make(8000, (97 : Int32).to_byte())[:],
     ignore_bom=false,
   )
   let text_too_long = try {

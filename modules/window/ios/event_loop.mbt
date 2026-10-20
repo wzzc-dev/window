@@ -301,7 +301,7 @@ fn[A : ApplicationHandler] pump_once(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
   self : EventLoop,
-  _timeout_ms : Int?,
+  _timeout_ms : Int32?,
   handler : A,
 ) -> @core.PumpStatus {
   if !app_state_is_running() {
@@ -326,7 +326,7 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   handler : A,
 ) -> @core.PumpStatus {
   self.pump_app_events(timeout_ms, handler)

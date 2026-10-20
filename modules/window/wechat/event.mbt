@@ -6,7 +6,7 @@
 pub(all) struct WechatTouch {
   x : Double
   y : Double
-  identifier : Int
+  identifier : Int32
 }
 
 ///|

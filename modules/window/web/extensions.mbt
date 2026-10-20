@@ -1,7 +1,7 @@
 ///|
 pub(all) enum PollStrategy {
   AnimationFrame
-  Timeout(Int)
+  Timeout(Int32)
 }
 
 ///|

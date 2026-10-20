@@ -8,7 +8,7 @@ pub enum WindowingBackend {
 } derive(Eq, Debug)
 
 ///|
-fn windowing_backend_from_tag(tag : Int) -> WindowingBackend {
+fn windowing_backend_from_tag(tag : Int32) -> WindowingBackend {
   // Tag 2 marks the X11 backend; anything else (including the invalid-handle
   // sentinel 0) resolves to the historical Wayland default.
   if tag == 2 {

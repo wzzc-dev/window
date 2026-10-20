@@ -9,19 +9,19 @@ priv enum DeferredCallback {
 
 ///|
 priv struct WindowHandleEntry {
-  raw_id : Int
+  raw_id : Int32
   hwnd : UInt64
 }
 
 ///|
 priv struct AppStateRuntime {
-  mut next_window_id : Int
+  mut next_window_id : Int32
   mut is_running : Bool
   mut exit_requested : Bool
-  mut exit_code : Int
+  mut exit_code : Int32
   mut event_handler_in_use : Bool
   mut control_flow : @core.ControlFlow
-  mut pending_redraw_window_ids : Array[Int]
+  mut pending_redraw_window_ids : Array[Int32]
   mut window_handles : Array[WindowHandleEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
@@ -50,14 +50,14 @@ let app_state_runtime : Ref[AppStateRuntime] = Ref(AppStateRuntime::new())
 let event_loop_global_created : Ref[Bool] = Ref(false)
 
 ///|
-fn app_state_next_window_id() -> Int {
+fn app_state_next_window_id() -> Int32 {
   let id = app_state_runtime.val.next_window_id
   app_state_runtime.val.next_window_id = id + 1
   id
 }
 
 ///|
-fn app_state_register_window_handle(raw_id : Int, hwnd : UInt64) -> Unit {
+fn app_state_register_window_handle(raw_id : Int32, hwnd : UInt64) -> Unit {
   let next_entries : Array[WindowHandleEntry] = []
   let mut replaced = false
   for entry in app_state_runtime.val.window_handles {
@@ -75,7 +75,7 @@ fn app_state_register_window_handle(raw_id : Int, hwnd : UInt64) -> Unit {
 }
 
 ///|
-fn app_state_unregister_window_handle(raw_id : Int) -> Unit {
+fn app_state_unregister_window_handle(raw_id : Int32) -> Unit {
   let next_entries : Array[WindowHandleEntry] = []
   for entry in app_state_runtime.val.window_handles {
     if entry.raw_id != raw_id {
@@ -86,14 +86,14 @@ fn app_state_unregister_window_handle(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_clear_window_runtime_state(raw_id : Int) -> Unit {
+fn app_state_clear_window_runtime_state(raw_id : Int32) -> Unit {
   clear_windows_window_input_state(raw_id)
   app_state_clear_pending_redraw(raw_id)
   app_state_unregister_window_handle(raw_id)
 }
 
 ///|
-fn app_state_window_handle(raw_id : Int) -> UInt64? {
+fn app_state_window_handle(raw_id : Int32) -> UInt64? {
   for entry in app_state_runtime.val.window_handles {
     if entry.raw_id == raw_id {
       return Some(entry.hwnd)
@@ -118,12 +118,12 @@ fn app_state_exit_requested() -> Bool {
 }
 
 ///|
-fn app_state_exit_code() -> Int {
+fn app_state_exit_code() -> Int32 {
   app_state_runtime.val.exit_code
 }
 
 ///|
-fn app_state_set_exit(code : Int) -> Unit {
+fn app_state_set_exit(code : Int32) -> Unit {
   app_state_runtime.val.exit_requested = true
   app_state_runtime.val.exit_code = code
 }
@@ -209,7 +209,7 @@ fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
 
 ///|
 fn app_state_queue_window_event(
-  raw_id : Int,
+  raw_id : Int32,
   event : @core.WindowEvent,
 ) -> Unit {
   let window_id = @core.WindowId::from_raw(raw_id)
@@ -217,7 +217,7 @@ fn app_state_queue_window_event(
 }
 
 ///|
-fn app_state_queue_redraw(raw_id : Int) -> Unit {
+fn app_state_queue_redraw(raw_id : Int32) -> Unit {
   match app_state_window_handle(raw_id) {
     Some(_hwnd) => {
       let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
@@ -232,8 +232,8 @@ fn app_state_queue_redraw(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_clear_pending_redraw(raw_id : Int) -> Unit {
-  let next : Array[Int] = []
+fn app_state_clear_pending_redraw(raw_id : Int32) -> Unit {
+  let next : Array[Int32] = []
   for id in app_state_runtime.val.pending_redraw_window_ids {
     if id != raw_id {
       next.push(id)
@@ -304,11 +304,11 @@ fn app_state_install_native_callbacks() -> Unit {
 
 ///|
 fn native_callback_window_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
-  arg2 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
+  arg2 : Int32,
   argd : Double,
 ) -> Unit {
   dispatch_native_window_event(kind, raw_id, arg0, arg1, arg2, argd)
@@ -316,8 +316,8 @@ fn native_callback_window_event(
 
 ///|
 fn native_callback_input_event(
-  raw_id : Int,
-  kind : Int,
+  raw_id : Int32,
+  kind : Int32,
   wparam : UInt64,
   lparam : Int64,
 ) -> Unit {
@@ -325,6 +325,10 @@ fn native_callback_input_event(
 }
 
 ///|
-fn native_callback_sync_query(raw_id : Int, kind : Int, arg0 : Int) -> Int {
+fn native_callback_sync_query(
+  raw_id : Int32,
+  kind : Int32,
+  arg0 : Int32,
+) -> Int32 {
   dispatch_native_sync_query(raw_id, kind, arg0)
 }

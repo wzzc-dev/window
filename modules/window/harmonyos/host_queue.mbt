@@ -5,9 +5,9 @@ pub(all) enum HostCmd {
   Resume
   Pause
   Stop
-  SurfaceInit(UInt64, UInt64, Int, Int, Double)
+  SurfaceInit(UInt64, UInt64, Int32, Int32, Double)
   SurfaceTerm
-  SurfaceResize(Int, Int, Double)
+  SurfaceResize(Int32, Int32, Double)
   PointerMoved(Double, Double)
   PointerButton(Bool, Double, Double)
   KeyboardText(String)
@@ -177,7 +177,7 @@ fn host_drain_into_app_state() -> Bool {
 }
 
 ///|
-fn host_default_window_metrics() -> (Int, Int, Double, UInt64, UInt64) {
+fn host_default_window_metrics() -> (Int32, Int32, Double, UInt64, UInt64) {
   match embedded_dispatch_kernel.val.surface() {
     Some(surface) =>
       (

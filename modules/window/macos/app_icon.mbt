@@ -20,22 +20,22 @@ pub fn application_is_bundled() -> Bool {
 /// kept in that case.
 pub fn set_application_icon_path(path : String) -> Bool {
   let app = native_application_shared_handle()
-  if app == (0 : Int).to_uint64() {
+  if app == (0 : Int32).to_uint64() {
     return false
   }
   let path_string = objc_nsstring_from_string(path)
-  if path_string == (0 : Int).to_uint64() {
+  if path_string == (0 : Int32).to_uint64() {
     return false
   }
   let image_class = objc_runtime_class_handle("NSImage")
-  if image_class == (0 : Int).to_uint64() {
+  if image_class == (0 : Int32).to_uint64() {
     return false
   }
   let allocated = appkit_objc_msg_send_u64(
     image_class,
     objc_runtime_selector_handle("alloc"),
   )
-  if allocated == (0 : Int).to_uint64() {
+  if allocated == (0 : Int32).to_uint64() {
     return false
   }
   let image = appkit_objc_msg_send_u64_u64(
@@ -43,7 +43,7 @@ pub fn set_application_icon_path(path : String) -> Bool {
     objc_runtime_selector_handle("initWithContentsOfFile:"),
     path_string,
   )
-  if image == (0 : Int).to_uint64() {
+  if image == (0 : Int32).to_uint64() {
     // A failed `initWith...` releases the allocation it consumed, so there is
     // nothing left to release here.
     return false
@@ -70,5 +70,5 @@ pub fn set_application_icon_data(data : Bytes) -> Bool {
 #borrow(data)
 extern "C" fn native_application_set_icon_data(
   data : Bytes,
-  data_len : Int,
+  data_len : Int32,
 ) -> Bool = "mbw_appkit_set_application_icon_data"

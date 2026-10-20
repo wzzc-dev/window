@@ -1,6 +1,6 @@
 ///|
 pub struct EventLoopProxy {
-  priv thread_id : UInt
+  priv thread_id : UInt32
 } derive(Eq, Debug)
 
 ///|
@@ -11,7 +11,7 @@ pub fn EventLoopProxy::wake_up(self : EventLoopProxy) -> Unit {
 ///|
 pub struct EventLoop {
   priv msg_window : UInt64
-  priv thread_id : UInt
+  priv thread_id : UInt32
 } derive(Debug)
 
 ///|
@@ -269,7 +269,7 @@ pub fn EventLoop::create_custom_cursor(
 ///|
 pub fn EventLoop::native_display_handle(self : EventLoop) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  (0 : Int32).to_uint64()
 }
 
 ///|
@@ -474,29 +474,30 @@ fn EventLoop::dispatch_events(self : EventLoop) -> Unit {
 fn EventLoop::run_message_loop(
   self : EventLoop,
   blocking : Bool,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
 ) -> Unit {
   let mut continue_loop = true
   while continue_loop {
     let has_msg = match app_state_control_flow() {
       Poll =>
-        native_process_one_message((0 : Int).to_uint64(), 0, 0, pm_remove) != 0
+        native_process_one_message((0 : Int32).to_uint64(), 0, 0, pm_remove) !=
+        0
       Wait =>
         if blocking {
-          native_wait_and_process_message((0 : Int).to_uint64(), 0, 0) > 0
+          native_wait_and_process_message((0 : Int32).to_uint64(), 0, 0) > 0
         } else {
-          native_process_one_message((0 : Int).to_uint64(), 0, 0, pm_remove) !=
+          native_process_one_message((0 : Int32).to_uint64(), 0, 0, pm_remove) !=
           0
         }
       WaitUntil(_) =>
         match timeout_ms {
           Some(t) if t <= 0 =>
-            native_process_one_message((0 : Int).to_uint64(), 0, 0, pm_remove) !=
+            native_process_one_message((0 : Int32).to_uint64(), 0, 0, pm_remove) !=
             0
           Some(t) =>
             native_wait_timeout_and_process(t.reinterpret_as_uint()) != 0
           None =>
-            native_wait_and_process_message((0 : Int).to_uint64(), 0, 0) > 0
+            native_wait_and_process_message((0 : Int32).to_uint64(), 0, 0) > 0
         }
     }
     self.dispatch_events()
@@ -568,7 +569,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   self.try_pump_app_events(timeout_ms, app)
@@ -577,7 +578,7 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   if app_state_is_running() == false {
@@ -597,7 +598,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
 }
 
 ///|
-fn native_system_theme() -> Int {
+fn native_system_theme() -> Int32 {
   let key_path = @utf8.encode(
     "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
     bom=false,
@@ -620,7 +621,7 @@ fn native_system_theme() -> Int {
 }
 
 ///|
-fn theme_from_native(theme : Int) -> @core.Theme? {
+fn theme_from_native(theme : Int32) -> @core.Theme? {
   match theme {
     0 => Some(Light)
     1 => Some(Dark)

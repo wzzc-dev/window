@@ -36,17 +36,17 @@ fn begin_recording() -> RecordingApp {
 }
 
 ///|
-fn register_input_test_window(raw_id : Int) -> Unit {
+fn register_input_test_window(raw_id : Int32) -> Unit {
   app_state_register_window_handle(raw_id, 77UL)
 }
 
 ///|
-fn lparam_position(x : Int, y : Int) -> Int64 {
+fn lparam_position(x : Int32, y : Int32) -> Int64 {
   ((y << 16) | (x & 0xFFFF)).to_int64()
 }
 
 ///|
-fn lparam_key(scan_code : Int, extended : Bool) -> Int64 {
+fn lparam_key(scan_code : Int32, extended : Bool) -> Int64 {
   let extended_bit = if extended { 1 << 24 } else { 0 }
   ((scan_code << 16) | extended_bit).to_int64()
 }

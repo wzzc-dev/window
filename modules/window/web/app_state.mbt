@@ -8,7 +8,7 @@ priv enum DeferredCallback {
 
 ///|
 priv struct WindowEntry {
-  raw_id : Int
+  raw_id : Int32
   mut title : String
   mut visible : Bool
   mut resizable : Bool
@@ -20,14 +20,14 @@ priv struct WindowEntry {
 
 ///|
 priv struct AppStateRuntime {
-  mut next_window_id : Int
+  mut next_window_id : Int32
   mut is_running : Bool
   mut exit_requested : Bool
-  mut exit_code : Int
+  mut exit_code : Int32
   mut event_handler_in_use : Bool
   mut control_flow : @core.ControlFlow
   mut poll_strategy : PollStrategy
-  mut pending_redraw_window_ids : Array[Int]
+  mut pending_redraw_window_ids : Array[Int32]
   mut window_entries : Array[WindowEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
@@ -57,7 +57,7 @@ let app_state_runtime : Ref[AppStateRuntime] = Ref(AppStateRuntime::new())
 let event_loop_global_created : Ref[Bool] = Ref(false)
 
 ///|
-fn app_state_next_window_id() -> Int {
+fn app_state_next_window_id() -> Int32 {
   let id = app_state_runtime.val.next_window_id
   app_state_runtime.val.next_window_id = id + 1
   id
@@ -82,7 +82,7 @@ fn app_state_register_window_entry(entry : WindowEntry) -> Unit {
 }
 
 ///|
-fn app_state_unregister_window(raw_id : Int) -> Unit {
+fn app_state_unregister_window(raw_id : Int32) -> Unit {
   let next : Array[WindowEntry] = []
   for entry in app_state_runtime.val.window_entries {
     if entry.raw_id != raw_id {
@@ -93,12 +93,12 @@ fn app_state_unregister_window(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_window_index(raw_id : Int) -> Int? {
+fn app_state_window_index(raw_id : Int32) -> Int32? {
   app_state_runtime.val.window_entries.search_by(entry => entry.raw_id == raw_id)
 }
 
 ///|
-fn app_state_window_entry(raw_id : Int) -> WindowEntry? {
+fn app_state_window_entry(raw_id : Int32) -> WindowEntry? {
   match app_state_window_index(raw_id) {
     Some(index) => Some(app_state_runtime.val.window_entries[index])
     None => None
@@ -107,7 +107,7 @@ fn app_state_window_entry(raw_id : Int) -> WindowEntry? {
 
 ///|
 fn app_state_update_window_entry(
-  raw_id : Int,
+  raw_id : Int32,
   update : (WindowEntry) -> WindowEntry,
 ) -> Unit {
   match app_state_window_index(raw_id) {
@@ -120,7 +120,7 @@ fn app_state_update_window_entry(
 }
 
 ///|
-fn app_state_window_scale_factor(raw_id : Int) -> Double {
+fn app_state_window_scale_factor(raw_id : Int32) -> Double {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.scale_factor
     None => 1.0
@@ -129,7 +129,7 @@ fn app_state_window_scale_factor(raw_id : Int) -> Double {
 
 ///|
 fn app_state_set_window_scale_factor(
-  raw_id : Int,
+  raw_id : Int32,
   scale_factor : Double,
 ) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
@@ -140,7 +140,7 @@ fn app_state_set_window_scale_factor(
 
 ///|
 fn app_state_set_window_surface_size(
-  raw_id : Int,
+  raw_id : Int32,
   size : @dpi.PhysicalSize,
 ) -> Unit {
   let _ = raw_id
@@ -149,7 +149,7 @@ fn app_state_set_window_surface_size(
 
 ///|
 fn app_state_set_window_position(
-  raw_id : Int,
+  raw_id : Int32,
   position : @dpi.PhysicalPosition,
 ) -> Unit {
   let _ = raw_id
@@ -157,7 +157,7 @@ fn app_state_set_window_position(
 }
 
 ///|
-fn app_state_set_window_title(raw_id : Int, title : String) -> Unit {
+fn app_state_set_window_title(raw_id : Int32, title : String) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
     entry.title = title
     entry
@@ -165,7 +165,7 @@ fn app_state_set_window_title(raw_id : Int, title : String) -> Unit {
 }
 
 ///|
-fn app_state_window_title(raw_id : Int) -> String {
+fn app_state_window_title(raw_id : Int32) -> String {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.title
     None => ""
@@ -173,7 +173,7 @@ fn app_state_window_title(raw_id : Int) -> String {
 }
 
 ///|
-fn app_state_set_window_visible(raw_id : Int, visible : Bool) -> Unit {
+fn app_state_set_window_visible(raw_id : Int32, visible : Bool) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
     entry.visible = visible
     entry
@@ -181,7 +181,7 @@ fn app_state_set_window_visible(raw_id : Int, visible : Bool) -> Unit {
 }
 
 ///|
-fn app_state_window_visible(raw_id : Int) -> Bool? {
+fn app_state_window_visible(raw_id : Int32) -> Bool? {
   match app_state_window_entry(raw_id) {
     Some(entry) => Some(entry.visible)
     None => None
@@ -189,7 +189,7 @@ fn app_state_window_visible(raw_id : Int) -> Bool? {
 }
 
 ///|
-fn app_state_set_window_resizable(raw_id : Int, resizable : Bool) -> Unit {
+fn app_state_set_window_resizable(raw_id : Int32, resizable : Bool) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
     entry.resizable = resizable
     entry
@@ -197,7 +197,7 @@ fn app_state_set_window_resizable(raw_id : Int, resizable : Bool) -> Unit {
 }
 
 ///|
-fn app_state_window_resizable(raw_id : Int) -> Bool {
+fn app_state_window_resizable(raw_id : Int32) -> Bool {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.resizable
     None => false
@@ -205,7 +205,7 @@ fn app_state_window_resizable(raw_id : Int) -> Bool {
 }
 
 ///|
-fn app_state_set_window_cursor(raw_id : Int, cursor : @core.Cursor) -> Unit {
+fn app_state_set_window_cursor(raw_id : Int32, cursor : @core.Cursor) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
     entry.cursor = cursor
     entry
@@ -213,7 +213,7 @@ fn app_state_set_window_cursor(raw_id : Int, cursor : @core.Cursor) -> Unit {
 }
 
 ///|
-fn app_state_window_cursor(raw_id : Int) -> @core.Cursor {
+fn app_state_window_cursor(raw_id : Int32) -> @core.Cursor {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.cursor
     None => Icon(Default)
@@ -222,7 +222,7 @@ fn app_state_window_cursor(raw_id : Int) -> @core.Cursor {
 
 ///|
 fn app_state_set_window_fullscreen(
-  raw_id : Int,
+  raw_id : Int32,
   fullscreen : @core.Fullscreen?,
 ) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
@@ -232,7 +232,7 @@ fn app_state_set_window_fullscreen(
 }
 
 ///|
-fn app_state_window_fullscreen(raw_id : Int) -> @core.Fullscreen? {
+fn app_state_window_fullscreen(raw_id : Int32) -> @core.Fullscreen? {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.fullscreen
     None => None
@@ -240,7 +240,7 @@ fn app_state_window_fullscreen(raw_id : Int) -> @core.Fullscreen? {
 }
 
 ///|
-fn app_state_set_window_focused(raw_id : Int, focused : Bool) -> Unit {
+fn app_state_set_window_focused(raw_id : Int32, focused : Bool) -> Unit {
   app_state_update_window_entry(raw_id, entry => {
     entry.focused = focused
     entry
@@ -248,7 +248,7 @@ fn app_state_set_window_focused(raw_id : Int, focused : Bool) -> Unit {
 }
 
 ///|
-fn app_state_window_focused(raw_id : Int) -> Bool {
+fn app_state_window_focused(raw_id : Int32) -> Bool {
   match app_state_window_entry(raw_id) {
     Some(entry) => entry.focused
     None => false
@@ -271,12 +271,12 @@ fn app_state_exit_requested() -> Bool {
 }
 
 ///|
-fn app_state_exit_code() -> Int {
+fn app_state_exit_code() -> Int32 {
   app_state_runtime.val.exit_code
 }
 
 ///|
-fn app_state_set_exit(code : Int) -> Unit {
+fn app_state_set_exit(code : Int32) -> Unit {
   app_state_runtime.val.exit_requested = true
   app_state_runtime.val.exit_code = code
 }
@@ -359,7 +359,7 @@ fn app_state_queue_callback(callback : DeferredCallback) -> Unit {
 
 ///|
 fn app_state_queue_window_event(
-  raw_id : Int,
+  raw_id : Int32,
   event : @core.WindowEvent,
 ) -> Unit {
   app_state_queue_callback(WindowEvent(@core.WindowId::from_raw(raw_id), event))
@@ -372,7 +372,7 @@ fn app_state_queue_proxy_wake_up() -> Unit {
 }
 
 ///|
-fn app_state_queue_redraw(raw_id : Int) -> Unit {
+fn app_state_queue_redraw(raw_id : Int32) -> Unit {
   let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
     id == raw_id
   })
@@ -382,7 +382,7 @@ fn app_state_queue_redraw(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_request_redraw(raw_id : Int) -> Unit {
+fn app_state_request_redraw(raw_id : Int32) -> Unit {
   app_state_queue_redraw(raw_id)
   app_state_schedule_tick()
 }
@@ -451,10 +451,10 @@ fn app_state_install_web_callbacks() -> Unit {
 
 ///|
 pub fn web_dispatch_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
   argd : Double,
   text : String,
 ) -> Unit {
@@ -463,12 +463,12 @@ pub fn web_dispatch_event(
 
 ///|
 pub fn web_dispatch_event_by_id(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
   argd : Double,
-  text_id : Int,
+  text_id : Int32,
 ) -> Unit {
   web_dispatch_event(
     kind,

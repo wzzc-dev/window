@@ -3,7 +3,7 @@ name = "wzzc-dev/window"
 version = "0.5.4-0.2.1"
 
 import {
-  "Milky2018/windowing@0.1.1",
+  "Milky2018/windowing@0.1.2",
 }
 
 preferred_target = "native"

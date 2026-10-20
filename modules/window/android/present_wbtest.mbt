@@ -12,14 +12,14 @@ test "android_present_rgba_and_clear_color_smoke" {
     None => fail("window required")
   }
   assert_eq(window.native_window_handle(), 0xABCUL)
-  let pixels = Bytes::make(64, (255 : Int).to_byte())
+  let pixels = Bytes::make(64, (255 : Int32).to_byte())
   assert_eq(window.present_rgba_pixels(4, 4, 16, pixels), 0)
   assert_eq(
     window.clear_color(
-      (0 : Int).to_byte(),
-      (128 : Int).to_byte(),
-      (255 : Int).to_byte(),
-      (255 : Int).to_byte(),
+      (0 : Int32).to_byte(),
+      (128 : Int32).to_byte(),
+      (255 : Int32).to_byte(),
+      (255 : Int32).to_byte(),
     ),
     0,
   )

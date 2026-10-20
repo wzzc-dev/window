@@ -18,10 +18,10 @@ pub struct Window {
   priv mut is_cursor_hittest_state : Bool
   priv mut is_transparent_state : Bool
   priv mut is_blurred_state : Bool
-  priv mut saved_window_rect_left : Int
-  priv mut saved_window_rect_top : Int
-  priv mut saved_window_rect_right : Int
-  priv mut saved_window_rect_bottom : Int
+  priv mut saved_window_rect_left : Int32
+  priv mut saved_window_rect_top : Int32
+  priv mut saved_window_rect_right : Int32
+  priv mut saved_window_rect_bottom : Int32
   priv mut saved_window_style : UInt64
   priv mut saved_window_ex_style : UInt64
 } derive(Eq, Debug)
@@ -77,19 +77,19 @@ let ws_ex_toolwindow : UInt64 = 0x00000080
 let ws_ex_appwindow : UInt64 = 0x00040000
 
 ///|
-let sw_hide : Int = 0
+let sw_hide : Int32 = 0
 
 ///|
-let sw_shownormal : Int = 1
+let sw_shownormal : Int32 = 1
 
 ///|
-let sw_maximize : Int = 3
+let sw_maximize : Int32 = 3
 
 ///|
-let sw_minimize : Int = 6
+let sw_minimize : Int32 = 6
 
 ///|
-let sw_restore : Int = 9
+let sw_restore : Int32 = 9
 
 ///|
 let swp_nomove : UInt64 = 0x0002
@@ -119,25 +119,25 @@ let hwnd_topmost : UInt64 = (-1L).reinterpret_as_uint64()
 let hwnd_notopmost : UInt64 = (-2L).reinterpret_as_uint64()
 
 ///|
-let size_minimized : Int = 1
+let size_minimized : Int32 = 1
 
 ///|
-let cw_usedefault : Int = -2147483648
+let cw_usedefault : Int32 = -2147483648
 
 ///|
-let pm_remove : UInt = 1
+let pm_remove : UInt32 = 1
 
 ///|
-let tme_leave : UInt = 0x00000002
+let tme_leave : UInt32 = 0x00000002
 
 ///|
-let htcaption : Int = 2
+let htcaption : Int32 = 2
 
 ///|
-let wheel_delta : Int = 120
+let wheel_delta : Int32 = 120
 
 ///|
-fn windows_scale_factor_from_dpi(dpi : UInt) -> Double {
+fn windows_scale_factor_from_dpi(dpi : UInt32) -> Double {
   if dpi == 0 {
     1.0
   } else {
@@ -162,7 +162,7 @@ fn compute_window_style(attributes : @core.WindowAttributes) -> UInt64 {
 
 ///|
 fn compute_window_ex_style(attributes : @core.WindowAttributes) -> UInt64 {
-  let mut ex_style = (0 : Int).to_uint64()
+  let mut ex_style = (0 : Int32).to_uint64()
   if attributes.transparent() {
     ex_style = ex_style | ws_ex_layered
   }
@@ -205,14 +205,14 @@ pub fn Window::new(
     Some(parent) =>
       match parent.into_raw() {
         Win32(handle) => handle.hwnd()
-        _ => (0 : Int).to_uint64()
+        _ => (0 : Int32).to_uint64()
       }
-    None => (0 : Int).to_uint64()
+    None => (0 : Int32).to_uint64()
   }
   let hwnd = native_create_window(
     width, height, ex_style, style, x, y, parent_hwnd,
   )
-  if hwnd == (0 : Int).to_uint64() {
+  if hwnd == (0 : Int32).to_uint64() {
     raise @core.RequestError::os("CreateWindowExW returned a null HWND")
   }
   native_set_window_raw_id(hwnd, raw_id)
@@ -692,7 +692,7 @@ pub fn Window::set_window_level(
 ///|
 pub fn Window::window_level(self : Window) -> @core.WindowLevel {
   let ex_style = native_get_window_long_ex_style(self.hwnd)
-  if (ex_style & (8 : Int).to_uint64()) != (0 : Int).to_uint64() {
+  if (ex_style & (8 : Int32).to_uint64()) != (0 : Int32).to_uint64() {
     AlwaysOnTop
   } else {
     Normal
@@ -1203,12 +1203,12 @@ pub fn Window::select_previous_tab(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+pub fn Window::select_tab_at_index(self : Window, _index : Int32) -> Unit {
   let _ = self
 }
 
 ///|
-pub fn Window::num_tabs(self : Window) -> Int {
+pub fn Window::num_tabs(self : Window) -> Int32 {
   let _ = self
   0
 }
@@ -1280,42 +1280,42 @@ pub fn Window::primary_monitor(self : Window) -> @core.MonitorHandle? {
 ///|
 fn cursor_icon_to_native(icon : @core.CursorIcon) -> UInt64 {
   let name = match icon {
-    Default => (32512 : Int).to_uint64()
-    Pointer => (32649 : Int).to_uint64()
-    Text => (32513 : Int).to_uint64()
-    Crosshair => (32515 : Int).to_uint64()
-    Move => (32649 : Int).to_uint64()
-    Wait => (32514 : Int).to_uint64()
-    Progress => (32650 : Int).to_uint64()
-    Help => (32651 : Int).to_uint64()
-    NotAllowed => (32648 : Int).to_uint64()
-    Grab => (32649 : Int).to_uint64()
-    Grabbing => (32649 : Int).to_uint64()
-    EResize => (32643 : Int).to_uint64()
-    NResize => (32645 : Int).to_uint64()
-    NeResize => (32642 : Int).to_uint64()
-    NwResize => (32644 : Int).to_uint64()
-    SResize => (32646 : Int).to_uint64()
-    SeResize => (32642 : Int).to_uint64()
-    SwResize => (32644 : Int).to_uint64()
-    WResize => (32643 : Int).to_uint64()
-    EwResize => (32644 : Int).to_uint64()
-    NsResize => (32645 : Int).to_uint64()
-    NeswResize => (32642 : Int).to_uint64()
-    NwseResize => (32642 : Int).to_uint64()
-    ColResize => (32644 : Int).to_uint64()
-    RowResize => (32645 : Int).to_uint64()
-    AllScroll => (32649 : Int).to_uint64()
-    ZoomIn => (32512 : Int).to_uint64()
-    ZoomOut => (32512 : Int).to_uint64()
-    ContextMenu => (32651 : Int).to_uint64()
-    Cell => (32513 : Int).to_uint64()
-    VerticalText => (32513 : Int).to_uint64()
-    Alias => (32512 : Int).to_uint64()
-    Copy => (32512 : Int).to_uint64()
-    NoDrop => (32648 : Int).to_uint64()
+    Default => (32512 : Int32).to_uint64()
+    Pointer => (32649 : Int32).to_uint64()
+    Text => (32513 : Int32).to_uint64()
+    Crosshair => (32515 : Int32).to_uint64()
+    Move => (32649 : Int32).to_uint64()
+    Wait => (32514 : Int32).to_uint64()
+    Progress => (32650 : Int32).to_uint64()
+    Help => (32651 : Int32).to_uint64()
+    NotAllowed => (32648 : Int32).to_uint64()
+    Grab => (32649 : Int32).to_uint64()
+    Grabbing => (32649 : Int32).to_uint64()
+    EResize => (32643 : Int32).to_uint64()
+    NResize => (32645 : Int32).to_uint64()
+    NeResize => (32642 : Int32).to_uint64()
+    NwResize => (32644 : Int32).to_uint64()
+    SResize => (32646 : Int32).to_uint64()
+    SeResize => (32642 : Int32).to_uint64()
+    SwResize => (32644 : Int32).to_uint64()
+    WResize => (32643 : Int32).to_uint64()
+    EwResize => (32644 : Int32).to_uint64()
+    NsResize => (32645 : Int32).to_uint64()
+    NeswResize => (32642 : Int32).to_uint64()
+    NwseResize => (32642 : Int32).to_uint64()
+    ColResize => (32644 : Int32).to_uint64()
+    RowResize => (32645 : Int32).to_uint64()
+    AllScroll => (32649 : Int32).to_uint64()
+    ZoomIn => (32512 : Int32).to_uint64()
+    ZoomOut => (32512 : Int32).to_uint64()
+    ContextMenu => (32651 : Int32).to_uint64()
+    Cell => (32513 : Int32).to_uint64()
+    VerticalText => (32513 : Int32).to_uint64()
+    Alias => (32512 : Int32).to_uint64()
+    Copy => (32512 : Int32).to_uint64()
+    NoDrop => (32648 : Int32).to_uint64()
   }
-  native_load_cursor((0 : Int).to_uint64(), name)
+  native_load_cursor((0 : Int32).to_uint64(), name)
 }
 
 ///|

@@ -12,27 +12,27 @@ priv enum DeferredCallback {
 
 ///|
 priv struct WindowEntry {
-  raw_id : Int
+  raw_id : Int32
   mut title : String
   mut visible : Bool
   mut resizable : Bool
   mut cursor : @core.Cursor
   mut fullscreen : @core.Fullscreen?
   mut scale_factor : Double
-  mut width : Int
-  mut height : Int
+  mut width : Int32
+  mut height : Int32
   mut surface_handle : UInt64
   mut surface_token : UInt64
 }
 
 ///|
 priv struct AppStateRuntime {
-  mut next_window_id : Int
+  mut next_window_id : Int32
   mut is_running : Bool
   mut exit_requested : Bool
-  mut exit_code : Int
+  mut exit_code : Int32
   mut control_flow : @core.ControlFlow
-  mut pending_redraw_window_ids : Array[Int]
+  mut pending_redraw_window_ids : Array[Int32]
   mut window_entries : Array[WindowEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
@@ -68,7 +68,7 @@ fn app_state_reset_for_test() -> Unit {
 }
 
 ///|
-fn app_state_next_window_id() -> Int {
+fn app_state_next_window_id() -> Int32 {
   let id = app_state_runtime.val.next_window_id
   app_state_runtime.val.next_window_id = id + 1
   id
@@ -93,7 +93,7 @@ fn app_state_register_window_entry(entry : WindowEntry) -> Unit {
 }
 
 ///|
-fn app_state_unregister_window(raw_id : Int) -> Unit {
+fn app_state_unregister_window(raw_id : Int32) -> Unit {
   let next : Array[WindowEntry] = []
   for entry in app_state_runtime.val.window_entries {
     if entry.raw_id != raw_id {
@@ -104,12 +104,12 @@ fn app_state_unregister_window(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_window_index(raw_id : Int) -> Int? {
+fn app_state_window_index(raw_id : Int32) -> Int32? {
   app_state_runtime.val.window_entries.search_by(entry => entry.raw_id == raw_id)
 }
 
 ///|
-fn app_state_window_entry(raw_id : Int) -> WindowEntry? {
+fn app_state_window_entry(raw_id : Int32) -> WindowEntry? {
   match app_state_window_index(raw_id) {
     Some(i) => Some(app_state_runtime.val.window_entries[i])
     None => None
@@ -127,7 +127,7 @@ fn app_state_is_running() -> Bool {
 }
 
 ///|
-fn app_state_request_exit(code : Int) -> Unit {
+fn app_state_request_exit(code : Int32) -> Unit {
   app_state_runtime.val.exit_requested = true
   app_state_runtime.val.exit_code = code
 }
@@ -138,7 +138,7 @@ fn app_state_exit_requested() -> Bool {
 }
 
 ///|
-fn app_state_exit_code() -> Int {
+fn app_state_exit_code() -> Int32 {
   app_state_runtime.val.exit_code
 }
 
@@ -176,7 +176,7 @@ fn app_state_queue_window_event(
 }
 
 ///|
-fn app_state_request_redraw(raw_id : Int) -> Unit {
+fn app_state_request_redraw(raw_id : Int32) -> Unit {
   let found = app_state_runtime.val.pending_redraw_window_ids.search_by(id => {
     id == raw_id
   })
@@ -186,7 +186,7 @@ fn app_state_request_redraw(raw_id : Int) -> Unit {
 }
 
 ///|
-fn app_state_take_pending_redraws() -> Array[Int] {
+fn app_state_take_pending_redraws() -> Array[Int32] {
   let pending = app_state_runtime.val.pending_redraw_window_ids
   app_state_runtime.val.pending_redraw_window_ids = []
   pending
@@ -215,8 +215,8 @@ fn app_state_dispatch_pending() -> Unit {
 ///|
 fn app_state_create_window_entry(
   title : String,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   scale_factor : Double,
   surface_handle : UInt64,
   surface_token : UInt64,

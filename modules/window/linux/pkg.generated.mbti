@@ -85,7 +85,7 @@ pub fn EventLoop::new_with_platform_attributes(@core.PlatformEventLoopAttributes
 pub fn EventLoop::output(Self, &Logger) -> Unit
 pub fn EventLoop::owned_display_handle(Self) -> UInt64
 pub fn EventLoop::primary_monitor(Self) -> @core.MonitorHandle?
-pub fn[A : ApplicationHandler] EventLoop::pump_app_events(Self, Int?, A) -> @core.PumpStatus
+pub fn[A : ApplicationHandler] EventLoop::pump_app_events(Self, Int32?, A) -> @core.PumpStatus
 pub fn EventLoop::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
 pub fn[A : ApplicationHandler] EventLoop::run_app(Self, A) -> Unit
 pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(Self, A) -> Unit
@@ -99,7 +99,7 @@ pub fn EventLoop::try_create_window(Self, @core.WindowAttributes) -> Window rais
 pub fn EventLoop::try_create_window_with_linux_attributes(Self, @core.WindowAttributes, WindowAttributesLinux) -> Window raise @core.RequestError
 pub fn EventLoop::try_new() -> Self raise @core.EventLoopError
 pub fn EventLoop::try_new_with_platform_attributes(@core.PlatformEventLoopAttributes) -> Self raise @core.EventLoopError
-pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(Self, Int?, A) -> @core.PumpStatus
+pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(Self, Int32?, A) -> @core.PumpStatus
 pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @core.EventLoopError
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
@@ -192,13 +192,13 @@ pub fn Window::native_window_handle(Self) -> UInt64
 pub fn Window::new(EventLoop, @core.WindowAttributes) -> Self raise @core.RequestError
 pub fn Window::new_with_linux_attributes(EventLoop, @core.WindowAttributes, WindowAttributesLinux) -> Self raise @core.RequestError
 pub fn Window::not_equal(Self, Self) -> Bool
-pub fn Window::num_tabs(Self) -> Int
+pub fn Window::num_tabs(Self) -> Int32
 pub fn Window::option_as_alt(Self) -> @core.OptionAsAlt
 pub fn Window::outer_position(Self) -> @dpi.PhysicalPosition raise @core.RequestError
 pub fn Window::outer_size(Self) -> @dpi.PhysicalSize
 pub fn Window::output(Self, &Logger) -> Unit
 pub fn Window::pre_present_notify(Self) -> Unit
-pub fn Window::present_rgba_pixels(Self, Int, Int, Int, Bytes) -> Int
+pub fn Window::present_rgba_pixels(Self, Int32, Int32, Int32, Bytes) -> Int32
 pub fn Window::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn Window::raw_display_handle(Self) -> @windowing.RawDisplayHandle raise @windowing.HandleError
 pub fn Window::raw_window_handle(Self) -> @windowing.RawWindowHandle raise @windowing.HandleError
@@ -215,7 +215,7 @@ pub fn Window::safe_area(Self) -> @dpi.PhysicalInsets
 pub fn Window::scale_factor(Self) -> Double
 pub fn Window::select_next_tab(Self) -> Unit
 pub fn Window::select_previous_tab(Self) -> Unit
-pub fn Window::select_tab_at_index(Self, Int) -> Unit
+pub fn Window::select_tab_at_index(Self, Int32) -> Unit
 pub fn Window::set_blur(Self, Bool) -> Unit
 pub fn Window::set_borderless_game(Self, Bool) -> Unit
 pub fn Window::set_content_protected(Self, Bool) -> Unit

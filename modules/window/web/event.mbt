@@ -1,74 +1,74 @@
 ///|
-let web_event_animation_frame : Int = 1
+let web_event_animation_frame : Int32 = 1
 
 ///|
-let web_event_timeout : Int = 2
+let web_event_timeout : Int32 = 2
 
 ///|
-let web_event_proxy_wake : Int = 3
+let web_event_proxy_wake : Int32 = 3
 
 ///|
-let web_event_resize : Int = 10
+let web_event_resize : Int32 = 10
 
 ///|
-let web_event_focus : Int = 11
+let web_event_focus : Int32 = 11
 
 ///|
-let web_event_blur : Int = 12
+let web_event_blur : Int32 = 12
 
 ///|
-let web_event_pointer_enter : Int = 20
+let web_event_pointer_enter : Int32 = 20
 
 ///|
-let web_event_pointer_move : Int = 21
+let web_event_pointer_move : Int32 = 21
 
 ///|
-let web_event_pointer_leave : Int = 22
+let web_event_pointer_leave : Int32 = 22
 
 ///|
-let web_event_pointer_down : Int = 23
+let web_event_pointer_down : Int32 = 23
 
 ///|
-let web_event_pointer_up : Int = 24
+let web_event_pointer_up : Int32 = 24
 
 ///|
-let web_event_wheel : Int = 30
+let web_event_wheel : Int32 = 30
 
 ///|
-let web_event_key_down : Int = 40
+let web_event_key_down : Int32 = 40
 
 ///|
-let web_event_key_up : Int = 41
+let web_event_key_up : Int32 = 41
 
 ///|
-let web_event_ime_commit : Int = 42
+let web_event_ime_commit : Int32 = 42
 
 ///|
-let web_event_ime_start : Int = 43
+let web_event_ime_start : Int32 = 43
 
 ///|
-let web_event_ime_preedit : Int = 44
+let web_event_ime_preedit : Int32 = 44
 
 ///|
-let web_event_ime_delete_surrounding : Int = 45
+let web_event_ime_delete_surrounding : Int32 = 45
 
 ///|
-let web_event_theme : Int = 50
+let web_event_theme : Int32 = 50
 
 ///|
-let web_event_drag_enter : Int = 60
+let web_event_drag_enter : Int32 = 60
 
 ///|
-let web_event_drag_move : Int = 61
+let web_event_drag_move : Int32 = 61
 
 ///|
-let web_event_drag_drop : Int = 62
+let web_event_drag_drop : Int32 = 62
 
 ///|
-let web_event_drag_leave : Int = 63
+let web_event_drag_leave : Int32 = 63
 
 ///|
-fn web_mouse_button(button : Int) -> @core.MouseButton {
+fn web_mouse_button(button : Int32) -> @core.MouseButton {
   match @core.MouseButton::try_from_u8(button) {
     Some(mouse) => mouse
     None => Left
@@ -235,10 +235,10 @@ fn web_drag_paths(text : String) -> Array[String] {
 
 ///|
 fn dispatch_web_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
   argd : Double,
   text : String,
 ) -> Unit {

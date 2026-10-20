@@ -36,8 +36,8 @@ fn reset_monitor_test_state() -> Unit {
 
 ///|
 test "windows monitor helpers do not fabricate missing monitors" {
-  assert_true(monitor_from_native_id((0 : Int).to_uint64()) == None)
-  assert_true(current_monitor_for_window((0 : Int).to_uint64()) == None)
+  assert_true(monitor_from_native_id((0 : Int32).to_uint64()) == None)
+  assert_true(current_monitor_for_window((0 : Int32).to_uint64()) == None)
 }
 
 ///|

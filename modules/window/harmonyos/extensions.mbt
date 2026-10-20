@@ -6,8 +6,8 @@ pub struct WindowAttributesHarmonyOS {
   priv mut surface_handle_ : UInt64
   priv mut surface_token_ : UInt64
   priv mut scale_factor_ : Double
-  priv mut width_ : Int
-  priv mut height_ : Int
+  priv mut width_ : Int32
+  priv mut height_ : Int32
 }
 
 ///|
@@ -72,8 +72,8 @@ pub fn WindowAttributesHarmonyOS::scale_factor(
 ///|
 pub fn WindowAttributesHarmonyOS::with_size(
   self : WindowAttributesHarmonyOS,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
 ) -> WindowAttributesHarmonyOS {
   self.width_ = width
   self.height_ = height
@@ -83,13 +83,13 @@ pub fn WindowAttributesHarmonyOS::with_size(
 ///|
 pub fn WindowAttributesHarmonyOS::width(
   self : WindowAttributesHarmonyOS,
-) -> Int {
+) -> Int32 {
   self.width_
 }
 
 ///|
 pub fn WindowAttributesHarmonyOS::height(
   self : WindowAttributesHarmonyOS,
-) -> Int {
+) -> Int32 {
   self.height_
 }

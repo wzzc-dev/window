@@ -19,17 +19,17 @@ struct App {
   mut destroy_requested : Bool
   mut requested_resize : Bool
   mut ready_printed : Bool
-  mut wait_count : Int
+  mut wait_count : Int32
 }
 
 ///|
-extern "C" fn native_require_input() -> Int = "mbw_moui_linux_smoke_require_input"
+extern "C" fn native_require_input() -> Int32 = "mbw_moui_linux_smoke_require_input"
 
 ///|
-extern "C" fn native_require_data_device() -> Int = "mbw_moui_linux_smoke_require_data_device"
+extern "C" fn native_require_data_device() -> Int32 = "mbw_moui_linux_smoke_require_data_device"
 
 ///|
-extern "C" fn native_require_current_monitor() -> Int = "mbw_moui_linux_smoke_require_current_monitor"
+extern "C" fn native_require_current_monitor() -> Int32 = "mbw_moui_linux_smoke_require_current_monitor"
 
 ///|
 fn App::maybe_ready(self : App, event_loop : @linux.ActiveEventLoop) -> Unit {
@@ -104,21 +104,21 @@ fn log_handles(window : @linux.Window) -> Bool {
     // X11: the surface handle is the Xlib `Window` XID and the xdg handle
     // slots are intentionally empty.
     X11 =>
-      wl_display != (0 : Int).to_uint64() &&
-      wl_surface != (0 : Int).to_uint64() &&
-      xdg_surface == (0 : Int).to_uint64() &&
-      xdg_toplevel == (0 : Int).to_uint64()
+      wl_display != (0 : Int32).to_uint64() &&
+      wl_surface != (0 : Int32).to_uint64() &&
+      xdg_surface == (0 : Int32).to_uint64() &&
+      xdg_toplevel == (0 : Int32).to_uint64()
     Wayland =>
-      wl_display != (0 : Int).to_uint64() &&
-      wl_surface != (0 : Int).to_uint64() &&
-      xdg_surface != (0 : Int).to_uint64() &&
-      xdg_toplevel != (0 : Int).to_uint64()
+      wl_display != (0 : Int32).to_uint64() &&
+      wl_surface != (0 : Int32).to_uint64() &&
+      xdg_surface != (0 : Int32).to_uint64() &&
+      xdg_toplevel != (0 : Int32).to_uint64()
   }
 }
 
 ///|
 fn present_probe(window : @linux.Window) -> Bool {
-  let pixels = Bytes::make(16, (0x80 : Int).to_byte())
+  let pixels = Bytes::make(16, (0x80 : Int32).to_byte())
   let result = window.present_rgba_pixels(2, 2, 8, pixels)
   println("MOUILinuxSmoke: present result=\{result}")
   result == 0

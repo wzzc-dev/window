@@ -1,7 +1,7 @@
 ///|
 pub struct EventLoopProxy {
   priv context : UInt64
-  priv wake_fd : Int
+  priv wake_fd : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -13,7 +13,7 @@ pub fn EventLoopProxy::wake_up(self : EventLoopProxy) -> Unit {
 ///|
 pub struct EventLoop {
   priv context : UInt64
-  priv wake_fd : Int
+  priv wake_fd : Int32
 } derive(Debug)
 
 ///|
@@ -136,7 +136,7 @@ pub fn EventLoop::try_new_with_platform_attributes(
     raise RecreationAttempt
   }
   let context = native_context_new()
-  if context == (0 : Int).to_uint64() {
+  if context == (0 : Int32).to_uint64() {
     raise @core.EventLoopError::os(
       "failed to connect to a Linux display server (tried Wayland and X11; set WAYLAND_DISPLAY or DISPLAY, or force one with MOUI_LINUX_WINDOWING)",
     )
@@ -536,7 +536,7 @@ fn[A : ApplicationHandler] EventLoop::dispatch_events(
 fn control_flow_timeout_ms(
   control_flow : @core.ControlFlow,
   blocking : Bool,
-) -> Int {
+) -> Int32 {
   match control_flow {
     Poll => 0
     Wait => if blocking { -1 } else { 0 }
@@ -620,7 +620,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   self.try_pump_app_events(timeout_ms, app)
@@ -629,7 +629,7 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   if !app_state_is_running() {

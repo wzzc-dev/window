@@ -11,20 +11,20 @@ extern "C" fn mbw_ios_host_queue_reset() -> Unit = "mbw_ios_host_queue_reset"
 extern "C" fn mbw_ios_host_poll_raw(
   handle_out : Ref[UInt64],
   token_out : Ref[UInt64],
-  width_out : Ref[Int],
-  height_out : Ref[Int],
-  pressed_out : Ref[Int],
-  codepoint_out : Ref[Int],
+  width_out : Ref[Int32],
+  height_out : Ref[Int32],
+  pressed_out : Ref[Int32],
+  codepoint_out : Ref[Int32],
   scale_out : Ref[Double],
   x_out : Ref[Double],
   y_out : Ref[Double],
-  phase_out : Ref[Int],
-  ime_kind_out : Ref[Int],
-  ime_start_out : Ref[Int],
-  ime_end_out : Ref[Int],
+  phase_out : Ref[Int32],
+  ime_kind_out : Ref[Int32],
+  ime_start_out : Ref[Int32],
+  ime_end_out : Ref[Int32],
   dx_out : Ref[Double],
   dy_out : Ref[Double],
-) -> Int = "mbw_ios_host_poll_raw"
+) -> Int32 = "mbw_ios_host_poll_raw"
 
 ///|
 /// Returns the text carried by the most recently polled IME host event

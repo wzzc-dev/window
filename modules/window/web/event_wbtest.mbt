@@ -1,7 +1,7 @@
 ///|
 priv struct RecordingApp {
   events : Array[@core.WindowEvent]
-  mut proxy_wake_count : Int
+  mut proxy_wake_count : Int32
 }
 
 ///|

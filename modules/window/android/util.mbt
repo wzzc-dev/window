@@ -1,5 +1,5 @@
 ///|
-fn platform_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
+fn platform_nonzero_size(width : Int32, height : Int32) -> @dpi.PhysicalSize {
   PhysicalSize(
     if width > 0 {
       width
@@ -20,9 +20,9 @@ fn platform_default_scale() -> Double {
 }
 
 ///|
-extern "C" fn mbw_android_sleep_ms(ms : Int) -> Unit = "mbw_android_sleep_ms"
+extern "C" fn mbw_android_sleep_ms(ms : Int32) -> Unit = "mbw_android_sleep_ms"
 
 ///|
-fn sleep_ms(ms : Int) -> Unit {
+fn sleep_ms(ms : Int32) -> Unit {
   mbw_android_sleep_ms(ms)
 }

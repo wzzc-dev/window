@@ -1,10 +1,10 @@
 ///|
 fn dispatch_native_window_event(
-  kind : Int,
-  raw_id : Int,
-  arg0 : Int,
-  arg1 : Int,
-  arg2 : Int,
+  kind : Int32,
+  raw_id : Int32,
+  arg0 : Int32,
+  arg1 : Int32,
+  arg2 : Int32,
   argd : Double,
 ) -> Unit {
   if raw_id <= 0 {
@@ -82,14 +82,14 @@ fn decode_lparam_position(lparam : Int64) -> @dpi.PhysicalPositionF64 {
 }
 
 ///|
-fn text_from_native_utf8_ptr(ptr : UInt64, len : Int) -> String {
+fn text_from_native_utf8_ptr(ptr : UInt64, len : Int32) -> String {
   @utf8.decode_lossy(native_consume_utf8_text(ptr, len)[:], ignore_bom=false)
 }
 
 ///|
 priv struct PendingWindowsHighSurrogate {
-  raw_id : Int
-  code : Int
+  raw_id : Int32
+  code : Int32
 }
 
 ///|
@@ -97,7 +97,7 @@ let windows_pending_high_surrogates : Ref[Array[PendingWindowsHighSurrogate]] = 
 )
 
 ///|
-fn pending_windows_high_surrogate(raw_id : Int) -> Int? {
+fn pending_windows_high_surrogate(raw_id : Int32) -> Int32? {
   match
     windows_pending_high_surrogates.val.search_by(entry => {
       entry.raw_id == raw_id
@@ -108,7 +108,7 @@ fn pending_windows_high_surrogate(raw_id : Int) -> Int? {
 }
 
 ///|
-fn set_pending_windows_high_surrogate(raw_id : Int, code : Int) -> Unit {
+fn set_pending_windows_high_surrogate(raw_id : Int32, code : Int32) -> Unit {
   let next : Array[PendingWindowsHighSurrogate] = []
   let mut replaced = false
   for entry in windows_pending_high_surrogates.val {
@@ -126,7 +126,7 @@ fn set_pending_windows_high_surrogate(raw_id : Int, code : Int) -> Unit {
 }
 
 ///|
-fn clear_pending_windows_high_surrogate(raw_id : Int) -> Unit {
+fn clear_pending_windows_high_surrogate(raw_id : Int32) -> Unit {
   let next : Array[PendingWindowsHighSurrogate] = []
   for entry in windows_pending_high_surrogates.val {
     if entry.raw_id != raw_id {
@@ -137,7 +137,7 @@ fn clear_pending_windows_high_surrogate(raw_id : Int) -> Unit {
 }
 
 ///|
-fn windows_codepoint_to_text(codepoint : Int) -> String? {
+fn windows_codepoint_to_text(codepoint : Int32) -> String? {
   if codepoint < 0x20 ||
     codepoint == 0x7F ||
     codepoint > 0x10FFFF ||
@@ -149,7 +149,7 @@ fn windows_codepoint_to_text(codepoint : Int) -> String? {
 }
 
 ///|
-fn text_from_windows_char_code(raw_id : Int, char_code : Int) -> String? {
+fn text_from_windows_char_code(raw_id : Int32, char_code : Int32) -> String? {
   if char_code >= 0xD800 && char_code <= 0xDBFF {
     set_pending_windows_high_surrogate(raw_id, char_code)
     None
@@ -169,16 +169,16 @@ fn text_from_windows_char_code(raw_id : Int, char_code : Int) -> String? {
 }
 
 ///|
-let window_mouse_tracking : Ref[Array[Int]] = Ref([])
+let window_mouse_tracking : Ref[Array[Int32]] = Ref([])
 
 ///|
-fn is_mouse_tracking(raw_id : Int) -> Bool {
+fn is_mouse_tracking(raw_id : Int32) -> Bool {
   window_mouse_tracking.val.search_by(id => id == raw_id) is Some(_)
 }
 
 ///|
-fn set_mouse_tracking(raw_id : Int, tracking : Bool) -> Unit {
-  let next : Array[Int] = []
+fn set_mouse_tracking(raw_id : Int32, tracking : Bool) -> Unit {
+  let next : Array[Int32] = []
   let mut found = false
   for id in window_mouse_tracking.val {
     if id == raw_id {
@@ -197,15 +197,15 @@ fn set_mouse_tracking(raw_id : Int, tracking : Bool) -> Unit {
 }
 
 ///|
-fn clear_windows_window_input_state(raw_id : Int) -> Unit {
+fn clear_windows_window_input_state(raw_id : Int32) -> Unit {
   set_mouse_tracking(raw_id, false)
   clear_pending_windows_high_surrogate(raw_id)
 }
 
 ///|
 fn dispatch_native_input_event(
-  raw_id : Int,
-  kind : Int,
+  raw_id : Int32,
+  kind : Int32,
   wparam : UInt64,
   lparam : Int64,
 ) -> Unit {
@@ -221,7 +221,7 @@ fn dispatch_native_input_event(
           native_track_mouse_event(
             match app_state_window_handle(raw_id) {
               Some(hwnd) => hwnd
-              None => (0 : Int).to_uint64()
+              None => (0 : Int32).to_uint64()
             },
             tme_leave,
           ),
@@ -435,7 +435,11 @@ fn dispatch_native_input_event(
 }
 
 ///|
-fn dispatch_native_sync_query(raw_id : Int, kind : Int, _arg0 : Int) -> Int {
+fn dispatch_native_sync_query(
+  raw_id : Int32,
+  kind : Int32,
+  _arg0 : Int32,
+) -> Int32 {
   if raw_id <= 0 {
     return 0
   }
@@ -451,7 +455,7 @@ fn dispatch_native_sync_query(raw_id : Int, kind : Int, _arg0 : Int) -> Int {
 }
 
 ///|
-fn windows_lparam_scan_code(lparam : Int64) -> Int {
+fn windows_lparam_scan_code(lparam : Int64) -> Int32 {
   ((lparam >> 16) & 0xFF : Int64).to_int()
 }
 
@@ -461,7 +465,7 @@ fn windows_lparam_is_extended(lparam : Int64) -> Bool {
 }
 
 ///|
-fn vk_to_physical_key(vk_code : Int, lparam : Int64) -> @core.PhysicalKey {
+fn vk_to_physical_key(vk_code : Int32, lparam : Int64) -> @core.PhysicalKey {
   let key_code = match vk_code {
     0x41 => @core.KeyCode::KeyA
     0x42 => KeyB
@@ -598,7 +602,7 @@ fn vk_to_physical_key(vk_code : Int, lparam : Int64) -> @core.PhysicalKey {
 }
 
 ///|
-fn windows_unshifted_text_for_vk(vk_code : Int) -> String? {
+fn windows_unshifted_text_for_vk(vk_code : Int32) -> String? {
   if vk_code >= 0x41 && vk_code <= 0x5A {
     Some((vk_code + 32).unsafe_to_char().to_string())
   } else if vk_code >= 0x30 && vk_code <= 0x39 {
@@ -623,7 +627,7 @@ fn windows_unshifted_text_for_vk(vk_code : Int) -> String? {
 }
 
 ///|
-fn windows_shifted_text_for_vk(vk_code : Int) -> String? {
+fn windows_shifted_text_for_vk(vk_code : Int32) -> String? {
   if vk_code >= 0x41 && vk_code <= 0x5A {
     Some(vk_code.unsafe_to_char().to_string())
   } else {
@@ -656,7 +660,7 @@ fn windows_shifted_text_for_vk(vk_code : Int) -> String? {
 }
 
 ///|
-fn windows_text_for_vk(vk_code : Int, modifiers : @core.Modifiers) -> String? {
+fn windows_text_for_vk(vk_code : Int32, modifiers : @core.Modifiers) -> String? {
   if modifiers.shift_key() {
     windows_shifted_text_for_vk(vk_code)
   } else {
@@ -665,7 +669,7 @@ fn windows_text_for_vk(vk_code : Int, modifiers : @core.Modifiers) -> String? {
 }
 
 ///|
-fn vk_to_logical_key(vk_code : Int, modifiers : @core.Modifiers) -> @core.Key {
+fn vk_to_logical_key(vk_code : Int32, modifiers : @core.Modifiers) -> @core.Key {
   match vk_code {
     0x08 => Named(Backspace)
     0x09 => Named(Tab)
@@ -727,12 +731,12 @@ fn vk_to_logical_key(vk_code : Int, modifiers : @core.Modifiers) -> @core.Key {
 }
 
 ///|
-fn vk_to_key_without_modifiers(vk_code : Int) -> @core.Key {
+fn vk_to_key_without_modifiers(vk_code : Int32) -> @core.Key {
   vk_to_logical_key(vk_code, @core.Modifiers::default())
 }
 
 ///|
-fn vk_to_key_location(vk_code : Int, lparam : Int64) -> @core.KeyLocation {
+fn vk_to_key_location(vk_code : Int32, lparam : Int64) -> @core.KeyLocation {
   let is_extended = windows_lparam_is_extended(lparam)
   match vk_code {
     0x0D => if is_extended { Numpad } else { Standard }

@@ -1,26 +1,26 @@
 ///|
-extern "C" fn native_enum_monitors() -> Int = "mbw_enum_monitors"
+extern "C" fn native_enum_monitors() -> Int32 = "mbw_enum_monitors"
 
 ///|
-extern "C" fn native_monitor_handle_at(index : Int) -> UInt64 = "mbw_monitor_handle_at"
+extern "C" fn native_monitor_handle_at(index : Int32) -> UInt64 = "mbw_monitor_handle_at"
 
 ///|
-extern "C" fn native_monitor_rect_left_at(index : Int) -> Int = "mbw_monitor_rect_left_at"
+extern "C" fn native_monitor_rect_left_at(index : Int32) -> Int32 = "mbw_monitor_rect_left_at"
 
 ///|
-extern "C" fn native_monitor_rect_top_at(index : Int) -> Int = "mbw_monitor_rect_top_at"
+extern "C" fn native_monitor_rect_top_at(index : Int32) -> Int32 = "mbw_monitor_rect_top_at"
 
 ///|
-extern "C" fn native_monitor_rect_width_at(index : Int) -> Int = "mbw_monitor_rect_width_at"
+extern "C" fn native_monitor_rect_width_at(index : Int32) -> Int32 = "mbw_monitor_rect_width_at"
 
 ///|
-extern "C" fn native_monitor_rect_height_at(index : Int) -> Int = "mbw_monitor_rect_height_at"
+extern "C" fn native_monitor_rect_height_at(index : Int32) -> Int32 = "mbw_monitor_rect_height_at"
 
 ///|
-extern "C" fn native_monitor_scale_factor_at(index : Int) -> Double = "mbw_monitor_scale_factor_at"
+extern "C" fn native_monitor_scale_factor_at(index : Int32) -> Double = "mbw_monitor_scale_factor_at"
 
 ///|
-extern "C" fn native_monitor_name_bytes_at(index : Int) -> Bytes = "mbw_monitor_name_bytes_at"
+extern "C" fn native_monitor_name_bytes_at(index : Int32) -> Bytes = "mbw_monitor_name_bytes_at"
 
 ///|
 extern "C" fn native_primary_monitor_handle() -> UInt64 = "mbw_primary_monitor_handle"
@@ -29,7 +29,10 @@ extern "C" fn native_primary_monitor_handle() -> UInt64 = "mbw_primary_monitor_h
 extern "C" fn native_current_monitor_handle(hwnd : UInt64) -> UInt64 = "mbw_current_monitor_handle"
 
 ///|
-fn windows_monitor_surface_size(width : Int, height : Int) -> @dpi.PhysicalSize {
+fn windows_monitor_surface_size(
+  width : Int32,
+  height : Int32,
+) -> @dpi.PhysicalSize {
   PhysicalSize(
     if width > 0 {
       width
@@ -59,9 +62,9 @@ fn windows_monitor_scale_factor(scale : Double) -> Double {
 }
 
 ///|
-fn monitor_handle_at(index : Int) -> @core.MonitorHandle? {
+fn monitor_handle_at(index : Int32) -> @core.MonitorHandle? {
   let native_id = native_monitor_handle_at(index)
-  if native_id == (0 : Int).to_uint64() {
+  if native_id == (0 : Int32).to_uint64() {
     return None
   }
   let name = native_monitor_name_bytes_at(index).to_string()
@@ -86,7 +89,7 @@ fn monitor_handle_at(index : Int) -> @core.MonitorHandle? {
 
 ///|
 fn monitor_from_native_id(native_id : UInt64) -> @core.MonitorHandle? {
-  if native_id == (0 : Int).to_uint64() {
+  if native_id == (0 : Int32).to_uint64() {
     return None
   }
   let count = native_enum_monitors()

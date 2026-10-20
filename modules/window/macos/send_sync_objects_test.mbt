@@ -64,21 +64,21 @@ test "window_builder_send" {
 ///|
 test "ids_send" {
   consume_window_id(@core.WindowId::from_raw(1))
-  consume_device_id(@core.DeviceId::from_raw((1 : Int).to_int64()))
+  consume_device_id(@core.DeviceId::from_raw((1 : Int32).to_int64()))
   let _ : (@core.MonitorHandle) -> Unit = consume_monitor_handle
 }
 
 ///|
 test "custom_cursor_send" {
   let source = @core.CustomCursorSource::Rgba(
-    Bytes::make(4, (0 : Int).to_byte()),
+    Bytes::make(4, (0 : Int32).to_byte()),
     1,
     1,
     0,
     0,
   )
   consume_custom_cursor_source(source)
-  consume_custom_cursor(@core.CustomCursor::from_raw((1 : Int).to_uint64()))
+  consume_custom_cursor(@core.CustomCursor::from_raw((1 : Int32).to_uint64()))
 }
 
 ///|
@@ -99,12 +99,12 @@ test "window_builder_sync" {
 ///|
 test "custom_cursor_sync" {
   let source = @core.CustomCursorSource::Rgba(
-    Bytes::make(4, (0 : Int).to_byte()),
+    Bytes::make(4, (0 : Int32).to_byte()),
     1,
     1,
     0,
     0,
   )
   consume_custom_cursor_source(source)
-  consume_custom_cursor(@core.CustomCursor::from_raw((1 : Int).to_uint64()))
+  consume_custom_cursor(@core.CustomCursor::from_raw((1 : Int32).to_uint64()))
 }

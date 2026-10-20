@@ -23,13 +23,13 @@ pub impl Eq for Window with fn equal(self, other) {
 }
 
 ///|
-fn default_canvas_id(raw_id : Int) -> String {
+fn default_canvas_id(raw_id : Int32) -> String {
   "moonbit-window-web-\{raw_id}"
 }
 
 ///|
 fn canvas_for_attributes(
-  raw_id : Int,
+  raw_id : Int32,
   attributes : @core.WindowAttributes,
   web_attributes : WindowAttributesWeb,
 ) -> WebCanvas raise @core.RequestError {
@@ -120,7 +120,7 @@ pub fn Window::new_with_web_attributes(
 }
 
 ///|
-fn Window::raw_id(self : Window) -> Int {
+fn Window::raw_id(self : Window) -> Int32 {
   self.id_.into_raw()
 }
 
@@ -694,13 +694,13 @@ pub fn Window::window_handle(self : Window) -> UInt64 {
 ///|
 pub fn Window::rwh_06_display_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  (0 : Int32).to_uint64()
 }
 
 ///|
 pub fn Window::rwh_06_window_handle(self : Window) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  (0 : Int32).to_uint64()
 }
 
 ///|
@@ -865,12 +865,12 @@ pub fn Window::select_previous_tab(self : Window) -> Unit {
 }
 
 ///|
-pub fn Window::select_tab_at_index(self : Window, _index : Int) -> Unit {
+pub fn Window::select_tab_at_index(self : Window, _index : Int32) -> Unit {
   let _ = self
 }
 
 ///|
-pub fn Window::num_tabs(self : Window) -> Int {
+pub fn Window::num_tabs(self : Window) -> Int32 {
   let _ = self
   0
 }

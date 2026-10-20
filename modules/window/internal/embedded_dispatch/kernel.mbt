@@ -16,9 +16,9 @@ pub(all) enum EmbeddedDispatchCommand {
   Resume
   Pause
   Stop
-  SurfaceInit(UInt64, UInt64, Int, Int, Double)
+  SurfaceInit(UInt64, UInt64, Int32, Int32, Double)
   SurfaceTerm
-  SurfaceResize(Int, Int, Double)
+  SurfaceResize(Int32, Int32, Double)
   WindowEvent(@core.WindowEvent)
   MemoryWarning
   Destroy
@@ -37,7 +37,7 @@ pub(all) enum EmbeddedDispatchEffect {
   Suspended
   WindowEvent(@core.WindowEvent)
   MemoryWarning
-  Exit(Int)
+  Exit(Int32)
 }
 
 ///|
@@ -150,7 +150,7 @@ fn dispatch_embedded_command(
 }
 
 ///|
-fn normalized_size(width : Int, height : Int) -> @dpi.PhysicalSize {
+fn normalized_size(width : Int32, height : Int32) -> @dpi.PhysicalSize {
   PhysicalSize(width.max(1), height.max(1))
 }
 

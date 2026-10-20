@@ -11,14 +11,14 @@ extern "C" fn mbw_android_host_queue_reset() -> Unit = "mbw_android_host_queue_r
 extern "C" fn mbw_android_host_poll_raw(
   handle_out : Ref[UInt64],
   token_out : Ref[UInt64],
-  width_out : Ref[Int],
-  height_out : Ref[Int],
-  pressed_out : Ref[Int],
-  codepoint_out : Ref[Int],
+  width_out : Ref[Int32],
+  height_out : Ref[Int32],
+  pressed_out : Ref[Int32],
+  codepoint_out : Ref[Int32],
   scale_out : Ref[Double],
   x_out : Ref[Double],
   y_out : Ref[Double],
-) -> Int = "mbw_android_host_poll_raw"
+) -> Int32 = "mbw_android_host_poll_raw"
 
 ///|
 fn host_drain_native_queue() -> Unit {

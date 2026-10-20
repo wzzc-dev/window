@@ -146,7 +146,7 @@ pub fn EventLoop::primary_monitor(_self : EventLoop) -> @core.MonitorHandle? {
 ///|
 fn default_monitor() -> @core.MonitorHandle {
   MonitorHandle(
-    (0 : Int).to_uint64(),
+    (0 : Int32).to_uint64(),
     Some("WeChat viewport"),
     PhysicalPosition(0, 0),
     PhysicalSize(0, 0),
@@ -229,7 +229,7 @@ pub fn EventLoop::create_custom_cursor(
 ///|
 pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  (0 : Int32).to_uint64()
 }
 
 ///|

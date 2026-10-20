@@ -5,15 +5,15 @@ pub(all) enum HostCmd {
   Resume
   Pause
   Stop
-  SurfaceInit(UInt64, UInt64, Int, Int, Double)
+  SurfaceInit(UInt64, UInt64, Int32, Int32, Double)
   SurfaceTerm
-  SurfaceResize(Int, Int, Double)
+  SurfaceResize(Int32, Int32, Double)
   PointerMoved(Double, Double)
   PointerButton(Bool, Double, Double)
-  PointerPhase(Int, Double, Double)
-  Scroll(Double, Double, Double, Double, Int)
+  PointerPhase(Int32, Double, Double)
+  Scroll(Double, Double, Double, Double, Int32)
   KeyboardText(String)
-  ImeEvent(Int, String, Int, Int)
+  ImeEvent(Int32, String, Int32, Int32)
   MemoryWarning
   Destroy
 }
@@ -126,10 +126,10 @@ fn embedded_pointer_button(
 
 ///|
 fn ime_event_to_window_ime(
-  kind : Int,
+  kind : Int32,
   text : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> @core.Ime? {
   match kind {
     1 => Some(Commit(text))
@@ -243,7 +243,7 @@ fn host_drain_into_app_state() -> Bool {
 }
 
 ///|
-fn host_default_window_metrics() -> (Int, Int, Double, UInt64, UInt64) {
+fn host_default_window_metrics() -> (Int32, Int32, Double, UInt64, UInt64) {
   match embedded_dispatch_kernel.val.surface() {
     Some(surface) =>
       (

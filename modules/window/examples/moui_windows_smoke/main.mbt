@@ -15,11 +15,11 @@ struct App {
   mut requested_input : Bool
   mut destroy_requested : Bool
   mut ready_printed : Bool
-  mut wait_count : Int
+  mut wait_count : Int32
 }
 
 ///|
-extern "C" fn native_send_input(raw_hwnd : UInt64) -> Int = "mbw_moui_windows_smoke_send_input"
+extern "C" fn native_send_input(raw_hwnd : UInt64) -> Int32 = "mbw_moui_windows_smoke_send_input"
 
 ///|
 fn App::maybe_ready(self : App, event_loop : @windows.ActiveEventLoop) -> Unit {
@@ -74,8 +74,8 @@ fn log_handle(window : @windows.Window) -> Bool {
   println(
     "MOUIWindowsSmoke: handle hwnd=0x\{hwnd.to_string(radix=16)} hinstance=0x\{display.to_string(radix=16)} raw_display=0x\{raw_display.to_string(radix=16)} raw_window=0x\{raw_window.to_string(radix=16)}",
   )
-  hwnd != (0 : Int).to_uint64() &&
-  display != (0 : Int).to_uint64() &&
+  hwnd != (0 : Int32).to_uint64() &&
+  display != (0 : Int32).to_uint64() &&
   raw_display == display &&
   raw_window == hwnd
 }

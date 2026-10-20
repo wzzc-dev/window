@@ -8,8 +8,8 @@ extern "C" fn mbw_harmonyos_host_on_resume() -> Unit = "mbw_harmonyos_host_on_re
 extern "C" fn mbw_harmonyos_host_on_surface_init(
   handle : UInt64,
   token : UInt64,
-  width : Int,
-  height : Int,
+  width : Int32,
+  height : Int32,
   scale : Double,
 ) -> Unit = "mbw_harmonyos_host_on_surface_init"
 

@@ -4,9 +4,9 @@ fn monitor_context() -> UInt64 {
 }
 
 ///|
-fn monitor_count() -> Int {
+fn monitor_count() -> Int32 {
   let context = monitor_context()
-  if context == (0 : Int).to_uint64() {
+  if context == (0 : Int32).to_uint64() {
     0
   } else {
     native_monitor_count(context)
@@ -14,7 +14,10 @@ fn monitor_count() -> Int {
 }
 
 ///|
-fn linux_monitor_surface_size(width : Int, height : Int) -> @dpi.PhysicalSize {
+fn linux_monitor_surface_size(
+  width : Int32,
+  height : Int32,
+) -> @dpi.PhysicalSize {
   PhysicalSize(
     if width > 0 {
       width
@@ -39,13 +42,13 @@ fn linux_monitor_scale_factor(scale : Double) -> Double {
 }
 
 ///|
-fn monitor_handle_at(index : Int) -> @core.MonitorHandle? {
+fn monitor_handle_at(index : Int32) -> @core.MonitorHandle? {
   let context = monitor_context()
-  if context == (0 : Int).to_uint64() {
+  if context == (0 : Int32).to_uint64() {
     return None
   }
   let native_id = native_monitor_handle_at(context, index)
-  if native_id == (0 : Int).to_uint64() {
+  if native_id == (0 : Int32).to_uint64() {
     return None
   }
   let width = native_monitor_rect_width_at(context, index)
@@ -71,7 +74,7 @@ fn monitor_handle_at(index : Int) -> @core.MonitorHandle? {
 
 ///|
 fn monitor_from_native_id(native_id : UInt64) -> @core.MonitorHandle? {
-  if native_id == (0 : Int).to_uint64() {
+  if native_id == (0 : Int32).to_uint64() {
     return None
   }
   let count = monitor_count()

@@ -286,7 +286,7 @@ pub fn EventLoop::display_handle(self : EventLoop) -> UInt64 {
 ///|
 pub fn EventLoop::owned_display_handle(self : EventLoop) -> UInt64 {
   let _ = self
-  (0 : Int).to_uint64()
+  (0 : Int32).to_uint64()
 }
 
 ///|
@@ -494,7 +494,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   self.try_pump_app_events(timeout_ms, app)
@@ -503,7 +503,7 @@ pub fn[A : ApplicationHandler] EventLoop::pump_app_events(
 ///|
 pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
   self : EventLoop,
-  timeout_ms : Int?,
+  timeout_ms : Int32?,
   app : A,
 ) -> @core.PumpStatus {
   if !app_state_is_running() {
@@ -527,7 +527,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(
 }
 
 ///|
-fn theme_from_native(theme : Int) -> @core.Theme? {
+fn theme_from_native(theme : Int32) -> @core.Theme? {
   match theme {
     1 => Some(Dark)
     0 => Some(Light)

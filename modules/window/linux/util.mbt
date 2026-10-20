@@ -1,5 +1,5 @@
 ///|
-fn linux_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
+fn linux_nonzero_size(width : Int32, height : Int32) -> @dpi.PhysicalSize {
   PhysicalSize(
     if width <= 0 {
       1
@@ -15,7 +15,7 @@ fn linux_nonzero_size(width : Int, height : Int) -> @dpi.PhysicalSize {
 }
 
 ///|
-fn theme_from_native(theme : Int) -> @core.Theme? {
+fn theme_from_native(theme : Int32) -> @core.Theme? {
   match theme {
     1 => Some(Dark)
     0 => Some(Light)

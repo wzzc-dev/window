@@ -24,7 +24,7 @@ fn test_window_for_monitor(handle : UInt64) -> Window {
 
 ///|
 test "linux monitor helpers do not fabricate monitors without a Wayland context" {
-  if app_state_context() == (0 : Int).to_uint64() {
+  if app_state_context() == (0 : Int32).to_uint64() {
     assert_eq(available_monitors().length(), 0)
     assert_true(primary_monitor() == None)
     assert_true(current_monitor_for_window(1UL) == None)

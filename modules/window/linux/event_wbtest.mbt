@@ -1,7 +1,7 @@
 ///|
 priv struct RecordingApp {
   events : Array[@core.WindowEvent]
-  mut proxy_wake_count : Int
+  mut proxy_wake_count : Int32
 }
 
 ///|
@@ -30,7 +30,7 @@ fn reset_test_state() -> Unit {
 
 ///|
 fn test_active_loop() -> ActiveEventLoop {
-  { inner: { context: (0 : Int).to_uint64(), wake_fd: -1, }, }
+  { inner: { context: (0 : Int32).to_uint64(), wake_fd: -1, }, }
 }
 
 ///|

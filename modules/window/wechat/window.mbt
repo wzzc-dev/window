@@ -31,7 +31,7 @@ pub fn Window::new(
   id~ : @core.WindowId,
   canvas_id~ : String,
   size~ : @dpi.Size,
-  scale_factor? : Double = 1.0,
+  scale_factor~ : Double = 1.0,
 ) -> Window {
   {
     id,
