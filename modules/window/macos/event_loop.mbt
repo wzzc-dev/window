@@ -889,7 +889,7 @@ pub fn[A : ApplicationHandler] EventLoop::try_run_app(
 }
 
 ///|
-pub extend ActiveEventLoop with @Milky2018/windowing.DisplayHandleProvider::{
+pub extend ActiveEventLoop with @wzzc-dev/windowing.DisplayHandleProvider::{
   raw_display_handle,
 }
 
@@ -897,7 +897,7 @@ pub extend ActiveEventLoop with @Milky2018/windowing.DisplayHandleProvider::{
 pub extend ActiveEventLoop with Debug::{to_repr}
 
 ///|
-pub extend EventLoop with @Milky2018/windowing.DisplayHandleProvider::{
+pub extend EventLoop with @wzzc-dev/windowing.DisplayHandleProvider::{
   raw_display_handle,
 }
 

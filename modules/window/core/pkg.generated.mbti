@@ -2,10 +2,10 @@
 package "wzzc-dev/window/core"
 
 import {
-  "Milky2018/windowing",
   "moonbitlang/core/debug",
   "moonbitlang/core/ref",
   "wzzc-dev/window/dpi",
+  "wzzc-dev/windowing",
 }
 
 // Values

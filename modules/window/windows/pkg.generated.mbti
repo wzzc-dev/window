@@ -2,10 +2,10 @@
 package "wzzc-dev/window/windows"
 
 import {
-  "Milky2018/windowing",
   "moonbitlang/core/debug",
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
+  "wzzc-dev/windowing",
 }
 
 // Values
@@ -41,9 +41,9 @@ pub fn ActiveEventLoop::system_theme(Self) -> @core.Theme?
 pub fn ActiveEventLoop::to_repr(Self) -> @debug.Repr
 pub fn ActiveEventLoop::to_string(Self) -> String
 pub fn ActiveEventLoop::try_create_window(Self, @core.WindowAttributes) -> Window raise @core.RequestError
+pub impl Show for ActiveEventLoop
 pub impl @windowing.DisplayHandleProvider for ActiveEventLoop
 pub impl @windowing.HasDisplayHandle for ActiveEventLoop
-pub impl Show for ActiveEventLoop
 
 pub struct EventLoop {
   // private fields
@@ -86,9 +86,9 @@ pub fn[A : ApplicationHandler] EventLoop::try_pump_app_events(Self, Int32?, A) -
 pub fn[A : ApplicationHandler] EventLoop::try_run_app(Self, A) -> Unit raise @core.EventLoopError
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(Self, A) -> Unit raise @core.EventLoopError
 pub fn EventLoop::window_target(Self) -> ActiveEventLoop
+pub impl Show for EventLoop
 pub impl @windowing.DisplayHandleProvider for EventLoop
 pub impl @windowing.HasDisplayHandle for EventLoop
-pub impl Show for EventLoop
 
 pub struct EventLoopBuilder {
   // private fields
@@ -249,11 +249,11 @@ pub fn Window::to_string(Self) -> String
 pub fn Window::unified_titlebar(Self) -> Bool
 pub fn Window::window_handle(Self) -> @windowing.WindowHandle
 pub fn Window::window_level(Self) -> @core.WindowLevel
+pub impl Show for Window
 pub impl @windowing.DisplayHandleProvider for Window
 pub impl @windowing.HasDisplayHandle for Window
 pub impl @windowing.HasWindowHandle for Window
 pub impl @windowing.WindowHandleProvider for Window
-pub impl Show for Window
 
 // Type aliases
 pub using @core {type PlatformWindowAttributes as WindowAttributesWindows}

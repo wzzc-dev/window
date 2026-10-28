@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Milky2018/windowing"
+package "wzzc-dev/windowing"
 
 import {
   "moonbitlang/core/debug",

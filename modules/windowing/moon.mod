@@ -1,4 +1,4 @@
-name = "Milky2018/windowing"
+name = "wzzc-dev/windowing"
 
 version = "0.1.2"
 
