@@ -17,7 +17,7 @@ static mbw_harmonyos_host_event simple(int32_t kind) {
   mbw_harmonyos_host_event event; memset(&event, 0, sizeof(event)); event.kind = kind; return event;
 }
 void mbw_harmonyos_host_queue_reset(void) { g_head = 0; g_tail = 0; }
-int32_t mbw_harmonyos_host_poll_raw(uint64_t *handle_out, uint64_t *token_out, int32_t *width_out, int32_t *height_out, int32_t *pressed_out, int32_t *codepoint_out, double *scale_out, double *x_out, double *y_out) {
+int32_t mbw_harmonyos_host_poll_raw(uint64_t *handle_out, uint64_t *token_out, int32_t *width_out, int32_t *height_out, int32_t *pressed_out, int32_t *codepoint_out, double *scale_out, double *x_out, double *y_out, double *delta_x_out, double *delta_y_out, int32_t *key_code_out, int32_t *key_modifiers_out, int32_t *key_kind_out) {
   if (g_head == g_tail) return 0;
   mbw_harmonyos_host_event event = g_queue[g_head];
   g_head = (g_head + 1) % MBW_HARMONYOS_HOST_QUEUE_CAP;
@@ -30,6 +30,11 @@ int32_t mbw_harmonyos_host_poll_raw(uint64_t *handle_out, uint64_t *token_out, i
   if (scale_out) *scale_out = event.scale;
   if (x_out) *x_out = event.x;
   if (y_out) *y_out = event.y;
+  if (delta_x_out) *delta_x_out = event.delta_x;
+  if (delta_y_out) *delta_y_out = event.delta_y;
+  if (key_code_out) *key_code_out = event.key_code;
+  if (key_modifiers_out) *key_modifiers_out = event.key_modifiers;
+  if (key_kind_out) *key_kind_out = event.key_kind;
   return event.kind;
 }
 void mbw_harmonyos_host_on_start(void) { enqueue(simple(MBW_HARMONYOS_HOST_START)); }
@@ -54,6 +59,31 @@ void mbw_harmonyos_host_on_pointer_moved(double x, double y) {
 void mbw_harmonyos_host_on_pointer_button(int32_t pressed, double x, double y) {
   mbw_harmonyos_host_event event = simple(MBW_HARMONYOS_HOST_POINTER_BUTTON); event.pressed = pressed; event.x = x; event.y = y; enqueue(event);
 }
+void mbw_harmonyos_host_on_scroll(double delta_x, double delta_y) {
+  mbw_harmonyos_host_event event = simple(MBW_HARMONYOS_HOST_SCROLL);
+  event.delta_x = delta_x;
+  event.delta_y = delta_y;
+  enqueue(event);
+}
+
+void mbw_harmonyos_host_on_scroll_at(double x, double y, double delta_x, double delta_y) {
+  mbw_harmonyos_host_event event = simple(MBW_HARMONYOS_HOST_SCROLL);
+  event.x = x;
+  event.y = y;
+  event.delta_x = delta_x;
+  event.delta_y = delta_y;
+  enqueue(event);
+}
+
+void mbw_harmonyos_host_on_key(int32_t key_code, int32_t key_modifiers, int32_t pressed) {
+  mbw_harmonyos_host_event event = simple(MBW_HARMONYOS_HOST_KEY);
+  event.key_code = key_code;
+  event.key_modifiers = key_modifiers;
+  event.pressed = pressed;
+  event.key_kind = 1;
+  enqueue(event);
+}
+
 void mbw_harmonyos_host_on_keyboard_codepoint(int32_t codepoint) {
   mbw_harmonyos_host_event event = simple(MBW_HARMONYOS_HOST_KEYBOARD_CODEPOINT); event.codepoint = codepoint; enqueue(event);
 }

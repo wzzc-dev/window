@@ -346,6 +346,58 @@ pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(
 }
 
 ///|
+/// Host loop with frame pacing.
+///
+/// A fixed sleep between pumps throttles every animation to that interval: a
+/// scroll glide asks for the next frame immediately, waits out the sleep, and
+/// the result reads as stutter. `needs_redraw` lets the caller report that the
+/// runtime still owes a frame, in which case the loop polls with a short sleep
+/// and only idles with the full interval when nothing is outstanding — the same
+/// pacing the macOS host uses.
+pub fn[A : ApplicationHandler] EventLoop::run_app_with_frame_pacing(
+  self : EventLoop,
+  handler : A,
+  needs_redraw~ : () -> Bool,
+  active_frame_ms~ : Int32 = 1,
+  idle_frame_ms~ : Int32 = 4,
+) -> Unit {
+  let vsync_available = host_vsync_init()
+  if !vsync_available {
+    // One line, once: a device that cannot pace on vsync still runs, just with
+    // the old timed sleep.
+    ()
+  }
+  // Align frame starts with the display refresh. A fixed sleep lands the frame at
+  // an arbitrary phase of the refresh period, so an otherwise cheap frame still
+  // waits up to a full period before it is shown — visible as judder even though
+  // nothing is slow. Native ArkUI apps drive their loop from DisplaySync for this
+  // reason. When vsync is unavailable (host build, headless) fall back to the
+  // timed sleep.
+  while true {
+    match self.pump_app_events(None, handler) {
+      Exit(_) => break
+      Continue =>
+        if needs_redraw() {
+          // A frame is owed. `host_wait_for_vsync` asks for the next refresh
+          // boundary and blocks until it arrives, bounded by the timeout, so the
+          // frame is presented on time instead of drifting to an arbitrary
+          // phase. It never waits longer than `active_frame_ms`.
+          let got_vsync = host_wait_for_vsync(active_frame_ms)
+          if !got_vsync {
+            sleep_ms(active_frame_ms)
+          }
+        } else {
+          // Idle: a plain timed sleep. Waiting on vsync while idle would spend a
+          // display refresh per iteration on a loop that has nothing to draw, and
+          // if the callback ever failed to arrive the loop would stall instead of
+          // polling input.
+          sleep_ms(idle_frame_ms)
+        }
+    }
+  }
+}
+
+///|
 pub fn[A : ApplicationHandler] EventLoop::try_run_app_on_demand(
   self : EventLoop,
   handler : A,

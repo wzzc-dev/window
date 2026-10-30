@@ -5,12 +5,25 @@ import {
   "moonbitlang/core/debug",
   "wzzc-dev/window/core",
   "wzzc-dev/window/dpi",
+  "wzzc-dev/window/internal/embedded_dispatch",
 }
 
 // Values
+pub fn host_command_to_embedded_for_test(HostCmd) -> @embedded_dispatch.EmbeddedDispatchCommand
+
+pub fn host_monotonic_ms() -> Double
+
 pub fn host_push(HostCmd) -> Unit
 
+pub fn host_push_command_for_test(HostCmd) -> Array[@embedded_dispatch.EmbeddedDispatchEffect]
+
 pub fn host_reset_for_test() -> Unit
+
+pub fn host_take_scroll_cursor() -> (Double, Double)?
+
+pub fn host_vsync_init() -> Bool
+
+pub fn host_wait_for_vsync(Int32) -> Bool
 
 pub fn monitor_ns_screen(@core.MonitorHandle) -> UInt64?
 
@@ -76,6 +89,7 @@ pub fn EventLoop::primary_monitor(Self) -> @core.MonitorHandle?
 pub fn[A : ApplicationHandler] EventLoop::pump_app_events(Self, Int32?, A) -> @core.PumpStatus
 pub fn[A : ApplicationHandler] EventLoop::run_app(Self, A) -> Unit
 pub fn[A : ApplicationHandler] EventLoop::run_app_on_demand(Self, A) -> Unit
+pub fn[A : ApplicationHandler] EventLoop::run_app_with_frame_pacing(Self, A, needs_redraw~ : () -> Bool, active_frame_ms? : Int32, idle_frame_ms? : Int32) -> Unit
 pub fn EventLoop::rwh_06_handle(Self) -> UInt64
 pub fn EventLoop::set_allows_automatic_window_tabbing(Self, Bool) -> Unit
 pub fn EventLoop::set_control_flow(Self, @core.ControlFlow) -> Unit
@@ -132,6 +146,8 @@ pub(all) enum HostCmd {
   PointerMoved(Double, Double)
   PointerButton(Bool, Double, Double)
   KeyboardText(String)
+  Scroll(Double, Double, Double, Double)
+  KeyPress(Int32, Int32, Bool)
   MemoryWarning
   Destroy
 }
