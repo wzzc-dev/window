@@ -11,6 +11,10 @@
     {
       "name": "entry_desc",
       "value": "Window-hosted entry ability"
+    },
+    {
+      "name": "pasteboard_read_reason",
+      "value": "Read pasted text into MoUI text fields"
     }
   ]
 }

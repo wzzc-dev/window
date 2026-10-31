@@ -8,6 +8,26 @@
     "deliveryWithInstall": true,
     "installationFree": false,
     "pages": "$profile:main_pages",
+    // Reading the system pasteboard requires ohos.permission.READ_PASTEBOARD,
+    // which the platform defines as availableLevel=system_basic with
+    // grantMode=user_grant. A normal-level HAP cannot obtain it, so on a
+    // matching device OH_Pasteboard_GetData returns ERR_PERMISSION_ERROR (201)
+    // even with this declaration. Writing plain text works without it.
+    //
+    // The declaration is kept because it is what a system-level build needs to
+    // enable the read path; a normal application has to go through the ArkTS
+    // paste security control (PasteButton) instead, which is UI the native
+    // host does not own.
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.READ_PASTEBOARD",
+        "reason": "$string:pasteboard_read_reason",
+        "usedScene": {
+          "abilities": [ "EntryAbility" ],
+          "when": "inuse"
+        }
+      }
+    ],
     "abilities": [
       {
         "name": "EntryAbility",
