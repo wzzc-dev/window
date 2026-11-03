@@ -172,6 +172,89 @@ fn app_state_queue_window_event(
   window_id : @core.WindowId,
   event : @core.WindowEvent,
 ) -> Unit {
+  // Coalesce consecutive pointer moves: a drag at touchpad/touch sampling
+  // rate enqueues far more moves than frames, and dispatching each pays the
+  // full pipeline (pre-dispatch rebuild + render), so the visible thumb/
+  // content lags the pointer by whole gesture clusters. The latest position
+  // is the only one a positional consumer observes; intermediate samples are
+  // safe to drop. Non-move events (Down/Up/Cancel, wheel deltas) keep strict
+  // ordering and are never replaced.
+  match event {
+    @core.WindowEvent::PointerMoved(_, position, is_primary, source) => {
+      let callbacks = app_state_runtime.val.deferred_callbacks
+      let mut index = callbacks.length() - 1
+      while index >= 0 {
+        match callbacks[index] {
+          WindowEvent(id, @core.WindowEvent::PointerMoved(_, _, _, _)) if id == window_id => {
+            callbacks[index] = WindowEvent(
+              window_id,
+              @core.WindowEvent::PointerMoved(
+                None,
+                position,
+                is_primary,
+                source,
+              ),
+            )
+            return
+          }
+          _ => ()
+        }
+        // Stop at any non-move event to preserve ordering against it.
+        match callbacks[index] {
+          WindowEvent(_, @core.WindowEvent::PointerMoved(_, _, _, _)) => ()
+          _ => break
+        }
+        index = index - 1
+      }
+    }
+    @core.WindowEvent::MouseWheel(
+      _,
+      @core.MouseScrollDelta::PixelDelta(delta),
+      phase,
+    ) => {
+      // Coalesce consecutive wheel events by summing their pixel deltas: a
+      // scroll gesture streams deltas at touchpad rate, and each dispatched
+      // wheel pays the full pipeline (pre-dispatch rebuild + render), which
+      // starved rendering to one frame per gesture cluster. Scroll distance
+      // is additive, so merging preserves the total offset. The older queued
+      // cursor stays (the merged event consumes it); the newer one is
+      // dropped. Deltas and non-move events are never reordered.
+      let callbacks = app_state_runtime.val.deferred_callbacks
+      let mut index = callbacks.length() - 1
+      while index >= 0 {
+        match callbacks[index] {
+          WindowEvent(
+            id,
+            @core.WindowEvent::MouseWheel(
+              _,
+              @core.MouseScrollDelta::PixelDelta(last),
+              _,
+            ),
+          ) if id == window_id => {
+            callbacks[index] = WindowEvent(
+              window_id,
+              @core.WindowEvent::MouseWheel(
+                None,
+                @core.MouseScrollDelta::PixelDelta(
+                  @dpi.PhysicalPositionF64(delta.x + last.x, delta.y + last.y),
+                ),
+                phase,
+              ),
+            )
+            app_state_drop_newest_scroll_cursor()
+            return
+          }
+          _ => ()
+        }
+        match callbacks[index] {
+          WindowEvent(_, @core.WindowEvent::MouseWheel(_, _, _)) => ()
+          _ => break
+        }
+        index = index - 1
+      }
+    }
+    _ => ()
+  }
   app_state_queue_callback(WindowEvent(window_id, event))
 }
 
@@ -189,7 +272,31 @@ fn app_state_request_redraw(raw_id : Int32) -> Unit {
 fn app_state_take_pending_redraws() -> Array[Int32] {
   let pending = app_state_runtime.val.pending_redraw_window_ids
   app_state_runtime.val.pending_redraw_window_ids = []
+  app_state_last_taken_redraws.val = pending.length()
   pending
+}
+
+/// Temporary diagnostic for the drag-tracking investigation. Remove with the probe.
+let app_state_last_taken_redraws : Ref[Int] = Ref(0)
+
+///|
+pub fn app_state_redraw_queue_probe() -> String {
+  "pending=\{app_state_runtime.val.pending_redraw_window_ids.length()} taken=\{app_state_last_taken_redraws.val}"
+}
+
+///|
+/// Drops the newest wheel cursor after two queued wheels merge into one, so
+/// the merged event consumes the older cursor and the queue stays 1:1.
+fn app_state_drop_newest_scroll_cursor() -> Unit {
+  let queued = scroll_cursors.val
+  let keep = queued.length() - 1
+  if keep > 0 {
+    let rest : Array[(Double, Double)] = []
+    for i in 0..<keep {
+      rest.push(queued[i])
+    }
+    scroll_cursors.val = rest
+  }
 }
 
 ///|

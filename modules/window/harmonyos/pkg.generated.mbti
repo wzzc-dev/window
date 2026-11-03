@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn app_state_redraw_queue_probe() -> String
+
 pub fn host_command_to_embedded_for_test(HostCmd) -> @embedded_dispatch.EmbeddedDispatchCommand
 
 pub fn host_monotonic_ms() -> Double

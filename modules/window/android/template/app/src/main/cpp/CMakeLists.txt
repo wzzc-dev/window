@@ -14,6 +14,15 @@ if(NOT DEFINED MBW_WORKSPACE_ROOT)
   message(FATAL_ERROR "MBW_WORKSPACE_ROOT is required")
 endif()
 
+# moonbitlang/core runtime: newer toolchains ship it as a multi-file
+# directory whose platform-specific files are internally guarded.
+if(EXISTS "${MBW_MOON_HOME}/lib/runtime.c")
+  set(MBW_MOON_RUNTIME_C "${MBW_MOON_HOME}/lib/runtime.c")
+elseif(EXISTS "${MBW_MOON_HOME}/lib/runtime/runtime.c")
+  file(GLOB MBW_MOON_RUNTIME_C "${MBW_MOON_HOME}/lib/runtime/*.c")
+else()
+  set(MBW_MOON_RUNTIME_C "")
+endif()
 set(MBW_LIBRARY_NAME "window_android_app" CACHE STRING "shared library name")
 set(MBW_MOONBIT_MAIN_ALIAS "mbw_android_moonbit_main")
 
@@ -37,7 +46,7 @@ set(MBW_SOURCES
   "${MBW_WINDOW_ROOT}/android/native/mbw_android_app_entry.c"
   "${MBW_WINDOW_ROOT}/android/native/mbw_android_compat.c"
   "${MBW_MOONBIT_C}"
-  "${MBW_MOON_HOME}/lib/runtime.c"
+  ${MBW_MOON_RUNTIME_C}
   "${MBW_WORKSPACE_ROOT}/.mooncakes/moonbitlang/x/fs/fs_native.c"
   "${MBW_WORKSPACE_ROOT}/moui/backend/android/android_present.cpp"
   ${MBW_SKIA_STUB_SOURCES}
@@ -63,7 +72,7 @@ set_source_files_properties("${MBW_MOONBIT_C}" PROPERTIES
 )
 
 # MoonBit runtime.c calls getentropy(); declare/compat for API < 28.
-set_source_files_properties("${MBW_MOON_HOME}/lib/runtime.c" PROPERTIES
+set_source_files_properties(${MBW_MOON_RUNTIME_C} PROPERTIES
   COMPILE_OPTIONS "-include;${MBW_WINDOW_ROOT}/android/native/mbw_android_compat.h"
 )
 
