@@ -6,3 +6,9 @@ winit-reference/
 trace.json
 .vscode
 modules/window/linux/generated/
+
+# Android template build outputs (gradle configure/build, CMake .cxx)
+.gradle/
+build/
+.cxx/
+local.properties
