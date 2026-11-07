@@ -490,6 +490,83 @@ moonbit_bytes_t mbw_android_clipboard_read_text(void) {
 #endif
 }
 
+/*
+ * Accessibility publish bridge: pushes the MoonBit-encoded semantics tree
+ * (see moui/backend/android/android_accessibility.mbt) into the template's
+ * HostedActivity, which keeps the node table its AccessibilityNodeProvider
+ * exposes. One-way; activation flows back as synthesized taps on the
+ * existing pointer channel.
+ */
+int32_t mbw_android_accessibility_publish(const char *utf8, int32_t length) {
+#if defined(__ANDROID__)
+  JavaVM *vm = g_android_vm;
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  if (vm == NULL || utf8 == NULL || length <= 0) {
+    return 0;
+  }
+  jint env_status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+  if (env_status == JNI_EDETACHED) {
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) {
+      return 0;
+    }
+    attached = 1;
+  } else if (env_status != JNI_OK || env == NULL) {
+    return 0;
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    activity = (*env)->NewLocalRef(env, g_android_activity);
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+  if (activity == NULL) {
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return 0;
+  }
+  char *owned = (char *)malloc((size_t)length + 1);
+  int32_t result = 0;
+  if (owned != NULL) {
+    memcpy(owned, utf8, (size_t)length);
+    owned[length] = '\0';
+    jstring tree = (*env)->NewStringUTF(env, owned);
+    if (tree != NULL) {
+      jclass activity_class = (*env)->GetObjectClass(env, activity);
+      jmethodID publish = NULL;
+      if (activity_class != NULL) {
+        publish = (*env)->GetMethodID(env, activity_class,
+                                      "publishAccessibility",
+                                      "(Ljava/lang/String;)Z");
+      }
+      if (publish != NULL) {
+        jboolean ok = (*env)->CallBooleanMethod(env, activity, publish, tree);
+        result = (ok == JNI_TRUE && !(*env)->ExceptionCheck(env)) ? 1 : 0;
+      }
+      if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        result = 0;
+      }
+      if (activity_class != NULL) {
+        (*env)->DeleteLocalRef(env, activity_class);
+      }
+      (*env)->DeleteLocalRef(env, tree);
+    }
+    free(owned);
+  }
+  (*env)->DeleteLocalRef(env, activity);
+  if (attached) {
+    (*vm)->DetachCurrentThread(vm);
+  }
+  return result;
+#else
+  (void)utf8;
+  (void)length;
+  return 0;
+#endif
+}
+
 #if defined(__ANDROID__)
 
 /* Started from HostedActivity onCreate so the MoonBit EventLoop can drain HostCmd. */
