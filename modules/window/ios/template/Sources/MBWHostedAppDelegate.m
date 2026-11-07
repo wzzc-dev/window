@@ -100,6 +100,67 @@ int mbw_ios_start_event_loop(void);
   [super paste:sender];
 }
 
+// Hardware named keys (idb key injection, external keyboards). The proxy is
+// first responder while the hosted field is focused, so presses land here.
+// UIKeyboardHIDUsage values match the codes the MoonBit host queue maps.
+// The system keyboard (software or synthesized HID) delivers Return through
+// insertText:@"\n" on the first-responder text view. Swallow it and forward
+// the named-key channel instead, so the runtime submits rather than editing.
+- (void)insertText:(NSString *)text {
+  if ([text isEqualToString:@"\n"]) {
+    mbw_ios_host_on_named_key(40, 1);
+    mbw_ios_host_on_named_key(40, 0);
+    return;
+  }
+  [super insertText:text];
+}
+
+- (void)pressesBegan:(NSSet<UIPress *> *)presses
+           withEvent:(UIPressesEvent *)event {
+  for (UIPress *press in presses) {
+    if (press.key == nil) { continue; }
+    NSInteger code = press.key.keyCode;
+    if (code == UIKeyboardHIDUsageKeyboardReturn ||
+        code == UIKeyboardHIDUsageKeyboardDeleteOrBackspace ||
+        code == UIKeyboardHIDUsageKeyboardTab ||
+        code == UIKeyboardHIDUsageKeyboardEscape ||
+        code == UIKeyboardHIDUsageKeyboardUpArrow ||
+        code == UIKeyboardHIDUsageKeyboardDownArrow ||
+        code == UIKeyboardHIDUsageKeyboardLeftArrow ||
+        code == UIKeyboardHIDUsageKeyboardRightArrow ||
+        code == UIKeyboardHIDUsageKeyboardHome ||
+        code == UIKeyboardHIDUsageKeyboardEnd ||
+        code == UIKeyboardHIDUsageKeypadEnter ||
+        code == UIKeyboardHIDUsageKeyboardDeleteForward) {
+      mbw_ios_host_on_named_key((int32_t)code, 1);
+    }
+  }
+  [super pressesBegan:presses withEvent:event];
+}
+
+- (void)pressesEnded:(NSSet<UIPress *> *)presses
+           withEvent:(UIPressesEvent *)event {
+  for (UIPress *press in presses) {
+    if (press.key == nil) { continue; }
+    NSInteger code = press.key.keyCode;
+    if (code == UIKeyboardHIDUsageKeyboardReturn ||
+        code == UIKeyboardHIDUsageKeyboardDeleteOrBackspace ||
+        code == UIKeyboardHIDUsageKeyboardTab ||
+        code == UIKeyboardHIDUsageKeyboardEscape ||
+        code == UIKeyboardHIDUsageKeyboardUpArrow ||
+        code == UIKeyboardHIDUsageKeyboardDownArrow ||
+        code == UIKeyboardHIDUsageKeyboardLeftArrow ||
+        code == UIKeyboardHIDUsageKeyboardRightArrow ||
+        code == UIKeyboardHIDUsageKeyboardHome ||
+        code == UIKeyboardHIDUsageKeyboardEnd ||
+        code == UIKeyboardHIDUsageKeypadEnter ||
+        code == UIKeyboardHIDUsageKeyboardDeleteForward) {
+      mbw_ios_host_on_named_key((int32_t)code, 0);
+    }
+  }
+  [super pressesEnded:presses withEvent:event];
+}
+
 @end
 
 @interface MBWHostedIMEAdapter : NSObject <UITextViewDelegate>
@@ -277,6 +338,150 @@ static void mbw_ios_ime_adapter_set_state(int32_t enabled,
   });
 }
 
+
+// Accessibility bridge: receives the MoonBit-encoded semantics tree (see
+// moui/backend/ios/ios_accessibility.mbt) and builds a UIAccessibilityElement
+// tree over the hosted view. Fields mirror the Android bridge: eleven
+// \u001F-separated node fields (id, parent, role, flags, left, top, right,
+// bottom, label, value, description), groups joined by \u001E, preceded by a
+// three-field header (gen, root id, focused id).
+static MBWHostedView *g_a11y_view = nil;
+
+@interface MBWHostedA11yElement : UIAccessibilityElement
+@property(nonatomic, assign) long long nodeId;
+@property(nonatomic, assign) int role;
+@property(nonatomic, assign) int flags;
+@property(nonatomic, strong) NSArray<MBWHostedA11yElement *> *a11yChildren;
+- (BOOL)accessibilityActivate;
+@end
+
+@implementation MBWHostedA11yElement
+// TalkBack/VoiceOver activation synthesizes a tap at the node center on the
+// existing pointer channel — the same contract the Android bridge uses.
+- (BOOL)accessibilityActivate {
+  CGRect frame = self.accessibilityFrame;
+  CGPoint center = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame));
+  UIView *view = g_a11y_view;
+  if (view != nil) {
+    CGPoint local = [view convertPoint:center fromView:nil];
+    mbw_ios_host_on_pointer_moved(local.x, local.y);
+    mbw_ios_host_on_pointer_button(1, local.x, local.y);
+    mbw_ios_host_on_pointer_button(0, local.x, local.y);
+    return YES;
+  }
+  return NO;
+}
+@end
+
+static long long a11y_header_long(NSString *value) {
+  return (long long)[value longLongValue];
+}
+
+int32_t mbw_ios_template_a11y_publish(const char *utf8, int32_t length);
+
+int32_t mbw_ios_template_a11y_publish(const char *utf8, int32_t length) {
+  if (utf8 == NULL || length <= 0 || g_a11y_view == nil) {
+    return 0;
+  }
+  NSString *tree = [[NSString alloc] initWithBytes:utf8
+                                            length:(NSUInteger)length
+                                          encoding:NSUTF8StringEncoding];
+  if (tree == nil) {
+    return 0;
+  }
+  MBWHostedView *view = g_a11y_view;
+  NSMutableArray<MBWHostedA11yElement *> *nodes =
+      [NSMutableArray<MBWHostedA11yElement *> array];
+  long long rootId = 0;
+  NSArray<NSString *> *groups =
+      [tree componentsSeparatedByString:@"\x1E"];
+  if (groups.count < 3) {
+    return 0;
+  }
+  rootId = a11y_header_long(groups[1]);
+  NSMutableDictionary<NSNumber *, MBWHostedA11yElement *> *byId =
+      [NSMutableDictionary<NSNumber *, MBWHostedA11yElement *> dictionary];
+  for (NSUInteger i = 3; i < groups.count; i++) {
+    NSArray<NSString *> *f =
+        [groups[i] componentsSeparatedByString:@"\x1F"];
+    if (f.count < 11) { continue; }
+    MBWHostedA11yElement *element =
+        [[MBWHostedA11yElement alloc] initWithAccessibilityContainer:view];
+    element.nodeId = a11y_header_long(f[0]);
+    element.role = (int)[f[2] intValue];
+    element.flags = (int)[f[3] intValue];
+    CGFloat left = (CGFloat)[f[4] doubleValue];
+    CGFloat top = (CGFloat)[f[5] doubleValue];
+    CGFloat right = (CGFloat)[f[6] doubleValue];
+    CGFloat bottom = (CGFloat)[f[7] doubleValue];
+    // The semantics frames are logical points relative to the window; the
+    // hosted view spans the window, so they map one-to-one in view space and
+    // screen space differs only by the view origin.
+    CGRect local = CGRectMake(left, top, right - left, bottom - top);
+    element.accessibilityFrame = [view convertRect:local toView:nil];
+    element.accessibilityIdentifier = f[0];
+    element.accessibilityLabel = f[8].length > 0 ? f[8] : (f[9].length > 0 ? f[9] : f[10]);
+    switch (element.role) {
+      case 1: element.accessibilityTraits = UIAccessibilityTraitButton; break;
+      case 3: element.accessibilityTraits = UIAccessibilityTraitKeyboardKey; break;
+      case 4:
+      case 5: element.accessibilityTraits = UIAccessibilityTraitButton; break;
+      case 9: element.accessibilityTraits = UIAccessibilityTraitImage; break;
+      case 10: element.accessibilityTraits = UIAccessibilityTraitHeader; break;
+      case 11: element.accessibilityTraits = UIAccessibilityTraitLink; break;
+      default: element.accessibilityTraits = UIAccessibilityTraitNone; break;
+    }
+    element.accessibilityTraits |= UIAccessibilityTraitUpdatesFrequently;
+    [nodes addObject:element];
+    byId[@(element.nodeId)] = element;
+  }
+  if (nodes.count == 0) {
+    return 0;
+  }
+  // Wire parent/child structure: children hang off their parent element's
+  // accessibilityElements; roots hang off the hosted view.
+  NSMutableArray<MBWHostedA11yElement *> *roots =
+      [NSMutableArray<MBWHostedA11yElement *> array];
+  for (NSUInteger i = 3; i < groups.count; i++) {
+    NSArray<NSString *> *f =
+        [groups[i] componentsSeparatedByString:@"\x1F"];
+    if (f.count < 11) { continue; }
+    long long nodeId = a11y_header_long(f[0]);
+    long long parentId = a11y_header_long(f[1]);
+    MBWHostedA11yElement *element = byId[@(nodeId)];
+    if (element == nil) { continue; }
+    if (parentId == 0) {
+      [roots addObject:element];
+    } else {
+      MBWHostedA11yElement *parent = byId[@(parentId)];
+      NSMutableArray<MBWHostedA11yElement *> *children =
+          [parent.a11yChildren mutableCopy];
+      if (children == nil) {
+        children = [NSMutableArray<MBWHostedA11yElement *> array];
+      }
+      [children addObject:element];
+      parent.a11yChildren = children;
+    }
+  }
+  // Expose the tree in traversal order (depth-first from the roots): canvas
+  // accessibility on iOS is a flat, ordered element array with absolute
+  // frames — VoiceOver and accessibility introspectors walk the array.
+  NSMutableArray<MBWHostedA11yElement *> *ordered =
+      [NSMutableArray<MBWHostedA11yElement *> array];
+  NSMutableArray<MBWHostedA11yElement *> *queue =
+      [NSMutableArray<MBWHostedA11yElement *> arrayWithArray:roots];
+  while (queue.count > 0) {
+    MBWHostedA11yElement *element = [queue firstObject];
+    [queue removeObjectAtIndex:0];
+    [ordered addObject:element];
+    [queue addObjectsFromArray:element.a11yChildren];
+  }
+  view.accessibilityElements = ordered.count > 0 ? ordered : roots;
+  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
+                                  ordered.firstObject);
+  return (int32_t)ordered.count;
+}
+
 static void mbw_ios_ime_adapter_reset(void) {
   MBWHostedIMEAdapter *adapter = g_ime_adapter;
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -296,6 +501,7 @@ static void mbw_ios_ime_adapter_reset(void) {
   self.window = [[UIWindow alloc] initWithFrame:bounds];
   UIViewController *viewController = [UIViewController new];
   self.hostedView = [[MBWHostedView alloc] initWithFrame:bounds];
+  g_a11y_view = self.hostedView;
   self.hostedView.backgroundColor = UIColor.blackColor;
   self.hostedView.multipleTouchEnabled = NO;
   // UIView defaults contentScaleFactor=1; physical surface metrics need the

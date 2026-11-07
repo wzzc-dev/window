@@ -4,6 +4,8 @@
 #if defined(__MOONBIT__) || 1
 #import <moonbit.h>
 #endif
+#include <stdio.h>
+
 #ifndef MBW_IOS_HOST_QUEUE_CAP
 #define MBW_IOS_HOST_QUEUE_CAP 256
 #endif
@@ -149,6 +151,34 @@ void mbw_ios_host_on_ime_event(int32_t ime_kind, const char *text, int32_t start
 }
 void mbw_ios_host_on_keyboard_codepoint(int32_t codepoint) {
   mbw_ios_host_event event = simple(MBW_IOS_HOST_KEYBOARD_CODEPOINT); event.codepoint = codepoint; enqueue(event);
+}
+void mbw_ios_host_on_named_key(int32_t key_code, int32_t pressed) {
+  mbw_ios_host_event event = simple(MBW_IOS_HOST_NAMED_KEY); event.codepoint = key_code; event.pressed = pressed; enqueue(event);
+}
+/*
+ * Accessibility publish bridge: forwards the MoonBit-encoded semantics tree
+ * (moui/backend/ios/ios_accessibility.mbt) to the template's app delegate,
+ * which builds the UIAccessibilityElement tree over the hosted view. The
+ * template defines mbw_ios_template_a11y_publish; host (macOS) builds of
+ * this file never reference it, so moon test links stay resolved.
+ */
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+extern int32_t mbw_ios_template_a11y_publish(const char *utf8, int32_t length);
+#endif
+
+int32_t mbw_ios_accessibility_publish(const char *utf8, int32_t length) {
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  if (utf8 == NULL || length <= 0) {
+    return 0;
+  }
+  int32_t result = mbw_ios_template_a11y_publish(utf8, length);
+  printf("[moui-a11y] publish len=%d result=%d\n", length, result);
+  return result;
+#else
+  (void)utf8;
+  (void)length;
+  return 0;
+#endif
 }
 
 #if TARGET_OS_IPHONE

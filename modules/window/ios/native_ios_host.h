@@ -35,7 +35,8 @@ enum mbw_ios_host_cmd {
   MBW_IOS_HOST_DESTROY = 12,
   MBW_IOS_HOST_POINTER_PHASE = 13,
   MBW_IOS_HOST_SCROLL = 14,
-  MBW_IOS_HOST_IME_EVENT = 15
+  MBW_IOS_HOST_IME_EVENT = 15,
+  MBW_IOS_HOST_NAMED_KEY = 16
 };
 typedef struct mbw_ios_host_event {
   int32_t kind;
@@ -72,6 +73,7 @@ void mbw_ios_host_on_pointer_phase(int32_t phase, double x, double y, double tim
 void mbw_ios_host_on_scroll(double x, double y, double dx, double dy, int32_t phase);
 void mbw_ios_host_on_keyboard_codepoint(int32_t codepoint);
 void mbw_ios_host_on_ime_event(int32_t ime_kind, const char *text, int32_t start, int32_t end);
+void mbw_ios_host_on_named_key(int32_t key_code, int32_t pressed);
 int32_t mbw_ios_host_poll_raw(uint64_t *handle_out, uint64_t *token_out, int32_t *width_out, int32_t *height_out, int32_t *pressed_out, int32_t *codepoint_out, double *scale_out, double *x_out, double *y_out, int32_t *phase_out, int32_t *ime_kind_out, int32_t *ime_start_out, int32_t *ime_end_out, double *dx_out, double *dy_out);
 void mbw_ios_host_queue_reset(void);
 #ifdef __cplusplus
