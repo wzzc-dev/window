@@ -149,6 +149,102 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
     }
   }
 
+  /**
+   * Writes plain text to the system clipboard. Called from the MoonBit
+   * service thread through JNI; ClipboardManager is marshalled to the UI
+   * thread with a latch so the native caller blocks until the result exists.
+   */
+  public boolean writeClipboard(final String text) {
+    if (text == null || text.isEmpty()) {
+      return false;
+    }
+    final java.util.concurrent.atomic.AtomicBoolean ok =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
+    Runnable write =
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              android.content.ClipboardManager manager =
+                  (android.content.ClipboardManager)
+                      getSystemService(CLIPBOARD_SERVICE);
+              if (manager != null) {
+                manager.setPrimaryClip(
+                    android.content.ClipData.newPlainText("moui", text));
+                ok.set(true);
+              }
+            } catch (Throwable error) {
+              Log.e(TAG, "clipboard write failed", error);
+            }
+          }
+        };
+    return runOnUiAndWait(write, ok);
+  }
+
+  /** Reads plain text from the system clipboard, or null when absent. */
+  public String readClipboard() {
+    final java.util.concurrent.atomic.AtomicReference<String> value =
+        new java.util.concurrent.atomic.AtomicReference<String>(null);
+    Runnable read =
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              android.content.ClipboardManager manager =
+                  (android.content.ClipboardManager)
+                      getSystemService(CLIPBOARD_SERVICE);
+              if (manager != null && manager.hasPrimaryClip()) {
+                android.content.ClipData clip = manager.getPrimaryClip();
+                if (clip != null && clip.getItemCount() > 0) {
+                  CharSequence text =
+                      clip.getItemAt(0).coerceToText(HostedActivity.this);
+                  if (text != null) {
+                    value.set(text.toString());
+                  }
+                }
+              }
+            } catch (Throwable error) {
+              Log.e(TAG, "clipboard read failed", error);
+            }
+          }
+        };
+    runOnUiAndWait(read, null);
+    return value.get();
+  }
+
+  /**
+   * Runs {@code action} on the UI thread and blocks the caller until it
+   * finished. Deadlock-safe when already on the UI thread (runs inline).
+   */
+  private boolean runOnUiAndWait(
+      Runnable action, java.util.concurrent.atomic.AtomicBoolean result) {
+    java.util.concurrent.CountDownLatch latch =
+        new java.util.concurrent.CountDownLatch(1);
+    Runnable wrapped =
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              action.run();
+            } finally {
+              latch.countDown();
+            }
+          }
+        };
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      wrapped.run();
+    } else {
+      runOnUiThread(wrapped);
+      try {
+        latch.await(2, java.util.concurrent.TimeUnit.SECONDS);
+      } catch (InterruptedException error) {
+        Thread.currentThread().interrupt();
+        return false;
+      }
+    }
+    return result == null ? true : result.get();
+  }
+
   @Override
   public void surfaceCreated(SurfaceHolder holder) {
     // Wait for surfaceChanged for valid size.

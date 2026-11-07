@@ -1,5 +1,7 @@
 #include "native_android_host.h"
 
+#include <moonbit.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -337,6 +339,154 @@ int32_t mbw_android_set_status_bar_immersive(int32_t immersive) {
 #else
   (void)immersive;
   return 0;
+#endif
+}
+
+/*
+ * Clipboard host service: synchronous JNI bridge to the HostedActivity
+ * ClipboardManager helpers. The MoonBit service thread calls these; the Java
+ * side marshals to the UI thread with a latch, so the call blocks until the
+ * result exists. Mirrors the HarmonyOS clipboard contract
+ * (moui/backend/harmonyos/harmonyos_clipboard.cpp).
+ */
+int32_t mbw_android_clipboard_write_text(const char *utf8, int32_t length) {
+#if defined(__ANDROID__)
+  JavaVM *vm = g_android_vm;
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  if (vm == NULL || utf8 == NULL || length <= 0) {
+    return 0;
+  }
+  jint env_status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+  if (env_status == JNI_EDETACHED) {
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) {
+      return 0;
+    }
+    attached = 1;
+  } else if (env_status != JNI_OK || env == NULL) {
+    return 0;
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    activity = (*env)->NewLocalRef(env, g_android_activity);
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+  if (activity == NULL) {
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return 0;
+  }
+  /* NewStringUTF expects NUL-terminated modified UTF-8; copy so arbitrary
+   * app text (with embedded NUL or long payloads) stays well-formed. */
+  char *owned = (char *)malloc((size_t)length + 1);
+  int32_t result = 0;
+  if (owned != NULL) {
+    memcpy(owned, utf8, (size_t)length);
+    owned[length] = '\0';
+    jstring text = (*env)->NewStringUTF(env, owned);
+    if (text != NULL) {
+      jclass activity_class = (*env)->GetObjectClass(env, activity);
+      jmethodID write = NULL;
+      if (activity_class != NULL) {
+        write = (*env)->GetMethodID(env, activity_class, "writeClipboard",
+                                    "(Ljava/lang/String;)Z");
+      }
+      if (write != NULL) {
+        jboolean ok =
+            (*env)->CallBooleanMethod(env, activity, write, text);
+        result = (ok == JNI_TRUE && !(*env)->ExceptionCheck(env)) ? 1 : 0;
+      }
+      if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        result = 0;
+      }
+      if (activity_class != NULL) {
+        (*env)->DeleteLocalRef(env, activity_class);
+      }
+      (*env)->DeleteLocalRef(env, text);
+    }
+    free(owned);
+  }
+  (*env)->DeleteLocalRef(env, activity);
+  if (attached) {
+    (*vm)->DetachCurrentThread(vm);
+  }
+  return result;
+#else
+  (void)utf8;
+  (void)length;
+  return 0;
+#endif
+}
+
+moonbit_bytes_t mbw_android_clipboard_read_text(void) {
+#if defined(__ANDROID__)
+  JavaVM *vm = g_android_vm;
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  if (vm == NULL) {
+    return moonbit_make_bytes(0, 0);
+  }
+  jint env_status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+  if (env_status == JNI_EDETACHED) {
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) {
+      return moonbit_make_bytes(0, 0);
+    }
+    attached = 1;
+  } else if (env_status != JNI_OK || env == NULL) {
+    return moonbit_make_bytes(0, 0);
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    activity = (*env)->NewLocalRef(env, g_android_activity);
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+  if (activity == NULL) {
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return moonbit_make_bytes(0, 0);
+  }
+  moonbit_bytes_t bytes = moonbit_make_bytes(0, 0);
+  jclass activity_class = (*env)->GetObjectClass(env, activity);
+  jmethodID read = NULL;
+  if (activity_class != NULL) {
+    read = (*env)->GetMethodID(env, activity_class, "readClipboard",
+                               "()Ljava/lang/String;");
+  }
+  if (read != NULL) {
+    jstring text = (jstring)(*env)->CallObjectMethod(env, activity, read);
+    if ((*env)->ExceptionCheck(env)) {
+      (*env)->ExceptionClear(env);
+    } else if (text != NULL) {
+      const char *utf8 = (*env)->GetStringUTFChars(env, text, NULL);
+      if (utf8 != NULL) {
+        /* GetStringUTFChars length is the modified UTF-8 byte count; NUL
+         * bytes inside the payload truncate here, which matches the
+         * plain-text clipboard contract. */
+        int32_t length = (int32_t)strlen(utf8);
+        bytes = moonbit_make_bytes(length, 0);
+        if (length > 0) {
+          memcpy(bytes, utf8, (size_t)length);
+        }
+        (*env)->ReleaseStringUTFChars(env, text, utf8);
+      }
+      (*env)->DeleteLocalRef(env, text);
+    }
+  }
+  if (activity_class != NULL) {
+    (*env)->DeleteLocalRef(env, activity_class);
+  }
+  (*env)->DeleteLocalRef(env, activity);
+  if (attached) {
+    (*vm)->DetachCurrentThread(vm);
+  }
+  return bytes;
+#else
+  return moonbit_make_bytes(0, 0);
 #endif
 }
 
