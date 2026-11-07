@@ -16,6 +16,12 @@
   <string>1.0</string>
   <key>CFBundleVersion</key>
   <string>1</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>UIDeviceFamily</key>
+  <array>
+    <string>1</string>
+  </array>
   <key>LSRequiresIPhoneOS</key>
   <true/>
   <key>MinimumOSVersion</key>
@@ -27,6 +33,8 @@
   <key>UISupportedInterfaceOrientations</key>
   <array>
     <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
   </array>
   <key>UIRequiredDeviceCapabilities</key>
   <array>
