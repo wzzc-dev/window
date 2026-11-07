@@ -11,6 +11,7 @@ pub(all) enum HostCmd {
   PointerMoved(Double, Double)
   PointerButton(Bool, Double, Double)
   KeyboardText(String)
+  KeyboardKey(Int32, Bool)
   MemoryWarning
   Destroy
 }
@@ -72,6 +73,8 @@ fn host_command_to_embedded(
         ),
       )
     KeyboardText(text) => WindowEvent(Ime(Commit(text)))
+    KeyboardKey(key_code, pressed) =>
+      WindowEvent(android_key_event(key_code, pressed))
     MemoryWarning => MemoryWarning
     Destroy => Destroy
   }
@@ -191,4 +194,63 @@ fn host_default_window_metrics() -> (Int32, Int32, Double, UInt64, UInt64) {
       )
     None => (1, 1, 1.0, 0UL, 0UL)
   }
+}
+
+///|
+/// Maps an Android key code plus its pressed state into a window-core
+/// `KeyEvent`. Character keys travel through `KeyboardText` (IME commits), so
+/// this only needs the named keys a hosted text field reacts to.
+///
+/// Android key codes (android.view.KeyEvent): KEYCODE_ENTER = 66,
+/// KEYCODE_DEL = 67 (Backspace), KEYCODE_FORWARD_DEL = 112 (Delete),
+/// KEYCODE_TAB = 61, KEYCODE_ESCAPE = 111, KEYCODE_DPAD_UP = 19,
+/// KEYCODE_DPAD_DOWN = 20, KEYCODE_DPAD_LEFT = 21, KEYCODE_DPAD_RIGHT = 22,
+/// KEYCODE_MOVE_HOME = 122, KEYCODE_MOVE_END = 123.
+fn android_key_event(key_code : Int32, pressed : Bool) -> @core.WindowEvent {
+  let named = android_named_key(key_code)
+  let state = if pressed {
+    @core.ElementState::Pressed
+  } else {
+    @core.ElementState::Released
+  }
+  let logical_key = match named {
+    Some(named) => @core.Key::Named(named)
+    None => @core.Key::Unidentified(Android(key_code))
+  }
+  KeyboardInput(
+    None,
+    @core.KeyEvent::KeyEvent(
+      @core.PhysicalKey::Unidentified(Android(key_code)),
+      logical_key,
+      logical_key,
+      @core.KeyLocation::Standard,
+      state,
+      false,
+      None,
+      None,
+    ),
+    false,
+  )
+}
+
+///|
+/// Android key code -> window-core named key, for the keys a hosted text
+/// field or shortcut layer reacts to. Unknown codes stay `Android(raw)`.
+fn android_named_key(key_code : Int32) -> @core.NamedKey? {
+  Some(
+    match key_code {
+      66 => @core.NamedKey::Enter
+      67 => @core.NamedKey::Backspace
+      112 => @core.NamedKey::Delete
+      61 => @core.NamedKey::Tab
+      111 => @core.NamedKey::Escape
+      19 => @core.NamedKey::ArrowUp
+      20 => @core.NamedKey::ArrowDown
+      21 => @core.NamedKey::ArrowLeft
+      22 => @core.NamedKey::ArrowRight
+      122 => @core.NamedKey::Home
+      123 => @core.NamedKey::End
+      _ => return None
+    },
+  )
 }

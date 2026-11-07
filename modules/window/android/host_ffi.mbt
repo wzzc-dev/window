@@ -55,6 +55,7 @@ fn host_drain_native_queue() -> Unit {
         if codepoint.val > 0 {
           host_push(KeyboardText(codepoint.val.unsafe_to_char().to_string()))
         }
+      13 => host_push(KeyboardKey(codepoint.val, pressed.val != 0))
       11 => host_push(MemoryWarning)
       12 => host_push(Destroy)
       _ => ()

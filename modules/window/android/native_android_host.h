@@ -17,6 +17,7 @@ enum mbw_android_host_cmd {
   MBW_ANDROID_HOST_POINTER_MOVED = 8,
   MBW_ANDROID_HOST_POINTER_BUTTON = 9,
   MBW_ANDROID_HOST_KEYBOARD_CODEPOINT = 10,
+  MBW_ANDROID_HOST_KEYBOARD_KEY = 13,
   MBW_ANDROID_HOST_MEMORY_WARNING = 11,
   MBW_ANDROID_HOST_DESTROY = 12
 };
@@ -52,6 +53,7 @@ void mbw_android_host_on_surface_resize(int32_t width, int32_t height, double sc
 void mbw_android_host_on_pointer_moved(double x, double y);
 void mbw_android_host_on_pointer_button(int32_t pressed, double x, double y);
 void mbw_android_host_on_keyboard_codepoint(int32_t codepoint);
+void mbw_android_host_on_keyboard_key(int32_t key_code, int32_t pressed);
 
 /* MoonBit drains the queue one event at a time. Returns 1 if an event was written. */
 int32_t mbw_android_host_poll(mbw_android_host_event *out);

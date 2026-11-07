@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -15,6 +16,9 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.inputmethod.BaseInputConnection;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 
 /**
@@ -48,13 +52,19 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
     }
 
     FrameLayout root = new FrameLayout(this);
-    SurfaceView view = new SurfaceView(this);
+    HostedSurfaceView view = new HostedSurfaceView(this);
     view.getHolder().addCallback(this);
+    view.setFocusable(true);
+    view.setFocusableInTouchMode(true);
+    view.requestFocus();
     view.setOnTouchListener(
         new View.OnTouchListener() {
           @Override
           public boolean onTouch(View v, MotionEvent event) {
             dispatchTouch(event);
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+              view.requestFocus();
+            }
             return true;
           }
         });
@@ -162,6 +172,114 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
     }
   }
 
+  /**
+   * Surface view that acts as a text editor: the IME (and adb's
+   * {@code input text}) deliver commits through its InputConnection.
+   */
+  private static final class HostedSurfaceView extends SurfaceView {
+    private final HostedActivity activity;
+
+    HostedSurfaceView(HostedActivity activity) {
+      super(activity);
+      this.activity = activity;
+    }
+
+    @Override
+    public boolean onCheckIsTextEditor() {
+      return true;
+    }
+
+    @Override
+    public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+      outAttrs.inputType = EditorInfo.TYPE_CLASS_TEXT;
+      outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_FULLSCREEN;
+      return new HostedInputConnection(this, activity);
+    }
+  }
+
+  /**
+   * Forwards IME commits and deletions to the native HostCmd queue. Commit
+   * codepoints ride the KeyboardText channel; Backspace/Delete ride the
+   * named-key channel so the hosted text field deletes instead of
+   * inserting a control character.
+   */
+  private static final class HostedInputConnection extends BaseInputConnection {
+    private final HostedActivity activity;
+
+    HostedInputConnection(View target, HostedActivity activity) {
+      super(target, true);
+      this.activity = activity;
+    }
+
+    @Override
+    public boolean commitText(CharSequence text, int newCursorPosition) {
+      for (int index = 0; index < text.length(); index++) {
+        activity.nativeOnKeyboardCodepoint(text.charAt(index));
+      }
+      return true;
+    }
+
+    @Override
+    public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+      for (int index = 0; index < beforeLength; index++) {
+        activity.nativeOnKeyboardKey(KeyEvent.KEYCODE_DEL, 1);
+        activity.nativeOnKeyboardKey(KeyEvent.KEYCODE_DEL, 0);
+      }
+      return super.deleteSurroundingText(beforeLength, afterLength);
+    }
+
+    @Override
+    public boolean sendKeyEvent(KeyEvent event) {
+      activity.forwardKeyEvent(event);
+      return true;
+    }
+  }
+
+  /** Routes hardware/adb key events into the named-key channel. */
+  @Override
+  public boolean dispatchKeyEvent(KeyEvent event) {
+    forwardKeyEvent(event);
+    return super.dispatchKeyEvent(event);
+  }
+
+  private void forwardKeyEvent(KeyEvent event) {
+    int action = event.getAction();
+    if (action != KeyEvent.ACTION_DOWN && action != KeyEvent.ACTION_UP) {
+      return;
+    }
+    int keyCode = event.getKeyCode();
+    switch (keyCode) {
+      case KeyEvent.KEYCODE_DEL:
+      case KeyEvent.KEYCODE_FORWARD_DEL:
+      case KeyEvent.KEYCODE_ENTER:
+      case KeyEvent.KEYCODE_TAB:
+      case KeyEvent.KEYCODE_ESCAPE:
+      case KeyEvent.KEYCODE_DPAD_UP:
+      case KeyEvent.KEYCODE_DPAD_DOWN:
+      case KeyEvent.KEYCODE_DPAD_LEFT:
+      case KeyEvent.KEYCODE_DPAD_RIGHT:
+      case KeyEvent.KEYCODE_MOVE_HOME:
+      case KeyEvent.KEYCODE_MOVE_END:
+        try {
+          nativeOnKeyboardKey(keyCode, action == KeyEvent.ACTION_DOWN ? 1 : 0);
+        } catch (Throwable error) {
+          Log.e(TAG, "nativeOnKeyboardKey failed", error);
+        }
+        return;
+      default:
+        if (action == KeyEvent.ACTION_UP) {
+          int unicode = event.getUnicodeChar(event.getMetaState());
+          if (unicode > 0) {
+            try {
+              nativeOnKeyboardCodepoint(unicode);
+            } catch (Throwable error) {
+              Log.e(TAG, "nativeOnKeyboardCodepoint failed", error);
+            }
+          }
+        }
+    }
+  }
+
   private void dispatchTouch(MotionEvent event) {
     int action;
     switch (event.getActionMasked()) {
@@ -198,4 +316,8 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
   private native void nativeOnSurfaceDestroyed();
 
   private native void nativeOnPointer(int action, float x, float y);
+
+  private native void nativeOnKeyboardCodepoint(int codepoint);
+
+  private native void nativeOnKeyboardKey(int keyCode, int pressed);
 }

@@ -183,6 +183,13 @@ void mbw_android_host_on_keyboard_codepoint(int32_t codepoint) {
   mbw_android_host_enqueue(event);
 }
 
+void mbw_android_host_on_keyboard_key(int32_t key_code, int32_t pressed) {
+  mbw_android_host_event event = mbw_android_host_simple(MBW_ANDROID_HOST_KEYBOARD_KEY);
+  event.codepoint = key_code;
+  event.pressed = pressed;
+  mbw_android_host_enqueue(event);
+}
+
 
 /* Soft present for smoke: lock ANativeWindow and fill solid color / RGBA buffer. */
 int32_t mbw_android_window_present_rgba_pixels(
@@ -454,6 +461,14 @@ JNIEXPORT void JNICALL Java_dev_wzzc_window_template_HostedActivity_nativeOnPoin
   } else if (action == 2) {
     mbw_android_host_on_pointer_button(0, (double)x, (double)y);
   }
+}
+
+JNIEXPORT void JNICALL
+Java_dev_wzzc_window_template_HostedActivity_nativeOnKeyboardKey(
+    JNIEnv *env, jobject thiz, jint key_code, jint pressed) {
+  (void)env;
+  (void)thiz;
+  mbw_android_host_on_keyboard_key((int32_t)key_code, (int32_t)pressed);
 }
 
 JNIEXPORT void JNICALL
