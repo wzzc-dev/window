@@ -13,6 +13,7 @@ pub(all) enum HostCmd {
   PointerPhase(Int32, Double, Double)
   Scroll(Double, Double, Double, Double, Int32)
   KeyboardText(String)
+  NamedKey(Int32, Bool)
   ImeEvent(Int32, String, Int32, Int32)
   MemoryWarning
   Destroy
@@ -78,6 +79,7 @@ fn host_commands_to_embedded(
         ),
       ]
     KeyboardText(text) => [WindowEvent(Ime(Commit(text)))]
+    NamedKey(key_code, pressed) => [WindowEvent(ios_key_event(key_code, pressed))]
     ImeEvent(kind, text, start, end) =>
       match ime_event_to_window_ime(kind, text, start, end) {
         Some(ime) => [WindowEvent(Ime(ime))]
@@ -255,4 +257,56 @@ fn host_default_window_metrics() -> (Int32, Int32, Double, UInt64, UInt64) {
       )
     None => (1, 1, 1.0, 0UL, 0UL)
   }
+}
+
+///|
+/// HID usage code -> window-core named key, for the keys a hosted text field
+/// or shortcut layer reacts to. Unknown codes stay `MacOS(raw)`.
+fn ios_named_key(key_code : Int32) -> @core.NamedKey? {
+  Some(
+    match key_code {
+      40 | 76 => @core.NamedKey::Enter
+      42 => @core.NamedKey::Backspace
+      74 => @core.NamedKey::Delete
+      43 => @core.NamedKey::Tab
+      53 => @core.NamedKey::Escape
+      82 => @core.NamedKey::ArrowUp
+      81 => @core.NamedKey::ArrowDown
+      80 => @core.NamedKey::ArrowLeft
+      79 => @core.NamedKey::ArrowRight
+      115 => @core.NamedKey::Home
+      119 => @core.NamedKey::End
+      _ => return None
+    },
+  )
+}
+
+///|
+/// Build a keyboard-input window event from a hardware key press/release.
+/// Mirrors `android_key_event` in the Android host queue.
+fn ios_key_event(key_code : Int32, pressed : Bool) -> @core.WindowEvent {
+  let named = ios_named_key(key_code)
+  let state = if pressed {
+    @core.ElementState::Pressed
+  } else {
+    @core.ElementState::Released
+  }
+  let logical_key = match named {
+    Some(named) => @core.Key::Named(named)
+    None => @core.Key::Unidentified(MacOS(key_code))
+  }
+  KeyboardInput(
+    None,
+    @core.KeyEvent::KeyEvent(
+      @core.PhysicalKey::Unidentified(MacOS(key_code)),
+      logical_key,
+      logical_key,
+      @core.KeyLocation::Standard,
+      state,
+      false,
+      None,
+      None,
+    ),
+    false,
+  )
 }

@@ -86,6 +86,7 @@ fn host_drain_native_queue() -> Unit {
         let text = @utf8.decode_lossy(bytes[:], ignore_bom=false)
         host_push(ImeEvent(ime_kind.val, text, ime_start.val, ime_end.val))
       }
+      16 => host_push(NamedKey(codepoint.val, pressed.val != 0))
       _ => ()
     }
   }
