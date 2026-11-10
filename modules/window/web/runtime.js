@@ -13,6 +13,7 @@ export function createWindowWebImports() {
   const canvases = new Map();
   const listeners = new Map();
   const textInputs = new Map();
+  const notifications = new Map();
   const stringHandles = new Map();
   const eventTexts = new Map();
   let nextCanvasId = 1;
@@ -526,6 +527,41 @@ export function createWindowWebImports() {
     },
     system_theme() {
       return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? 1 : 0;
+    },
+    notification_send(idHandle, titleHandle, bodyHandle) {
+      if (typeof Notification === "undefined") return 0;
+      if (Notification.permission === "default") {
+        Notification.requestPermission?.().catch(() => {});
+        return 0;
+      }
+      if (Notification.permission !== "granted") return 0;
+      const key = stringValue(idHandle);
+      if (!key) return 0;
+      try {
+        const notification = new Notification(stringValue(titleHandle), {
+          body: stringValue(bodyHandle),
+          tag: key,
+        });
+        notifications.set(key, notification);
+        return 1;
+      } catch (_) {
+        return 0;
+      }
+    },
+    notification_cancel(idHandle) {
+      if (typeof Notification === "undefined") return 0;
+      const key = stringValue(idHandle);
+      const notification = notifications.get(key);
+      if (!notification) return 0;
+      notification.close();
+      notifications.delete(key);
+      return 1;
+    },
+    notification_permission() {
+      if (typeof Notification === "undefined") return 2;
+      if (Notification.permission === "granted") return 1;
+      if (Notification.permission === "denied") return 0;
+      return 2;
     },
   };
 }

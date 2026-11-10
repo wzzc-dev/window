@@ -153,3 +153,46 @@ extern "wasm" fn web_set_canvas_fullscreen(
 
 ///|
 extern "wasm" fn web_focus_canvas(raw_id : Int32) -> Unit = "window_web" "focus_canvas"
+
+///|
+extern "wasm" fn web_notification_send_raw(
+  id : WebString,
+  title : WebString,
+  body : WebString,
+) -> Int32 = "window_web" "notification_send"
+
+///|
+extern "wasm" fn web_notification_cancel_raw(id : WebString) -> Int32 = "window_web" "notification_cancel"
+
+///|
+extern "wasm" fn web_notification_permission_raw() -> Int32 = "window_web" "notification_permission"
+
+///|
+/// Show a browser notification. Returns `false` when the Notification API is
+/// unavailable, permission is not granted, or the constructor throws. When the
+/// permission is still `default`, this asks the browser to prompt and returns
+/// `false`; a later call can succeed after the user grants it.
+pub fn web_notification_send(
+  id : String,
+  title : String,
+  body : String,
+) -> Bool {
+  web_notification_send_raw(
+    web_string_to_extern(id),
+    web_string_to_extern(title),
+    web_string_to_extern(body),
+  ) !=
+  0
+}
+
+///|
+/// Close a notification previously shown by `web_notification_send`.
+pub fn web_notification_cancel(id : String) -> Bool {
+  web_notification_cancel_raw(web_string_to_extern(id)) != 0
+}
+
+///|
+/// 1 = granted, 0 = denied, 2 = default/pending or API unavailable.
+pub fn web_notification_permission() -> Int32 {
+  web_notification_permission_raw()
+}

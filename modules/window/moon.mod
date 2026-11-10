@@ -1,6 +1,6 @@
 name = "wzzc-dev/window"
 
-version = "0.5.4-0.2.6"
+version = "0.5.4-0.2.7"
 
 import {
   "wzzc-dev/windowing@0.1.2",
