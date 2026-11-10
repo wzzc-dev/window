@@ -1,6 +1,10 @@
 package dev.wzzc.window.template;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -230,6 +234,107 @@ public final class HostedActivity extends Activity implements SurfaceHolder.Call
         };
     runOnUiAndWait(read, null);
     return value.get();
+  }
+
+  private static final String MOUI_NOTIFICATION_CHANNEL = "moui_notifications";
+  private static final int MOUI_NOTIFICATION_PERMISSION_REQUEST = 4201;
+
+  /**
+   * Shows a notification through NotificationManager. Called from the MoonBit
+   * service thread; when POST_NOTIFICATIONS is not granted this asks for it
+   * and returns false so the app can retry after the user responds.
+   */
+  public boolean notify(String id, String title, String body) {
+    if (id == null || title == null) {
+      return false;
+    }
+    if (!hasNotificationPermission()) {
+      requestNotificationPermission();
+      return false;
+    }
+    try {
+      NotificationManager manager =
+          (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+      if (manager == null) {
+        return false;
+      }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        manager.createNotificationChannel(
+            new NotificationChannel(
+                MOUI_NOTIFICATION_CHANNEL,
+                "MoUI",
+                NotificationManager.IMPORTANCE_DEFAULT));
+      }
+      Notification.Builder builder =
+          Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+              ? new Notification.Builder(this, MOUI_NOTIFICATION_CHANNEL)
+              : new Notification.Builder(this);
+      int icon =
+          getApplicationInfo().icon != 0
+              ? getApplicationInfo().icon
+              : android.R.drawable.ic_dialog_info;
+      builder
+          .setSmallIcon(icon)
+          .setContentTitle(title)
+          .setContentText(body == null ? "" : body)
+          .setAutoCancel(true);
+      manager.notify(id, 0, builder.build());
+      return true;
+    } catch (Throwable error) {
+      Log.e(TAG, "notification failed", error);
+      return false;
+    }
+  }
+
+  /** Cancels a notification previously shown by {@link #notify}. */
+  public boolean cancelNotification(String id) {
+    if (id == null) {
+      return false;
+    }
+    NotificationManager manager =
+        (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+    if (manager == null) {
+      return false;
+    }
+    manager.cancel(id, 0);
+    return true;
+  }
+
+  /**
+   * Returns granted/denied/restricted for a permission kind. Notification
+   * permission is the only implemented kind; other kinds stay restricted.
+   */
+  public String requestPermission(String kind) {
+    if (kind == null || !kind.equalsIgnoreCase("notifications")) {
+      return "restricted";
+    }
+    if (hasNotificationPermission()) {
+      return "granted";
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return "granted";
+    }
+    requestNotificationPermission();
+    return "restricted";
+  }
+
+  private boolean hasNotificationPermission() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return true;
+    }
+    return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+        == PackageManager.PERMISSION_GRANTED;
+  }
+
+  private void requestNotificationPermission() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return;
+    }
+    runOnUiThread(
+        () ->
+            requestPermissions(
+                new String[] {Manifest.permission.POST_NOTIFICATIONS},
+                MOUI_NOTIFICATION_PERMISSION_REQUEST));
   }
 
   /**

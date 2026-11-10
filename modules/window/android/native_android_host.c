@@ -491,6 +491,227 @@ moonbit_bytes_t mbw_android_clipboard_read_text(void) {
 }
 
 /*
+ * Notification / permission host service: synchronous JNI bridge to the
+ * HostedActivity NotificationManager and runtime-permission helpers. Mirrors
+ * the clipboard bridge above; permission prompts are asynchronous, so a
+ * pending POST_NOTIFICATIONS request returns restricted and the app retries
+ * after the user responds.
+ */
+#if defined(__ANDROID__)
+static int mbw_android_attach(
+    JNIEnv **env_out,
+    jobject *activity_out,
+    int *attached_out) {
+  JavaVM *vm = g_android_vm;
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  if (vm == NULL) {
+    return 0;
+  }
+  jint env_status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
+  if (env_status == JNI_EDETACHED) {
+    if ((*vm)->AttachCurrentThread(vm, &env, NULL) != JNI_OK) {
+      return 0;
+    }
+    attached = 1;
+  } else if (env_status != JNI_OK || env == NULL) {
+    return 0;
+  }
+  pthread_mutex_lock(&g_android_activity_mutex);
+  if (g_android_activity != NULL) {
+    activity = (*env)->NewLocalRef(env, g_android_activity);
+  }
+  pthread_mutex_unlock(&g_android_activity_mutex);
+  if (activity == NULL) {
+    if (attached) {
+      (*vm)->DetachCurrentThread(vm);
+    }
+    return 0;
+  }
+  *env_out = env;
+  *activity_out = activity;
+  *attached_out = attached;
+  return 1;
+}
+
+static void mbw_android_detach(JNIEnv *env, jobject activity, int attached) {
+  if (activity != NULL) {
+    (*env)->DeleteLocalRef(env, activity);
+  }
+  if (attached && g_android_vm != NULL) {
+    (*g_android_vm)->DetachCurrentThread(g_android_vm);
+  }
+}
+
+static jstring mbw_android_new_string(
+    JNIEnv *env,
+    const char *utf8,
+    int32_t length) {
+  if (length <= 0 || utf8 == NULL) {
+    return (*env)->NewStringUTF(env, "");
+  }
+  char *owned = (char *)malloc((size_t)length + 1);
+  if (owned == NULL) {
+    return NULL;
+  }
+  memcpy(owned, utf8, (size_t)length);
+  owned[length] = '\0';
+  jstring result = (*env)->NewStringUTF(env, owned);
+  free(owned);
+  return result;
+}
+#endif
+
+int32_t mbw_android_notification_send(
+    const char *id,
+    int32_t id_length,
+    const char *title,
+    int32_t title_length,
+    const char *body,
+    int32_t body_length) {
+#if defined(__ANDROID__)
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  int32_t result = 0;
+  if (id == NULL || id_length <= 0 ||
+      !mbw_android_attach(&env, &activity, &attached)) {
+    return 0;
+  }
+  jstring jid = mbw_android_new_string(env, id, id_length);
+  jstring jtitle = mbw_android_new_string(env, title, title_length);
+  jstring jbody = mbw_android_new_string(env, body, body_length);
+  if (jid != NULL && jtitle != NULL && jbody != NULL) {
+    jclass activity_class = (*env)->GetObjectClass(env, activity);
+    if (activity_class != NULL) {
+      jmethodID method = (*env)->GetMethodID(
+          env,
+          activity_class,
+          "notify",
+          "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z");
+      if (method != NULL) {
+        jboolean ok = (*env)->CallBooleanMethod(
+            env, activity, method, jid, jtitle, jbody);
+        result = (ok == JNI_TRUE && !(*env)->ExceptionCheck(env)) ? 1 : 0;
+      }
+      if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        result = 0;
+      }
+      (*env)->DeleteLocalRef(env, activity_class);
+    }
+  }
+  if (jid != NULL) (*env)->DeleteLocalRef(env, jid);
+  if (jtitle != NULL) (*env)->DeleteLocalRef(env, jtitle);
+  if (jbody != NULL) (*env)->DeleteLocalRef(env, jbody);
+  mbw_android_detach(env, activity, attached);
+  return result;
+#else
+  (void)id;
+  (void)id_length;
+  (void)title;
+  (void)title_length;
+  (void)body;
+  (void)body_length;
+  return 0;
+#endif
+}
+
+int32_t mbw_android_notification_cancel(
+    const char *id,
+    int32_t id_length) {
+#if defined(__ANDROID__)
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  int32_t result = 0;
+  if (id == NULL || id_length <= 0 ||
+      !mbw_android_attach(&env, &activity, &attached)) {
+    return 0;
+  }
+  jstring jid = mbw_android_new_string(env, id, id_length);
+  if (jid != NULL) {
+    jclass activity_class = (*env)->GetObjectClass(env, activity);
+    if (activity_class != NULL) {
+      jmethodID method = (*env)->GetMethodID(
+          env, activity_class, "cancelNotification", "(Ljava/lang/String;)Z");
+      if (method != NULL) {
+        jboolean ok = (*env)->CallBooleanMethod(env, activity, method, jid);
+        result = (ok == JNI_TRUE && !(*env)->ExceptionCheck(env)) ? 1 : 0;
+      }
+      if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        result = 0;
+      }
+      (*env)->DeleteLocalRef(env, activity_class);
+    }
+    (*env)->DeleteLocalRef(env, jid);
+  }
+  mbw_android_detach(env, activity, attached);
+  return result;
+#else
+  (void)id;
+  (void)id_length;
+  return 0;
+#endif
+}
+
+int32_t mbw_android_permission_request(
+    const char *kind,
+    int32_t kind_length) {
+#if defined(__ANDROID__)
+  JNIEnv *env = NULL;
+  jobject activity = NULL;
+  int attached = 0;
+  int32_t result = 2;
+  if (kind == NULL || kind_length <= 0 ||
+      !mbw_android_attach(&env, &activity, &attached)) {
+    return 2;
+  }
+  jstring jkind = mbw_android_new_string(env, kind, kind_length);
+  if (jkind != NULL) {
+    jclass activity_class = (*env)->GetObjectClass(env, activity);
+    if (activity_class != NULL) {
+      jmethodID method = (*env)->GetMethodID(
+          env,
+          activity_class,
+          "requestPermission",
+          "(Ljava/lang/String;)Ljava/lang/String;");
+      if (method != NULL) {
+        jstring status =
+            (jstring)(*env)->CallObjectMethod(env, activity, method, jkind);
+        if ((*env)->ExceptionCheck(env)) {
+          (*env)->ExceptionClear(env);
+        } else if (status != NULL) {
+          const char *utf8 = (*env)->GetStringUTFChars(env, status, NULL);
+          if (utf8 != NULL) {
+            if (strcmp(utf8, "granted") == 0) {
+              result = 1;
+            } else if (strcmp(utf8, "denied") == 0) {
+              result = 0;
+            } else {
+              result = 2;
+            }
+            (*env)->ReleaseStringUTFChars(env, status, utf8);
+          }
+          (*env)->DeleteLocalRef(env, status);
+        }
+      }
+      (*env)->DeleteLocalRef(env, activity_class);
+    }
+    (*env)->DeleteLocalRef(env, jkind);
+  }
+  mbw_android_detach(env, activity, attached);
+  return result;
+#else
+  (void)kind;
+  (void)kind_length;
+  return 2;
+#endif
+}
+
+/*
  * Accessibility publish bridge: pushes the MoonBit-encoded semantics tree
  * (see moui/backend/android/android_accessibility.mbt) into the template's
  * HostedActivity, which keeps the node table its AccessibilityNodeProvider

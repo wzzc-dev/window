@@ -88,6 +88,22 @@ int32_t mbw_android_window_clear_color(
 /* Configure visible system bars from the MoonBit platform entry. */
 int32_t mbw_android_set_status_bar_immersive(int32_t immersive);
 
+/* Notification/permission host services (HostedActivity JNI bridge). */
+int32_t mbw_android_notification_send(
+    const char *id,
+    int32_t id_length,
+    const char *title,
+    int32_t title_length,
+    const char *body,
+    int32_t body_length);
+int32_t mbw_android_notification_cancel(
+    const char *id,
+    int32_t id_length);
+/* 1 = granted, 0 = denied, 2 = restricted/pending. */
+int32_t mbw_android_permission_request(
+    const char *kind,
+    int32_t kind_length);
+
 #ifdef __cplusplus
 }
 #endif
