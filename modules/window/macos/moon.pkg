@@ -9,6 +9,7 @@ supported_targets = "native"
 
 options(
   "native-stub": [
+    "native_frame_clock.m",
     "native_monitor.c",
     "native_monitor_appkit.m",
     "native_appkit_main_thread.m",

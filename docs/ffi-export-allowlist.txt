@@ -1,3 +1,4 @@
+mbw_appkit_set_application_icon_data
 mbw_appkit_window_level
 mbw_capture_display
 mbw_cf_object_handle
@@ -30,6 +31,11 @@ mbw_display_mode_refresh_rate_millihertz
 mbw_display_mode_width
 mbw_display_refresh_rate_millihertz
 mbw_find_display_mode_handle
+mbw_frame_clock_display_id
+mbw_frame_clock_init
+mbw_frame_clock_refresh_millihz
+mbw_frame_clock_shutdown
+mbw_frame_clock_wait
 mbw_install_device_event_callback
 mbw_install_drag_event_callback
 mbw_install_input_event_callback
