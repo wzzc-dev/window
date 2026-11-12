@@ -288,6 +288,7 @@ pub fn Window::scale_factor(Self) -> Double
 pub fn Window::select_next_tab(Self) -> Unit
 pub fn Window::select_previous_tab(Self) -> Unit
 pub fn Window::select_tab_at_index(Self, Int32) -> Unit
+pub fn Window::set_background_color(Self, r~ : Double, g~ : Double, b~ : Double, a? : Double) -> Unit
 pub fn Window::set_blur(Self, Bool) -> Unit
 pub fn Window::set_borderless_game(Self, Bool) -> Unit
 pub fn Window::set_content_protected(Self, Bool) -> Unit

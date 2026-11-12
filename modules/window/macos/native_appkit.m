@@ -552,6 +552,24 @@ int64_t mbw_objc_msg_send_i64(uint64_t target_handle, uint64_t selector_handle) 
 }
 
 MOONBIT_FFI_EXPORT
+uint64_t mbw_objc_msg_send_u64_f64_f64_f64_f64(uint64_t target_handle,
+                                               uint64_t selector_handle,
+                                               double a,
+                                               double b,
+                                               double c,
+                                               double d) {
+  if (target_handle == 0 || selector_handle == 0) {
+    return 0;
+  }
+  id target = (__bridge id)(void *)(uintptr_t)target_handle;
+  const char *selector_name = (const char *)(uintptr_t)selector_handle;
+  SEL selector = sel_registerName(selector_name);
+  uint64_t (*send_fn)(id, SEL, double, double, double, double) =
+      (uint64_t(*)(id, SEL, double, double, double, double))objc_msgSend;
+  return send_fn(target, selector, a, b, c, d);
+}
+
+MOONBIT_FFI_EXPORT
 double mbw_objc_msg_send_double(uint64_t target_handle, uint64_t selector_handle) {
   if (target_handle == 0 || selector_handle == 0) {
     return 0.0;

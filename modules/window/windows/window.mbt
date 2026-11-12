@@ -1324,3 +1324,17 @@ pub extend Window with Debug::{to_repr}
 
 ///|
 pub extend Window with Eq::{not_equal, equal}
+
+///|
+/// Set the window background color. Unsupported on this platform; the host
+/// still paints the color into its surface before the first frame.
+pub fn Window::set_background_color(
+  self : Window,
+  r~ : Double,
+  g~ : Double,
+  b~ : Double,
+  a~ : Double = 1.0,
+) -> Unit {
+  let _ = self
+  let _ = (r, g, b, a)
+}
