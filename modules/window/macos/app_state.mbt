@@ -45,6 +45,7 @@ priv struct AppStateRuntime {
   mut window_handles : Array[WindowHandleEntry]
   mut deferred_callbacks : Array[DeferredCallback]
   mut dispatch_callback : ((DeferredCallback) -> Unit)?
+  mut last_accent_argb : UInt32?
 }
 
 ///|
@@ -71,6 +72,7 @@ fn AppStateRuntime::AppStateRuntime() -> AppStateRuntime {
     window_handles: [],
     deferred_callbacks: [],
     dispatch_callback: None,
+    last_accent_argb: None,
   }
 }
 
@@ -401,6 +403,15 @@ fn app_state_queue_native_window_event(
         None => ()
       }
     7 => app_state_queue_window_callback(window_id, Occluded(occluded))
+    14 =>
+      match system_accent_color_argb() {
+        Some(argb) =>
+          if app_state_runtime.val.last_accent_argb != Some(argb) {
+            app_state_runtime.val.last_accent_argb = Some(argb)
+            app_state_queue_window_callback(window_id, AccentColorChanged(argb))
+          }
+        None => ()
+      }
     8 =>
       app_state_queue_window_callback(
         window_id,

@@ -643,6 +643,10 @@ pub(all) enum WindowEvent {
   MouseWheel(DeviceId?, MouseScrollDelta, TouchPhase)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
+  /// The system accent color changed, packed as 0xAARRGGBB sRGB. Hosts that
+  /// expose a system accent (macOS `NSColor.controlAccentColor`) send this at
+  /// startup and whenever the user picks a different accent.
+  AccentColorChanged(UInt32)
   Occluded(Bool)
   RedrawRequested
 }
@@ -674,6 +678,10 @@ pub(all) enum WinitWindowEvent {
   TouchpadPressure(DeviceId?, Double, Int32)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
+  /// The system accent color changed, packed as 0xAARRGGBB sRGB. Hosts that
+  /// expose a system accent (macOS `NSColor.controlAccentColor`) send this at
+  /// startup and whenever the user picks a different accent.
+  AccentColorChanged(UInt32)
   Occluded(Bool)
   RedrawRequested
 }
@@ -732,6 +740,7 @@ pub fn WindowEvent::into_winit_events(
     ScaleFactorChanged(scale_factor, writer) =>
       [ScaleFactorChanged(scale_factor, writer)]
     ThemeChanged(theme) => [ThemeChanged(theme)]
+    AccentColorChanged(_) => []
     Occluded(occluded) => [Occluded(occluded)]
     RedrawRequested => [RedrawRequested]
   }

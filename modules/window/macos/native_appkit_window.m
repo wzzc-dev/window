@@ -135,8 +135,17 @@ static void mbw_window_box_destroy(MBWWindowBox *box);
 }
 
 - (void)dealloc {
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
   [_markedText release];
   [super dealloc];
+}
+
+- (void)systemColorsDidChangeNotification:(NSNotification *)notification {
+  (void)notification;
+  if (self.rawId <= 0) {
+    return;
+  }
+  mbw_call_window_event_trampoline(14, self.rawId, 0, 0, 0, 0.0);
 }
 
 - (BOOL)isFlipped {
@@ -912,6 +921,10 @@ MBWNativeWindow *mbw_create_window(int32_t width, int32_t height) {
                                            selector:@selector(viewFrameDidChangeNotification:)
                                                name:NSViewFrameDidChangeNotification
                                              object:content_view];
+  [[NSNotificationCenter defaultCenter] addObserver:content_view
+                                           selector:@selector(systemColorsDidChangeNotification:)
+                                               name:NSSystemColorsDidChangeNotification
+                                             object:nil];
   [content_view setWantsLayer:YES];
   if (content_view.layer != nil) {
     content_view.layer.masksToBounds = YES;

@@ -201,6 +201,11 @@ fn native_application_stop_immediately() -> Unit {
 }
 
 ///|
+pub fn EventLoop::system_accent_color(_self : EventLoop) -> UInt32? {
+  system_accent_color_argb()
+}
+
+///|
 pub fn EventLoop::system_theme(_self : EventLoop) -> @core.Theme? {
   match theme_from_native(native_application_theme()) {
     Some(theme) => Some(theme)
@@ -363,6 +368,11 @@ pub fn ActiveEventLoop::listen_device_events(
 ///|
 pub fn ActiveEventLoop::system_theme(self : ActiveEventLoop) -> @core.Theme? {
   self.inner.system_theme()
+}
+
+///|
+pub fn ActiveEventLoop::system_accent_color(self : ActiveEventLoop) -> UInt32? {
+  self.inner.system_accent_color()
 }
 
 ///|

@@ -1905,6 +1905,7 @@ pub(all) enum WindowEvent {
   MouseWheel(DeviceId?, MouseScrollDelta, TouchPhase)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
+  AccentColorChanged(UInt32)
   Occluded(Bool)
   RedrawRequested
 }
@@ -1980,6 +1981,7 @@ pub(all) enum WinitWindowEvent {
   TouchpadPressure(DeviceId?, Double, Int32)
   ScaleFactorChanged(Double, SurfaceSizeWriter)
   ThemeChanged(Theme)
+  AccentColorChanged(UInt32)
   Occluded(Bool)
   RedrawRequested
 }

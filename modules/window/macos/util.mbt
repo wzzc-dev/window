@@ -411,3 +411,75 @@ fn option_as_alt_from_native(option_as_alt : Int32) -> @core.OptionAsAlt {
     _ => None
   }
 }
+
+///|
+/// Pack 0..1 sRGB components into the 0xAARRGGBB value carried by
+/// `WindowEvent::AccentColorChanged`.
+fn accent_argb_from_components(
+  r : Double,
+  g : Double,
+  b : Double,
+  a~ : Double = 1.0,
+) -> UInt32 {
+  let channel = fn(value : Double) {
+    let finite = if value == value { value } else { 0.0 }
+    let clamped = finite.max(0.0).min(1.0)
+    (clamped * 255.0 + 0.5).to_int().reinterpret_as_uint()
+  }
+  (channel(a) << 24) | (channel(r) << 16) | (channel(g) << 8) | channel(b)
+}
+
+///|
+/// Read the macOS system accent color (`NSColor.controlAccentColor`) as
+/// 0xAARRGGBB sRGB, converting through `NSColorSpace.sRGBColorSpace` when the
+/// system color is not already component-based. `None` when AppKit is
+/// unavailable or the color cannot be read.
+fn system_accent_color_argb() -> UInt32? {
+  let ns_color_class = objc_runtime_class_handle("NSColor")
+  if ns_color_class == (0 : Int32).to_uint64() {
+    return None
+  }
+  let color = appkit_objc_msg_send_u64(
+    ns_color_class,
+    objc_runtime_selector_handle("controlAccentColor"),
+  )
+  if color == (0 : Int32).to_uint64() {
+    return None
+  }
+  let ns_color_space_class = objc_runtime_class_handle("NSColorSpace")
+  let srgb_space = if ns_color_space_class == (0 : Int32).to_uint64() {
+    (0 : Int32).to_uint64()
+  } else {
+    appkit_objc_msg_send_u64(
+      ns_color_space_class,
+      objc_runtime_selector_handle("sRGBColorSpace"),
+    )
+  }
+  let srgb_color = if srgb_space == (0 : Int32).to_uint64() {
+    (0 : Int32).to_uint64()
+  } else {
+    appkit_objc_msg_send_u64_u64(
+      color,
+      objc_runtime_selector_handle("colorUsingColorSpace:"),
+      srgb_space,
+    )
+  }
+  let component_color = if srgb_color == (0 : Int32).to_uint64() {
+    color
+  } else {
+    srgb_color
+  }
+  let red = appkit_objc_msg_send_double(
+    component_color,
+    objc_runtime_selector_handle("redComponent"),
+  )
+  let green = appkit_objc_msg_send_double(
+    component_color,
+    objc_runtime_selector_handle("greenComponent"),
+  )
+  let blue = appkit_objc_msg_send_double(
+    component_color,
+    objc_runtime_selector_handle("blueComponent"),
+  )
+  Some(accent_argb_from_components(red, green, blue))
+}
