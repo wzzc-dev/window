@@ -1150,6 +1150,24 @@ pub fn Window::set_transparent(self : Window, transparent : Bool) -> Unit {
 }
 
 ///|
+/// Set the native window background color. The window host calls this before
+/// showing the window so the first presented frame never flashes the AppKit
+/// default white.
+pub fn Window::set_background_color(
+  self : Window,
+  r~ : Double,
+  g~ : Double,
+  b~ : Double,
+  a~ : Double = 1.0,
+) -> Unit {
+  self.maybe_wait_on_main(fn(window) {
+    set_window_background_color(window.raw_window_handle, r, g, b, a)
+  })
+}
+
+///|
+
+///|
 pub fn Window::is_transparent(self : Window) -> Bool {
   self.maybe_wait_on_main(fn(window) {
     window_transparent(window.raw_window_handle)

@@ -1974,6 +1974,47 @@ fn set_window_transparent(
 }
 
 ///|
+fn set_window_background_color(
+  window_handle : NativeWindow,
+  r : Double,
+  g : Double,
+  b : Double,
+  a : Double,
+) -> Unit {
+  let native_handle = registered_native_handle(window_handle)
+  if native_handle == (0 : Int32).to_uint64() {
+    return ()
+  }
+  let ns_color = objc_runtime_class_handle("NSColor")
+  if ns_color == (0 : Int32).to_uint64() {
+    return ()
+  }
+  let color = appkit_objc_msg_send_u64_f64_f64_f64_f64(
+    ns_color,
+    objc_runtime_selector_handle("colorWithSRGBRed:green:blue:alpha:"),
+    r,
+    g,
+    b,
+    a,
+  )
+  if color == (0 : Int32).to_uint64() {
+    return ()
+  }
+  appkit_objc_msg_send_void_bool(
+    native_handle,
+    objc_runtime_selector_handle("setOpaque:"),
+    true,
+  )
+  appkit_objc_msg_send_void_u64(
+    native_handle,
+    objc_runtime_selector_handle("setBackgroundColor:"),
+    color,
+  )
+}
+
+///|
+
+///|
 fn set_ime_allowed(window_handle : NativeWindow, allowed : Bool) -> Unit {
   set_window_ime_allowed_state(native_window_identity(window_handle), allowed)
   let native_handle = registered_native_handle(window_handle)

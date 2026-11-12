@@ -527,6 +527,18 @@ extern "C" fn appkit_objc_msg_send_double(
 ) -> Double = "mbw_objc_msg_send_double"
 
 ///|
+extern "C" fn appkit_objc_msg_send_u64_f64_f64_f64_f64(
+  target : UInt64,
+  selector : UInt64,
+  a : Double,
+  b : Double,
+  c : Double,
+  d : Double,
+) -> UInt64 = "mbw_objc_msg_send_u64_f64_f64_f64_f64"
+
+///|
+
+///|
 extern "C" fn appkit_objc_msg_send_rect_x(
   target : UInt64,
   selector : UInt64,
