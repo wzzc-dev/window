@@ -2,12 +2,13 @@
 /// Raw surface payload forwarded by the physical embedder. No generation is
 /// created here; MoUI's window-host owner assigns logical generations when it
 /// consumes this callback.
+#derive(Eq, Debug)
 pub(all) struct EmbeddedDispatchSurface {
   handle : UInt64
   token : UInt64
   physical_size : @dpi.PhysicalSize
   scale_factor : Double
-} derive(Eq, Debug)
+}
 
 ///|
 /// Platform-decoded commands accepted by the physical callback adapter.

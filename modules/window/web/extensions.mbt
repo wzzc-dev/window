@@ -5,10 +5,11 @@ pub(all) enum PollStrategy {
 }
 
 ///|
+#derive(Eq, Debug)
 pub struct WindowAttributesWeb {
   priv mut canvas_id_ : String?
   priv mut append_to_body_ : Bool
-} derive(Eq, Debug)
+}
 
 ///|
 pub fn WindowAttributesWeb::default() -> WindowAttributesWeb {

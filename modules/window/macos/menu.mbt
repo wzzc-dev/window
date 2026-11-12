@@ -2,6 +2,7 @@
 // Port target: winit-reference/winit-appkit/src/menu.rs
 
 ///|
+#derive(Eq, Debug)
 pub(all) enum MenuAction {
   About
   Services
@@ -10,20 +11,22 @@ pub(all) enum MenuAction {
   ShowAll
   Quit
   Separator
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub(all) struct KeyEquivalent {
   key : String
   masks : Int32?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub(all) struct MenuItemDescriptor {
   title : String
   action : MenuAction
   key_equivalent : KeyEquivalent?
-} derive(Eq, Debug)
+}
 
 ///|
 fn menu_item_descriptor(
@@ -383,13 +386,14 @@ fn initialize_default_menu(enabled : Bool) -> Unit {
 /// A single item in a system menu. Set `separator = true` for separator items;
 /// `title`, `action_id`, `key_equivalent`, and `key_modifier_mask` are ignored
 /// for separators.
+#derive(Debug)
 pub struct SystemMenuItemDescriptor {
   title : String
   action_id : Int32
   key_equivalent : String
   key_modifier_mask : Int32
   separator : Bool
-} derive(Debug)
+}
 
 ///|
 pub fn SystemMenuItemDescriptor::new(
@@ -404,10 +408,11 @@ pub fn SystemMenuItemDescriptor::new(
 
 ///|
 /// A top-level system menu (e.g., File, Edit, View) with its items.
+#derive(Debug)
 pub struct SystemMenuDescriptor {
   title : String
   items : Array[SystemMenuItemDescriptor]
-} derive(Debug)
+}
 
 ///|
 pub fn SystemMenuDescriptor::new(

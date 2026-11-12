@@ -47,12 +47,13 @@ pub fn EmbeddedDispatchQueue::push(Self, EmbeddedDispatchCommand) -> Unit
 pub fn EmbeddedDispatchQueue::surface(Self) -> EmbeddedDispatchSurface?
 pub fn EmbeddedDispatchQueue::surfaces_allowed(Self) -> Bool
 
+#derive(Eq, @debug.Debug)
 pub(all) struct EmbeddedDispatchSurface {
   handle : UInt64
   token : UInt64
   physical_size : @dpi.PhysicalSize
   scale_factor : Double
-} derive(Eq, @debug.Debug)
+}
 pub fn EmbeddedDispatchSurface::equal(Self, Self) -> Bool
 pub fn EmbeddedDispatchSurface::not_equal(Self, Self) -> Bool
 pub fn EmbeddedDispatchSurface::to_repr(Self) -> @debug.Repr

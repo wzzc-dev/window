@@ -1,8 +1,9 @@
 ///|
+#derive(Eq, Debug)
 pub struct EventLoopProxy {
   priv context : UInt64
   priv wake_fd : Int32
-} derive(Eq, Debug)
+}
 
 ///|
 pub fn EventLoopProxy::wake_up(self : EventLoopProxy) -> Unit {
@@ -11,20 +12,23 @@ pub fn EventLoopProxy::wake_up(self : EventLoopProxy) -> Unit {
 }
 
 ///|
+#derive(Debug)
 pub struct EventLoop {
   priv context : UInt64
   priv wake_fd : Int32
-} derive(Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct EventLoopBuilder {
   priv mut platform_attributes_ : @core.PlatformEventLoopAttributes
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Debug)
 pub struct ActiveEventLoop {
   priv inner : EventLoop
-} derive(Debug)
+}
 
 ///|
 pub fn EventLoop::builder() -> EventLoopBuilder {

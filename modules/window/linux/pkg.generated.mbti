@@ -22,9 +22,10 @@ pub fn write_clipboard_text(String) -> Bool
 // Errors
 
 // Types and methods
+#derive(@debug.Debug)
 pub struct ActiveEventLoop {
   // private fields
-} derive(@debug.Debug)
+}
 pub fn ActiveEventLoop::allows_automatic_window_tabbing(Self) -> Bool
 pub fn ActiveEventLoop::available_monitors(Self) -> Array[@core.MonitorHandle]
 pub fn ActiveEventLoop::control_flow(Self) -> @core.ControlFlow
@@ -59,9 +60,10 @@ pub impl ActiveEventLoopExtLinux for ActiveEventLoop
 pub impl @windowing.DisplayHandleProvider for ActiveEventLoop
 pub impl @windowing.HasDisplayHandle for ActiveEventLoop
 
+#derive(@debug.Debug)
 pub struct EventLoop {
   // private fields
-} derive(@debug.Debug)
+}
 pub fn EventLoop::EventLoop() -> Self
 pub fn EventLoop::allows_automatic_window_tabbing(Self) -> Bool
 pub fn EventLoop::available_monitors(Self) -> Array[@core.MonitorHandle]
@@ -110,9 +112,10 @@ pub impl EventLoopExtLinux for EventLoop
 pub impl @windowing.DisplayHandleProvider for EventLoop
 pub impl @windowing.HasDisplayHandle for EventLoop
 
+#derive(Eq, @debug.Debug)
 pub struct EventLoopBuilder {
   // private fields
-} derive(Eq, @debug.Debug)
+}
 pub fn EventLoopBuilder::EventLoopBuilder() -> Self
 pub fn EventLoopBuilder::build(Self) -> EventLoop
 pub fn EventLoopBuilder::default() -> Self
@@ -131,9 +134,10 @@ pub fn EventLoopBuilder::with_default_menu(Self, Bool) -> Self
 pub fn EventLoopBuilder::with_platform_attributes(Self, @core.PlatformEventLoopAttributes) -> Self
 pub impl Show for EventLoopBuilder
 
+#derive(Eq, @debug.Debug)
 pub struct EventLoopProxy {
   // private fields
-} derive(Eq, @debug.Debug)
+}
 pub fn EventLoopProxy::equal(Self, Self) -> Bool
 pub fn EventLoopProxy::not_equal(Self, Self) -> Bool
 pub fn EventLoopProxy::output(Self, &Logger) -> Unit
@@ -286,9 +290,10 @@ pub impl @windowing.HasWindowHandle for Window
 pub impl @windowing.WindowHandleProvider for Window
 
 #alias(WindowAttributesLinuxAlias)
+#derive(Eq, @debug.Debug)
 pub struct WindowAttributesLinux {
   // private fields
-} derive(Eq, @debug.Debug)
+}
 pub fn WindowAttributesLinux::app_id(Self) -> String?
 pub fn WindowAttributesLinux::default() -> Self
 pub fn WindowAttributesLinux::equal(Self, Self) -> Bool
@@ -298,10 +303,11 @@ pub fn WindowAttributesLinux::use_shm_placeholder(Self) -> Bool
 pub fn WindowAttributesLinux::with_app_id(Self, String) -> Self
 pub fn WindowAttributesLinux::with_shm_placeholder(Self, Bool) -> Self
 
+#derive(Eq, @debug.Debug)
 pub enum WindowingBackend {
   Wayland
   X11
-} derive(Eq, @debug.Debug)
+}
 pub fn WindowingBackend::equal(Self, Self) -> Bool
 pub fn WindowingBackend::not_equal(Self, Self) -> Bool
 pub fn WindowingBackend::to_repr(Self) -> @debug.Repr

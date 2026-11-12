@@ -1,8 +1,9 @@
 ///|
+#derive(Eq, Debug)
 pub struct WindowAttributesLinux {
   priv mut app_id_ : String?
   priv mut use_shm_placeholder_ : Bool
-} derive(Eq, Debug)
+}
 
 ///|
 pub fn WindowAttributesLinux::default() -> WindowAttributesLinux {

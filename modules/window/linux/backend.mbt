@@ -2,10 +2,11 @@
 /// The windowing system backing the Linux event loop. Selected at startup by
 /// `native_backend.c` (MOUI_LINUX_WINDOWING / WAYLAND_DISPLAY / DISPLAY) and
 /// stable for the lifetime of the process.
+#derive(Eq, Debug)
 pub enum WindowingBackend {
   Wayland
   X11
-} derive(Eq, Debug)
+}
 
 ///|
 fn windowing_backend_from_tag(tag : Int32) -> WindowingBackend {

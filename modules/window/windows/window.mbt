@@ -1,4 +1,5 @@
 ///|
+#derive(Eq, Debug)
 pub struct Window {
   priv id : @core.WindowId
   priv hwnd : UInt64
@@ -24,7 +25,7 @@ pub struct Window {
   priv mut saved_window_rect_bottom : Int32
   priv mut saved_window_style : UInt64
   priv mut saved_window_ex_style : UInt64
-} derive(Eq, Debug)
+}
 
 ///|
 pub type WindowAttributesWindows = @core.PlatformWindowAttributes
