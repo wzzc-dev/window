@@ -185,7 +185,8 @@ fn app_state_queue_window_event(
       let mut index = callbacks.length() - 1
       while index >= 0 {
         match callbacks[index] {
-          WindowEvent(id, @core.WindowEvent::PointerMoved(_, _, _, _)) if id == window_id => {
+          WindowEvent(id, @core.WindowEvent::PointerMoved(_, _, _, _)) if id ==
+            window_id => {
             callbacks[index] = WindowEvent(
               window_id,
               @core.WindowEvent::PointerMoved(
@@ -210,7 +211,7 @@ fn app_state_queue_window_event(
     @core.WindowEvent::MouseWheel(
       _,
       @core.MouseScrollDelta::PixelDelta(delta),
-      phase,
+      phase
     ) => {
       // Coalesce consecutive wheel events by summing their pixel deltas: a
       // scroll gesture streams deltas at touchpad rate, and each dispatched
@@ -228,8 +229,8 @@ fn app_state_queue_window_event(
             @core.WindowEvent::MouseWheel(
               _,
               @core.MouseScrollDelta::PixelDelta(last),
-              _,
-            ),
+              _
+            )
           ) if id == window_id => {
             callbacks[index] = WindowEvent(
               window_id,
@@ -276,8 +277,9 @@ fn app_state_take_pending_redraws() -> Array[Int32] {
   pending
 }
 
+///|
 /// Temporary diagnostic for the drag-tracking investigation. Remove with the probe.
-let app_state_last_taken_redraws : Ref[Int] = Ref(0)
+let app_state_last_taken_redraws : Ref[Int32] = Ref(0)
 
 ///|
 pub fn app_state_redraw_queue_probe() -> String {
