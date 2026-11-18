@@ -79,7 +79,8 @@ fn host_commands_to_embedded(
         ),
       ]
     KeyboardText(text) => [WindowEvent(Ime(Commit(text)))]
-    NamedKey(key_code, pressed) => [WindowEvent(ios_key_event(key_code, pressed))]
+    NamedKey(key_code, pressed) =>
+      [WindowEvent(ios_key_event(key_code, pressed))]
     ImeEvent(kind, text, start, end) =>
       match ime_event_to_window_ime(kind, text, start, end) {
         Some(ime) => [WindowEvent(Ime(ime))]

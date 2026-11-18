@@ -9,7 +9,6 @@ fn test_window_for_monitor(handle : UInt64) -> Window {
     blur_state: false,
     decorated_state: true,
     minimized_state: false,
-    maximized_state: false,
     enabled_buttons_state: @core.WindowButtons::all(),
     window_level_state: Normal,
     theme_state: None,
@@ -72,6 +71,7 @@ test "linux window current monitor does not fall back without surface output" {
     cursor: Icon(Default),
     fullscreen: None,
     focused: false,
+    maximized: false,
     surface_size: PhysicalSize(1, 1),
     scale_factor: 1.0,
   })

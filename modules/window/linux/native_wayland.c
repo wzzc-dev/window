@@ -40,6 +40,7 @@ enum {
   MBW_LINUX_EVENT_REDRAW = 5,
   MBW_LINUX_EVENT_FOCUS = 6,
   MBW_LINUX_EVENT_PROXY_WAKE = 7,
+  MBW_LINUX_EVENT_MAXIMIZED_CHANGED = 8,
   MBW_LINUX_INPUT_POINTER_ENTER = 10,
   MBW_LINUX_INPUT_POINTER_MOVE = 11,
   MBW_LINUX_INPUT_POINTER_LEAVE = 12,
@@ -60,6 +61,13 @@ enum {
   MBW_WAYLAND_TITLEBAR_BUTTON_SLOT = 28,
   MBW_WAYLAND_TITLEBAR_BUTTON_GAP = 8,
   MBW_WAYLAND_TITLEBAR_BUTTON_TOP = 7,
+  // Second-click window and movement slop for the titlebar zoom gesture.
+  // The slot geometry constants mirror the MoUI LinuxTitlebarPolicy defaults
+  // (slot 28, gap 8, edge margin 8, height 32): the compositor-side gesture
+  // detector only needs the button-slot exclusion zone, while the framework
+  // owns the authoritative per-button hit test.
+  MBW_WAYLAND_DOUBLE_CLICK_MS = 400,
+  MBW_WAYLAND_DOUBLE_CLICK_SLOP = 8,
   MBW_WAYLAND_POINTER_LEFT_BUTTON = 0x110,
   MBW_WAYLAND_RESIZE_BORDER_PX = 6,
 };
@@ -142,7 +150,12 @@ typedef struct mbw_wayland_window {
   int restore_height;
   int pointer_x;
   int pointer_y;
-  int active_titlebar_button;
+  // Titlebar zoom gesture tracking (double-click on the bare band). The time
+  // is the Wayland event timestamp in milliseconds; a zero time means there
+  // is no recent click to pair with. Unsigned subtraction is wrap-safe.
+  uint32_t last_titlebar_click_time;
+  int last_titlebar_click_x;
+  int last_titlebar_click_y;
   int resizing;
   int32_t hover_edge;
   // Pending pointer events buffered between wl_pointer.frame callbacks.
@@ -683,10 +696,21 @@ static int titlebar_hit_button(mbw_wayland_window_t *window, int x, int y) {
   return 0;
 }
 
-static int titlebar_hit_drag(mbw_wayland_window_t *window, int x, int y) {
-  return window && window->client_decorated && y >= 0 &&
-         y < MBW_WAYLAND_TITLEBAR_HEIGHT &&
-         titlebar_hit_button(window, x, y) == 0;
+// Whether a press on the bare titlebar band completes a double-click. Resets
+// the tracker when it fires so the next triple press starts a fresh gesture.
+static int titlebar_double_click_due(mbw_wayland_window_t *window,
+                                     uint32_t time) {
+  if (window->last_titlebar_click_time != 0 &&
+      (uint32_t)(time - window->last_titlebar_click_time) <=
+          MBW_WAYLAND_DOUBLE_CLICK_MS &&
+      abs(window->pointer_x - window->last_titlebar_click_x) <=
+          MBW_WAYLAND_DOUBLE_CLICK_SLOP &&
+      abs(window->pointer_y - window->last_titlebar_click_y) <=
+          MBW_WAYLAND_DOUBLE_CLICK_SLOP) {
+    window->last_titlebar_click_time = 0;
+    return 1;
+  }
+  return 0;
 }
 
 static void draw_client_titlebar(mbw_wayland_window_t *window,
@@ -944,6 +968,7 @@ static void xdg_toplevel_configure(void *data,
   }
   int was_maximized = window->maximized || window->requested_maximized ||
                       window->pending_unmaximize;
+  int previous_maximized = window->maximized;
   window->maximized = 0;
   if (states) {
     uint32_t *state;
@@ -955,6 +980,14 @@ static void xdg_toplevel_configure(void *data,
   }
   window->requested_maximized = window->maximized;
   window->pending_unmaximize = 0;
+  // Report the observed maximize state whenever it changes. Every maximize
+  // and restore source converges here — compositor shortcuts, tile gestures,
+  // and host-side requests alike — so the host runtime never has to guess
+  // which actor moved the window.
+  if (previous_maximized != window->maximized) {
+    emit_window(MBW_LINUX_EVENT_MAXIMIZED_CHANGED, window->raw_id,
+                window->maximized, 0, 0, 0.0);
+  }
   if (width > 0) {
     window->width = width;
   } else if (was_maximized && !window->maximized && window->restore_width > 0) {
@@ -1437,7 +1470,6 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
                            uint32_t serial, uint32_t time, uint32_t button,
                            uint32_t state) {
   (void)pointer;
-  (void)time;
   mbw_wayland_context_t *context = (mbw_wayland_context_t *)data;
   if (context) {
     context->last_serial = serial;
@@ -1445,52 +1477,69 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
   mbw_wayland_window_t *window = context ? context->pointer_window : NULL;
   if (window) {
     if (button == MBW_WAYLAND_POINTER_LEFT_BUTTON) {
-      if (state != WL_POINTER_BUTTON_STATE_PRESSED) {
-        if (window->active_titlebar_button != 0) {
-          window->active_titlebar_button = 0;
+      // Client-side decorations: the titlebar band is chrome the host
+      // framework paints, so button-slot clicks are no longer handled here.
+      // Presses and releases are forwarded to the host runtime, whose
+      // policy owns the single authoritative hit test and issues window
+      // requests through its own queue. The native layer keeps the
+      // compositor gestures the host cannot perform: interactive edge
+      // resize, the bare-band move, and the double-click zoom.
+      int in_titlebar = window->client_decorated && window->pointer_y >= 0 &&
+                        window->pointer_y < MBW_WAYLAND_TITLEBAR_HEIGHT;
+      if (in_titlebar && state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        int on_button = titlebar_hit_button(window, window->pointer_x,
+                                            window->pointer_y) != 0;
+        if (!on_button) {
+          if (!window->maximized && !window->requested_maximized &&
+              window->xdg_toplevel && context->seat &&
+              window_edge_at_pointer(window) !=
+                  XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
+            // Interactive edge/corner drag: hand the pointer to the
+            // compositor (mirrors the band move path).
+            xdg_toplevel_resize(window->xdg_toplevel, context->seat, serial,
+                                window_edge_at_pointer(window));
+            wl_surface_commit(window->surface);
+            if (context->display) {
+              wl_display_flush(context->display);
+            }
+            return;
+          }
+          if (window->xdg_toplevel && context->seat) {
+            if (titlebar_double_click_due(window, time)) {
+              request_maximized(window, !(window->requested_maximized ||
+                                          window->maximized));
+            } else {
+              window->last_titlebar_click_time = time;
+              window->last_titlebar_click_x = window->pointer_x;
+              window->last_titlebar_click_y = window->pointer_y;
+              xdg_toplevel_move(window->xdg_toplevel, context->seat, serial);
+            }
+            wl_surface_commit(window->surface);
+            if (context->display) {
+              wl_display_flush(context->display);
+            }
+            return;
+          }
+        }
+        // Button-slot press: fall through and forward to the host runtime.
+      } else if (!in_titlebar && state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        if (window->client_decorated && !window->maximized &&
+            !window->requested_maximized && window->xdg_toplevel &&
+            context->seat && window_edge_at_pointer(window) !=
+                                 XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
+          // Content-area edges (bottom and corners): same interactive
+          // resize gesture as the band edges.
+          xdg_toplevel_resize(window->xdg_toplevel, context->seat, serial,
+                              window_edge_at_pointer(window));
+          wl_surface_commit(window->surface);
+          if (context->display) {
+            wl_display_flush(context->display);
+          }
           return;
         }
-      } else {
-        window->active_titlebar_button =
-            titlebar_hit_button(window, window->pointer_x, window->pointer_y);
       }
-      int titlebar_button = window->active_titlebar_button;
-      if (titlebar_button == 1) {
-        emit_window(MBW_LINUX_EVENT_CLOSE, window->raw_id, 0, 0, 0, 0.0);
-        return;
-      } else if (titlebar_button == 2 && window->xdg_toplevel) {
-        request_maximized(window, !(window->requested_maximized || window->maximized));
-        wl_surface_commit(window->surface);
-        if (context && context->display) {
-          wl_display_flush(context->display);
-        }
-        return;
-      } else if (titlebar_button == 3 && window->xdg_toplevel) {
-        xdg_toplevel_set_minimized(window->xdg_toplevel);
-        wl_surface_commit(window->surface);
-        if (context && context->display) {
-          wl_display_flush(context->display);
-        }
-        return;
-      } else if (window->client_decorated && !window->maximized &&
-                 !window->requested_maximized && window->xdg_toplevel &&
-                 context->seat && window_edge_at_pointer(window) !=
-                                      XDG_TOPLEVEL_RESIZE_EDGE_NONE) {
-        // Client-decorated resize: hand the pointer to the compositor for an
-        // interactive edge/corner drag (mirrors the titlebar move path).
-        xdg_toplevel_resize(window->xdg_toplevel, context->seat, serial,
-                            window_edge_at_pointer(window));
-        wl_surface_commit(window->surface);
-        if (context->display) {
-          wl_display_flush(context->display);
-        }
-        return;
-      } else if (titlebar_hit_drag(window, window->pointer_x,
-                                   window->pointer_y) &&
-                 window->xdg_toplevel && context && context->seat) {
-        xdg_toplevel_move(window->xdg_toplevel, context->seat, serial);
-        return;
-      }
+      // Everything else — button-slot presses and releases, band releases,
+      // content clicks — is buffered and emitted to the host runtime below.
     }
     // Buffer until the next wl_pointer.frame; emitting per-button re-enters
     // the MoonBit runtime for every sub-event of a logical click.

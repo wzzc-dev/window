@@ -17,6 +17,7 @@ priv struct WindowEntry {
   mut cursor : @core.Cursor
   mut fullscreen : @core.Fullscreen?
   mut focused : Bool
+  mut maximized : Bool
   mut surface_size : @dpi.PhysicalSize
   scale_factor : Double
 }
@@ -260,6 +261,22 @@ fn app_state_set_window_focused(raw_id : Int32, focused : Bool) -> Unit {
     entry.focused = focused
     entry
   })
+}
+
+///|
+fn app_state_set_window_maximized(raw_id : Int32, maximized : Bool) -> Unit {
+  app_state_update_window_entry(raw_id, entry => {
+    entry.maximized = maximized
+    entry
+  })
+}
+
+///|
+fn app_state_window_maximized(raw_id : Int32) -> Bool {
+  match app_state_window_entry(raw_id) {
+    Some(entry) => entry.maximized
+    None => false
+  }
 }
 
 ///|

@@ -1890,6 +1890,7 @@ pub(all) enum WindowEvent {
   DragDropped(Array[String], @dpi.PhysicalPositionF64)
   DragLeft(@dpi.PhysicalPositionF64?)
   Focused(Bool)
+  MaximizedChanged(Bool)
   Ime(Ime)
   KeyboardInput(DeviceId?, KeyEvent, Bool)
   ModifiersChanged(Modifiers)

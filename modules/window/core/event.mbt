@@ -622,6 +622,12 @@ pub(all) enum WindowEvent {
   DragDropped(Array[String], @dpi.PhysicalPositionF64)
   DragLeft(@dpi.PhysicalPositionF64?)
   Focused(Bool)
+  /// The window's maximize state changed. Emitted for every source of a
+  /// maximize/restore — a compositor shortcut, a tiling gesture, or a
+  /// host-side request — so observers track the observed state instead of
+  /// guessing which actor moved the window. Linux/Wayland emits it from the
+  /// xdg_toplevel configure state; other platforms may follow.
+  MaximizedChanged(Bool)
   Ime(Ime)
   KeyboardInput(DeviceId?, KeyEvent, Bool)
   ModifiersChanged(Modifiers)
@@ -741,6 +747,7 @@ pub fn WindowEvent::into_winit_events(
       [ScaleFactorChanged(scale_factor, writer)]
     ThemeChanged(theme) => [ThemeChanged(theme)]
     AccentColorChanged(_) => []
+    MaximizedChanged(_) => []
     Occluded(occluded) => [Occluded(occluded)]
     RedrawRequested => [RedrawRequested]
   }

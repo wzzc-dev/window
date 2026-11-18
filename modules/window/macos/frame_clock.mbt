@@ -33,11 +33,7 @@ extern "C" fn native_frame_clock_refresh_millihz() -> Int32 = "mbw_frame_clock_r
 /// screen falls back to the main display; a headless environment returns
 /// `false` and the caller keeps its timed sleep.
 pub fn host_vsync_init(window : Window) -> Bool {
-  let view = try {
-    window.content_view_handle()
-  } catch {
-    _ => (0 : UInt64)
-  }
+  let view = window.content_view_handle() catch { _ => (0 : UInt64) }
   host_vsync_init_handle(view)
 }
 
