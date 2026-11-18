@@ -163,6 +163,7 @@ test "linux focus updates has_focus state" {
     cursor: Icon(Default),
     fullscreen: None,
     focused: false,
+    maximized: false,
     surface_size: PhysicalSize(1, 1),
     scale_factor: 1.0,
   })

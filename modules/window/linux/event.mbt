@@ -17,6 +17,9 @@ let linux_event_focus : Int32 = 6
 let linux_event_proxy_wake : Int32 = 7
 
 ///|
+let linux_event_maximized_changed : Int32 = 8
+
+///|
 let linux_event_pointer_enter : Int32 = 10
 
 ///|
@@ -525,6 +528,11 @@ fn dispatch_native_window_event(
       app_state_queue_window_event(raw_id, Focused(focused))
     }
     k if k == linux_event_proxy_wake => app_state_queue_proxy_wake_up()
+    k if k == linux_event_maximized_changed => {
+      let maximized = arg0 != 0
+      app_state_set_window_maximized(raw_id, maximized)
+      app_state_queue_window_event(raw_id, MaximizedChanged(maximized))
+    }
     41 => {
       let theme = if argd > 0.0 { @core.Theme::Dark } else { Light }
       app_state_queue_window_event(raw_id, ThemeChanged(theme))

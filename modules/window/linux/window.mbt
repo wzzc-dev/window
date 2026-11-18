@@ -8,7 +8,6 @@ pub struct Window {
   priv mut blur_state : Bool
   priv mut decorated_state : Bool
   priv mut minimized_state : Bool
-  priv mut maximized_state : Bool
   priv mut enabled_buttons_state : @core.WindowButtons
   priv mut window_level_state : @core.WindowLevel
   priv mut theme_state : @core.Theme?
@@ -103,6 +102,7 @@ pub fn Window::new_with_linux_attributes(
     cursor: attributes.cursor(),
     fullscreen: attributes.fullscreen(),
     focused: false,
+    maximized: false,
     surface_size: size,
     scale_factor: 1.0,
   })
@@ -126,7 +126,6 @@ pub fn Window::new_with_linux_attributes(
     blur_state: attributes.blur(),
     decorated_state: attributes.decorations(),
     minimized_state: false,
-    maximized_state: attributes.maximized(),
     enabled_buttons_state: attributes.enabled_buttons(),
     window_level_state: attributes.window_level(),
     theme_state: attributes.theme(),
@@ -310,13 +309,13 @@ pub fn Window::is_minimized(self : Window) -> Bool? {
 
 ///|
 pub fn Window::set_maximized(self : Window, maximized : Bool) -> Unit {
-  self.maximized_state = maximized
+  app_state_set_window_maximized(self.raw_id(), maximized)
   native_window_set_maximized(self.handle, maximized)
 }
 
 ///|
 pub fn Window::is_maximized(self : Window) -> Bool {
-  self.maximized_state
+  app_state_window_maximized(self.raw_id())
 }
 
 ///|
