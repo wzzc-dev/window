@@ -211,7 +211,7 @@ fn app_state_queue_window_event(
     @core.WindowEvent::MouseWheel(
       _,
       @core.MouseScrollDelta::PixelDelta(delta),
-      phase
+      phase,
     ) => {
       // Coalesce consecutive wheel events by summing their pixel deltas: a
       // scroll gesture streams deltas at touchpad rate, and each dispatched
@@ -229,8 +229,8 @@ fn app_state_queue_window_event(
             @core.WindowEvent::MouseWheel(
               _,
               @core.MouseScrollDelta::PixelDelta(last),
-              _
-            )
+              _,
+            ),
           ) if id == window_id => {
             callbacks[index] = WindowEvent(
               window_id,

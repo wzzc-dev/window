@@ -521,6 +521,13 @@ fn Window::apply_ime_request_data(
   if self.ime_capabilities_state is None {
     raise NotEnabled
   }
+  // Windows/Linux/iOS apply the surrounding text here; macOS dropped it, so
+  // the system IME never learned the field content and the candidate anchor
+  // lost its surrounding-text context.
+  match request_data.surrounding_text() {
+    Some(text) => self.set_ime_surrounding_text(Some(text))
+    None => ()
+  }
   if request_data.has_cursor_area() {
     if self.ime_supports_cursor_area() {
       match request_data.cursor_area() {

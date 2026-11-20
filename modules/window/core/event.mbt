@@ -639,7 +639,7 @@ pub(all) enum WindowEvent {
     ElementState,
     @dpi.PhysicalPositionF64,
     Bool,
-    ButtonSource
+    ButtonSource,
   )
   PinchGesture(DeviceId?, Double, TouchPhase)
   PanGesture(DeviceId?, @dpi.PhysicalPositionF64, TouchPhase)
